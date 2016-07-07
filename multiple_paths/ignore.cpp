@@ -1,0 +1,1356 @@
+#include "ignore.h"
+#include "globalVar.h"
+#include "dummyExtras.h"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+void remove_fanin_higher_than_three()
+{
+
+	int total = 0;
+	int totalIn = 0;
+	int all = 0;
+	int i, j, k, x;
+	int port1 = -1;
+	int port2 = -1;
+	std::cout << "removing fanin higher than 3 " << std::endl;
+	for (i = 0; i < FPGAsizeX; i++)
+	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			for (k = 0; k < FPGAsizeZ; k++)
+			{
+				port1 = -1;
+				port2 = -1;
+				if (fpgaLogic[i][j][k].usedInputPorts>2) // inputs are more than 2. we will delete some paths
+				{
+					total++;
+					// check which inputs will remain. We decided to keep the most critical ones
+					for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++)
+					{
+						if (!paths[fpgaLogic[i][j][k].nodes[x].path][0].deleted && port1 < 0)
+						{
+							port1 = paths[fpgaLogic[i][j][k].nodes[x].path][fpgaLogic[i][j][k].nodes[x].node].portIn;
+						}
+						else if (!paths[fpgaLogic[i][j][k].nodes[x].path][0].deleted && port1 != paths[fpgaLogic[i][j][k].nodes[x].path][fpgaLogic[i][j][k].nodes[x].node].portIn)
+						{
+							port2 = paths[fpgaLogic[i][j][k].nodes[x].path][fpgaLogic[i][j][k].nodes[x].node].portIn;
+							break;
+						}
+					}
+					assert(port2 > -1 && port1>-1 && port1 != port2);
+					// delete all paths not using port1 or port2
+					for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++)
+					{
+						if (paths[fpgaLogic[i][j][k].nodes[x].path][fpgaLogic[i][j][k].nodes[x].node].portIn != port1 && paths[fpgaLogic[i][j][k].nodes[x].path][fpgaLogic[i][j][k].nodes[x].node].portIn != port2)
+						{
+							if (delete_path(fpgaLogic[i][j][k].nodes[x].path))
+								totalIn++;
+						}
+					}
+
+				}
+			}
+		}
+	}
+	std::cout << "total number of LE using more than 2 inputs: " << total << std::endl;
+	std::cout << "**********Number of deleted paths due to number of inputs contraint is : " << totalIn << " **********" << std::endl;
+	IgnoredPathStats << totalIn << "\t";
+
+}
+
+
+void remove_arithLUT_with_two_inputs_and_no_cin()
+{
+	int total = 0;
+	int i, j, k, kk;
+	int total2 = 0;
+	bool available = true;
+	int port1 = -1;
+	for (i = 0; i < FPGAsizeX; i++)
+	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			for (k = 0; k < FPGAsizeZ; k++)
+			{
+				if (fpgaLogic[i][j][k].outputPorts[Cout - 5])// cout is used 
+				{
+					if (fpgaLogic[i][j][k].usedInputPorts>1) // more than one fanin
+					{
+						assert(fpgaLogic[i][j][k].usedInputPorts == 2); // only 2 input ports can be used.
+																		// check if we require a control signal (to fix the the output) for that cell
+						if (!check_control_signal_required(i, j, k))
+							continue;
+						if (!fpgaLogic[i][j][k].inputPorts[Cin]) // no cin, cout used and more than one fanin is used. We should check ifwe can feed Cin of this cell. If not we will delete the least critical paths
+						{
+							//	check if the cell feeding cin of i,j,k is available
+							available = true;
+							if (k > 0) // feeding LUT is in the same LAB
+							{
+								if (fpgaLogic[i][j][k - 2].utilization != 0 || fpgaLogic[i][j][k - 1].utilization != 0) // if the node is utilized we can not use it, or if the register associated with the feeder node 
+									available = false;
+							}
+							else
+							{
+								if (j < FPGAsizeY - 1) //not the top lab in the FPGA
+								{
+									if (fpgaLogic[i][j + 1][/*30*/FPGAsizeZ - 2].utilization != 0 || fpgaLogic[i][j + 1][/*30*/FPGAsizeZ - 1].utilization != 0) // if this node is utilized we can not use it
+									{
+										available = false;
+									}
+								}
+								else // the top LUT in the fpga, so can not feed its cin (I think)
+								{
+									available = false;
+								}
+							}
+
+							// if available is false then we must ensure that only one input port is used through this LUT
+							if (!available)
+							{
+								assert(fpgaLogic[i][j][k].usedInputPorts == 2);
+
+								port1 = -1;
+								for (kk = 0; kk < (int)fpgaLogic[i][j][k].nodes.size(); kk++)
+								{
+									if (!paths[fpgaLogic[i][j][k].nodes[kk].path][0].deleted)
+									{
+										port1 = paths[fpgaLogic[i][j][k].nodes[kk].path][fpgaLogic[i][j][k].nodes[kk].node].portIn;
+										break;
+									}
+								}
+								assert(port1 > -1);
+
+								for (kk = 0; kk <(int)fpgaLogic[i][j][k].nodes.size(); kk++)
+								{
+									// if a path is not deleted and uses a port other than port1 then delete is man.
+									if (!paths[fpgaLogic[i][j][k].nodes[kk].path][0].deleted && paths[fpgaLogic[i][j][k].nodes[kk].path][fpgaLogic[i][j][k].nodes[kk].node].portIn != port1)
+									{
+										if (delete_path(fpgaLogic[i][j][k].nodes[kk].path))
+											total++;
+
+									}
+								}
+
+							}
+
+						}
+					}
+				}
+			}
+		}
+	}
+	std::cout << "**********Number of deleted paths due to adder inputs contraint is : " << total << " **********" << std::endl;
+	IgnoredPathStats << total << "\t";
+}
+
+
+
+std::vector<Path_logic_component> number_of_distinct_inputs_to_lab(int x, int y, double & numberOfDistinctInputs)
+{
+	numberOfDistinctInputs = 0;
+	int i, j;
+	std::vector<Path_logic_component> nodesWithExternalInput;
+	nodesWithExternalInput.resize(0);
+	std::map<std::string, bool> inputSource;
+	std::string tempKey;
+	int currentPath, currentNode;
+	bool flag = false;
+//	if ((x == 9 && y == 60) || (x == 67 && y == 2))
+//		std::cout << "hoppa" << std::endl;
+	for (i = 0; i < FPGAsizeZ; i++) // loop across all cells in each lab
+	{
+		assert(fpgaLogic[x][y][i].usedInputPorts < LUTinputSize - 1); // extra check
+		if (fpgaLogic[x][y][i].utilization == 0)
+			continue;
+
+
+		if (i % 2 == 1) // assumes that the input of the LUT (Xin) is not in the same LAB (conservetive assumption)
+		{
+			numberOfDistinctInputs += 0.5; // maybe 0.5
+			continue;
+		}
+		//		if (check_control_signal_required_second(x, y, i)) // check if con signal is needed
+		//			numberOfDistinctInputs += 2;
+		//		else
+		//			numberOfDistinctInputs++;
+
+		// check if con signal is needed 
+		if (check_control_signal_required_second(x, y, i))
+			numberOfDistinctInputs++;
+
+		// check if F signal is needed. if combout is not used, there is no use for control signal F
+		if (fpgaLogic[x][y][i].outputPorts[Combout - 5])
+			numberOfDistinctInputs++;
+
+		///// in one lab luts with one input can share control signal F (not sure may be not true)
+		//		if (fpgaLogic[x][y][i].usedInputPorts == 1) // only one input to the lut
+		//			if (flag)
+		//			{
+		//				numberOfDistinctInputs--;
+		//			}
+		//			else
+		//				flag = true;
+
+		for (j = 0; j <(int)fpgaLogic[x][y][i].nodes.size(); j++) // loop across all nodes and check if the source is within the same lab or not
+		{
+			currentPath = fpgaLogic[x][y][i].nodes[j].path;
+			currentNode = fpgaLogic[x][y][i].nodes[j].node;
+			if (paths[currentPath][0].deleted)
+				continue;
+			if (paths[currentPath][currentNode - 1].x != x || paths[currentPath][currentNode - 1].y != y) // if the source signal is not coming from the same LAB
+			{
+				// check that we have not counted this source before
+				// get Key of this source XYZP 
+				tempKey = "X" + std::to_string(paths[currentPath][currentNode - 1].x) + "Y" + std::to_string(paths[currentPath][currentNode - 1].y) + "Z" + std::to_string(paths[currentPath][currentNode - 1].z) + "P" + std::to_string(paths[currentPath][currentNode - 1].portOut);
+				auto iter = inputSource.find(tempKey);
+				if (iter == inputSource.end()) // was not found, so add it to the map and increment number of distinct inputs to the lab
+				{
+					nodesWithExternalInput.push_back(Path_logic_component(currentPath, currentNode)); // push the node that uses external inputs
+					inputSource.insert(std::pair<std::string, bool>(tempKey, true));
+					numberOfDistinctInputs++;
+				}
+			}
+		}
+	}
+	return nodesWithExternalInput;
+}
+
+void remove_to_match_routing_constraint()
+{
+	int i, j, k;
+	double numberOfDistinctInputs;
+	int leastImportantNodeIndex;
+	int tempX, tempY, tempZ, tempPath, tempNode;
+	//int totalDeleted;
+	std::vector<Path_logic_component> nodesWithExternalInput;
+	int total = 0;
+	for (i = 0; i < FPGAsizeX; i++)
+	{
+		for (j = 0; j < FPGAsizeY; j++) // loop across all LABs and check localinterconnect utilization
+		{
+			nodesWithExternalInput = number_of_distinct_inputs_to_lab(i, j, numberOfDistinctInputs);
+			if (numberOfDistinctInputs < ceil(LocalInterconnectThreshold*LocalInterconnect))
+				continue;
+			assert(nodesWithExternalInput.size()>0);
+			// get least important node to delete it and thus decrease the number of external inputs to this over used LAB
+			leastImportantNodeIndex = 0;
+			for (k = 0; k <(int)nodesWithExternalInput.size(); k++)
+			{
+				if (nodesWithExternalInput[k].path>nodesWithExternalInput[leastImportantNodeIndex].path)// then this node is less important
+				{
+					leastImportantNodeIndex = k;
+				}
+			}
+			/////		// delete node with index K
+			/////	total+=clear_le(paths[nodesWithExternalInput[leastImportantNodeIndex].path][nodesWithExternalInput[leastImportantNodeIndex].node].x, paths[nodesWithExternalInput[leastImportantNodeIndex].path][nodesWithExternalInput[leastImportantNodeIndex].node].y, paths[nodesWithExternalInput[leastImportantNodeIndex].path][nodesWithExternalInput[leastImportantNodeIndex].node].z);
+			/////		//	clear_le(60, 70, 1); //[with this fix 5000 paths pass perfectly]
+			// delete all paths using the same connection as k
+			tempX = paths[nodesWithExternalInput[leastImportantNodeIndex].path][nodesWithExternalInput[leastImportantNodeIndex].node].x;
+			tempY = paths[nodesWithExternalInput[leastImportantNodeIndex].path][nodesWithExternalInput[leastImportantNodeIndex].node].y;
+			tempZ = paths[nodesWithExternalInput[leastImportantNodeIndex].path][nodesWithExternalInput[leastImportantNodeIndex].node].z;
+			for (k = 0; k < (int)fpgaLogic[tempX][tempY][tempZ].nodes.size(); k++)
+			{
+				tempPath = fpgaLogic[tempX][tempY][tempZ].nodes[k].path;
+				tempNode = fpgaLogic[tempX][tempY][tempZ].nodes[k].node;
+				// check if this is useing the same port as the edge we want to delete
+				if (paths[tempPath][tempNode].portIn == paths[nodesWithExternalInput[leastImportantNodeIndex].path][nodesWithExternalInput[leastImportantNodeIndex].node].portIn)
+				{
+
+					if (delete_path(tempPath))
+					{
+						assert(tempPath >= nodesWithExternalInput[leastImportantNodeIndex].path); // the path we are deleting must be less important than the original path we want to delete
+						total++;
+					}
+				}
+
+			}
+
+
+			// reperat this iteration until LAB satisifes condition todo: may not give optimum result
+			j--;
+		}
+	}
+
+	std::cout << "**********Number of deleted paths due to routing contraint is : " << total << " **********" << std::endl;
+	IgnoredPathStats << total << "\t";
+}
+
+
+void delete_especial_reconvergent_fanout()
+{
+
+	unsigned int i, j, k, kk;
+	int tempComponentX, tempComponentY, tempComponentZ;
+	int deletedPaths = 0;
+	Path_logic_component tempNode;
+	std::vector < Path_logic_component > rootNodes;
+	//std::vector <bool> inputs(InputPortSize, false);
+	//	Logic_element tempCell;
+	std::cout << "deleteing paths to satisfy reconvergent fanout condition" << std::endl;
+	for (i = 0; i < paths.size(); i++) // loop across all paths, another approach would be to loop across used logic elements
+	{
+		for (j = 0; j < paths[i].size(); j++) // loop across nodes in that path
+		{
+			if (paths[i][0].deleted) // this path is deleted then continue to the next path
+				break;
+			tempComponentX = paths[i][j].x;
+			tempComponentY = paths[i][j].y;
+			tempComponentZ = paths[i][j].z;
+
+			for (k = 0; k < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); k++) // loop across all nodes sharing the LE used by node j in path i
+			{
+				tempNode = fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[k];
+				if (i == tempNode.path) // same path
+					continue;
+				////// trial stuff
+				if (paths[tempNode.path][0].deleted) // if this path is deleted then dont do anything
+					continue;
+				if (paths[i][j].portIn != paths[tempNode.path][tempNode.node].portIn) // diffenent paths and use different inputs
+				{
+
+					rootNodes.push_back(tempNode);
+
+
+				}
+
+			}
+			////// if we can control the outpuf of an LE then just ensure that all paths using any node before rootNodes are no tested at the same time as path i
+
+			for (k = 0; k < rootNodes.size(); k++)
+			{
+				tempNode = rootNodes[k];
+				tempComponentX = paths[tempNode.path][tempNode.node - 1].x; // get the location of the LE feeding the node in rootNodes
+				tempComponentY = paths[tempNode.path][tempNode.node - 1].y;
+				tempComponentZ = paths[tempNode.path][tempNode.node - 1].z;
+				//// trial studd
+				for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this
+				{
+					if (i == fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path) // this means the fanout is present so we must delete all paths between tempNode.node and tempNode.node - 1 
+					{
+						//paths[tempNode.path][0].deleted = true;
+#ifdef CycloneIV
+						if (delete_path(tempNode.path))
+							deletedPaths++;
+#endif
+
+#ifdef StratixV
+						if (delete_path_stratix(tempNode.path))
+							deletedPaths++;
+#endif
+						//	std::cout << "deleted : " << tempNode.path << std::endl;
+
+					}
+
+				}
+
+
+			}
+			rootNodes.clear();
+			//	std::fill(inputs.begin(), inputs.end(), false);
+		}
+	}
+	//// add edges between cascaded paths
+
+	std::cout << "**********Number of deleted paths due to reconvergent fan-out : " << deletedPaths << " **********" << std::endl;
+	IgnoredPathStats << deletedPaths << "\t" << std::endl;;
+	//std::cout << "Number of Deleted Paths from delete function due to reconvergent fan-out :  " << deletedPaths << std::endl;
+
+}
+
+void assign_test_phases_ib()
+{
+	std::vector < std::vector <int> > pathRelationGraph;
+	// create the graph representing the connections between paths
+	delete_especial_reconvergent_fanout();
+	generate_pathRelationGraph(pathRelationGraph);
+
+	// start assigning phases ////////////////////////// graph coloring, coloring pathRelationGraph, could be improved significantly
+	unsigned int i, j;
+	int testingPhases = 1;
+	std::vector <int> possPhases(testingPhases, 1);
+	bool newColor;
+	for (i = 1; i < pathRelationGraph.size(); i++) // traverse across the graph based on the node criitcality and assign test phases
+	{
+		/*	minPhase = -2;
+		for (j = 0; j < pathRelationGraph[i].size(); j++)
+		{
+		if (paths[pathRelationGraph[i][j]][0].testPhase < minPhase || minPhase == -2)
+		{
+		minPhase = paths[pathRelationGraph[i][j]][0].testPhase;
+		}
+		}
+		paths[i][0].testPhase = minPhase+*/
+		if (paths[i][0].deleted)
+			continue;
+
+		for (j = 0; j < pathRelationGraph[i].size(); j++)
+		{
+			if (paths[pathRelationGraph[i][j]][0].testPhase>-1) // if color is defined
+				possPhases[paths[pathRelationGraph[i][j]][0].testPhase] = 0; // set this as a not allowed color in the possible color list
+		}
+		newColor = true;
+		for (j = 0; j < possPhases.size(); j++)
+		{
+			if (possPhases[j] == 1 && newColor)
+			{
+				newColor = false;
+				paths[i][0].testPhase = j;
+			}
+			possPhases[j] = 1; // restore colors for next iteration
+		}
+		if (newColor) // must introduce a new color
+		{
+			paths[i][0].testPhase = possPhases.size();
+			possPhases.push_back(1);
+
+		}
+	}
+
+	numberOfTestPhases = possPhases.size();
+}
+
+
+void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph)
+{
+	pathRelationGraph.resize(paths.size());
+	unsigned int i, j, k, kk;
+	bool shouldDelete = false;
+	int tempComponentX, tempComponentY, tempComponentZ;
+	int deletedPaths = 0;
+	Path_logic_component tempNode;
+	std::vector < Path_logic_component > rootNodes;
+	std::vector <bool> inputs(InputPortSize, false);
+	//	Logic_element tempCell;
+	for (i = 0; i < paths.size(); i++) // loop across all paths, another approach would be to loop across used logic elements
+	{
+		for (j = 0; j < paths[i].size(); j++) // loop across nodes in that path
+		{
+			if (paths[i][0].deleted) // this path is deleted then continue to the next path
+				break;
+			tempComponentX = paths[i][j].x;
+			tempComponentY = paths[i][j].y;
+			tempComponentZ = paths[i][j].z;
+
+			for (k = 0; k < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); k++) // loop across all nodes sharing the LE used by node j in path i
+			{
+				tempNode = fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[k];
+				if (i == tempNode.path) // same path
+					continue;
+				////// trial stuff
+				if (paths[tempNode.path][0].deleted) // if this path is deleted then dont do anything
+					continue;
+				if (paths[i][j].portIn != paths[tempNode.path][tempNode.node].portIn) // diffenent paths and use different inputs
+				{
+					if (!inputs[paths[tempNode.path][tempNode.node].portIn]) // first time to see a path using this input
+					{
+						inputs[paths[tempNode.path][tempNode.node].portIn] = true;
+						rootNodes.push_back(tempNode);
+					}
+
+				}
+
+			}
+			assert(rootNodes.size() < InputPortSize - 1);
+			////// if we can control the outpuf of an LE then just ensure that all paths using any node before rootNodes are no tested at the same time as path i
+#ifdef ControlLE
+			for (k = 0; k < rootNodes.size(); k++)
+			{
+				tempNode = rootNodes[k];
+				tempComponentX = paths[tempNode.path][tempNode.node - 1].x; // get the location of the LE feeding the node in rootNodes
+				tempComponentY = paths[tempNode.path][tempNode.node - 1].y;
+				tempComponentZ = paths[tempNode.path][tempNode.node - 1].z;
+				//// trial studd
+				for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this
+				{
+					if (i == fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path)
+					{
+						shouldDelete = true;
+						paths[tempNode.path][0].deleted = true;
+						std::cout << "deleted : in wrong place man : should have been deleted earlier :  " << tempNode.path << std::endl;
+						deletedPaths++;
+					}
+
+				}
+
+				if (!shouldDelete)
+				{
+					for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // tod0: currently we fix cout and combout together, if we need to fix combout we also fix cout. This is not necessary we could change that.
+					{
+						//		if (paths[tempNode.path][tempNode.node - 1].portOut == paths[fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path][fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].node].portOut)
+						if (!paths[fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path][0].deleted)
+							add_connection(pathRelationGraph, i, fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path);
+						//		else
+						//			std::cout << "7assal" << std::endl;
+					}
+				}
+				shouldDelete = false;;
+
+			}
+
+#endif
+
+#ifndef ControlLE
+			///// if no ability to control output of LE then must recurse back to all sources that can affect each node in rootNodes and disable them
+			for (k = 0; k <rootNodes.size(); k++)
+			{
+				//	tempCell = fpgaLogic[paths[rootNodes[k].path][rootNodes[k].node - 1].x][paths[rootNodes[k].path][rootNodes[k].node - 1].y][paths[rootNodes[k].path][rootNodes[k].node - 1].z];
+
+				unkown(pathRelationGraph, i, paths[rootNodes[k].path][rootNodes[k].node - 1]);
+			}
+#endif
+			rootNodes.clear();
+			std::fill(inputs.begin(), inputs.end(), false);
+		}
+	}
+	int wrapAroundPaths = 0;
+	//// add edges between cascaded paths
+	for (i = 1; i < paths.size(); i++) // loop over all paths
+	{
+		for (j = 0; j < fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes.size(); j++) // loop across nodes using the source of the ith pass
+		{
+			if (fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].node != 0) // if a path uses this node and not at its first node then these two paths are cascaded
+			{
+				std::cout << "7assal CASCADE " << std::endl;
+				if (i == fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].path) // this is a wraparound path. its source and target are the same FF. My current idea is to use syn clear or sync load to test these kind of paths. TO do so we must ensure that no other registers are used in the same LAB because of the global control signals
+				{
+					if (delete_path(i))
+					{
+						wrapAroundPaths++;
+						continue; // dont add an edge
+					}
+
+				}
+				else
+				{
+					add_connection(pathRelationGraph, i, fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].path);
+
+				}
+
+			}
+		}
+	}
+
+	std::cout << "Number of Deleted Paths in generate pathRelation should be zero and it is : " << deletedPaths << std::endl;
+	std::cout << "**********Number of deleted paths due to wrap around paths : " << wrapAroundPaths << " **********" << std::endl;
+}
+
+
+void add_connection(std::vector < std::vector <int> > & pathRelationGraph, int x, int y) // x and y paths that should not be tested together
+{
+	bool connExist = false;
+	int i;
+//	if (x == 0 || y == 0)
+//		std::cout << "efef";
+	for (i = 0; i < (int)pathRelationGraph[x].size(); i++) // loop across all neighbours of x
+	{
+		if (pathRelationGraph[x][i] == y) // if y is already connected to x then dont add it
+		{
+			connExist = true;
+			break;
+		}
+	}
+	assert(x != y);
+	if (!connExist) // no connection exists, so add connection
+	{
+		if (x == y)
+			std::cout << y << std::endl;
+		pathRelationGraph[x].push_back(y);
+		pathRelationGraph[y].push_back(x);
+	}
+
+}
+
+
+void unkown(std::vector < std::vector <int> > & pathRelationGraph, int i, Path_node  tempCell)
+{
+	unsigned int   k, x, y;
+	bool connExist = false;
+	Path_logic_component tempNode;
+	std::vector < Path_logic_component > rootNodes;
+	std::vector <bool> inputs(InputPortSize, false);
+
+	if (tempCell.z % 2 == 1) // this is a register, all paths starting at this register can not be tested with path i
+	{
+		for (y = 0; y < fpgaLogic[tempCell.x][tempCell.y][tempCell.z].nodes.size(); y++)
+		{
+			tempNode = fpgaLogic[tempCell.x][tempCell.y][tempCell.z].nodes[y];
+			// connect path i and path tempNode.path in the pathRelationGraph
+			// add connection to path i
+			connExist = false;
+			for (x = 0; x < pathRelationGraph[i].size(); x++)
+			{
+				if (pathRelationGraph[i][x] == tempNode.path) // edge already exists
+				{
+					connExist = true;
+					break;
+				}
+			}
+			if (!connExist)
+			{
+				pathRelationGraph[i].push_back(tempNode.path);
+				if (i == tempNode.path)
+					std::cout << i << std::endl;
+			}
+			connExist = false;
+			// add connection to path rempNode.path
+			for (x = 0; x < pathRelationGraph[tempNode.path].size(); x++)
+			{
+				if (pathRelationGraph[tempNode.path][x] == i) // edge already exists
+				{
+					connExist = true;
+					break;
+				}
+			}
+			if (!connExist)
+				pathRelationGraph[tempNode.path].push_back(i);
+
+			connExist = false;
+
+		}
+	}
+	else
+	{
+		for (k = 0; k < fpgaLogic[tempCell.x][tempCell.y][tempCell.z].nodes.size(); k++)
+		{
+			tempNode = fpgaLogic[tempCell.x][tempCell.y][tempCell.z].nodes[k];
+			if (i == tempNode.path) // same path
+				continue;
+			if (!inputs[paths[tempNode.path][tempNode.node].portIn]) // first time to see a path using this input
+			{
+				inputs[paths[tempNode.path][tempNode.node].portIn] = true;
+				rootNodes.push_back(tempNode);
+			}
+		}
+		assert(rootNodes.size() < InputPortSize - 1);
+		for (k = 0; k <rootNodes.size(); k++)
+		{
+			unkown(pathRelationGraph, i, paths[rootNodes[k].path][rootNodes[k].node - 1]);
+		}
+		rootNodes.clear();
+		std::fill(inputs.begin(), inputs.end(), false);
+	}
+
+
+
+}
+
+
+#ifdef StratixV 
+
+void remove_excess_fan_in()  // this function deletes paths to ensure that the remainig paths can be tested.
+{ 
+	int topZ, bottomZ, almInputs, topInputs, bottomInputs, sharedInputs, controlTop, controlBottom;
+	int pathsDeletedFromALM = 0;
+	int pathsDeletedFromALUT = 0;
+	bool repeat = false;
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			for (int k = 0; k < FPGAsizeZ / ALUTtoALM; k++) // loop across ALMs
+			{
+				repeat = false;
+				if (alms[i][j][k].numOfInputs>3) // if its greater than 4, then may be we have to ignore some paths (not true change ())
+				{
+					topZ = k *ALUTtoALM;
+					bottomZ = topZ + LUTFreq;
+					almInputs = alms[i][j][k].numOfInputs;
+					topInputs = fpgaLogic[i][j][topZ].usedInputPorts;
+					bottomInputs = fpgaLogic[i][j][bottomZ].usedInputPorts;
+					sharedInputs =  (topInputs + bottomInputs) - almInputs;
+					assert((fpgaLogic[i][j][topZ].sharedInputPorts == fpgaLogic[i][j][bottomZ].sharedInputPorts));
+					assert(sharedInputs == fpgaLogic[i][j][topZ].sharedInputPorts);
+
+					assert(topInputs <= LUTinputSize);
+					assert(bottomInputs <= LUTinputSize);
+
+					//////////////////////////////////////////// check how many control signals needed, Here we assume all cells need an edge signal, but fix signal may not be required. We also assum that the control signals are not shared between ALUTs within an ALM.
+					
+					controlTop = 0;
+					controlBottom = 0;
+					if (topInputs > 0)
+					{
+						controlTop = 1;
+						if (check_control_signal_required(i, j, topZ))
+						{
+							controlTop++;
+						}
+					}
+					/////////// check bottom ALUT control signals
+					if (bottomInputs > 0)
+					{
+						controlBottom = 1;
+						if (check_control_signal_required(i, j, bottomZ))
+						{
+							controlBottom++;
+						}
+					}
+					if (almInputs == 4 && sharedInputs == 0) // no need to delete (4,0),(3,1),(2,2) --> no share all possible to test
+						continue;
+
+					// check if alm can be tested currently
+					if (almInputs + controlBottom + controlTop <= ALMinputSize) // make sure that we can input all inputs and control signals
+					{
+						if ((topInputs + controlTop) < LUTinputSize && (bottomInputs + controlBottom) < LUTinputSize) // Given that total inputs are less than eihght, if both luts are less than 6 input then no need to delete any thing 
+							continue;
+						else // total inputs are less than eight but one or both LUTs are 6 inputs, in this case we only have to delete an input to the ALUT and not cut the input from the ALM completely
+						{
+							if ((topInputs + controlTop) == LUTinputSize && (bottomInputs + controlBottom) == 0) // one LUT is 6 inputs the other is zero inputs then great
+								continue;
+
+							if ((topInputs + controlTop) == 0 && (bottomInputs + controlBottom) == LUTinputSize) // one LUT is 6 inputs the other is zero inputs then great
+								continue;
+							// at least one LUT is 6-inputs and the other is non-zero inputs, reduce number of inputs to 
+						//	if (!repeat) // means new ALM
+						//	{
+						/*		std::cout << "reduce_ALUT" << std::endl;
+								std::cout << "TOP ALUT X: " << i << " Y: " << j << " Z_top: " << topZ << " Z_bottom: " << bottomZ << std::endl;
+								std::cout << "ALM inputs: " << almInputs << " topcontrol signals : " << controlTop << " bottom control signal " << controlBottom <<  std::endl;
+								std::cout << "top inputs: " << topInputs << " Bottom inputs: " << bottomInputs << std::endl;
+								std::cout << "shared Inputs : " << sharedInputs << std::endl;
+								std::cout << "///////////////////////////////////////////////////////////////////////////////////////" << std::endl;
+						//	}*/
+							pathsDeletedFromALUT+=reduce_ALUT_inputs(i, j, k, topInputs, bottomInputs);
+							repeat = true;
+							k--;
+						}
+					}
+					else // more inputs than available 8 inputs to ALM, so we must reduce ALM inputs
+					{
+					//	if (!repeat) // means new ALM
+					//	{
+					/*		std::cout << "reduce_ALM" << std::endl;
+							std::cout << "TOP ALUT X: " << i << " Y: " << j << " Z_top: " << topZ << " Z_bottom: " << bottomZ << std::endl;
+							std::cout << "ALM inputs: " << almInputs << " topcontrol signals : " << controlTop << " bottom control signal " << controlBottom << std::endl;
+							std::cout << "top inputs: " << topInputs << " Bottom inputs: " << bottomInputs << std::endl;
+							std::cout << "shared Inputs : " << sharedInputs << std::endl;
+							std::cout << "///////////////////////////////////////////////////////////////////////////////////////" << std::endl;
+					//	}*/
+						repeat = true;
+						pathsDeletedFromALM+=reduce_ALM_inputs(i, j, k);
+						k--;
+					}
+
+				}
+			}
+		}
+	}
+	std::cout << "Paths deleted from ALM = " << pathsDeletedFromALM << std::endl;
+	std::cout << "Paths deleted from ALUT = " << pathsDeletedFromALUT << std::endl;
+	std::cout << "Total Paths Delted from Removing Excess Fan-in = " << pathsDeletedFromALM + pathsDeletedFromALUT << std::endl;
+}
+
+
+
+void handle_port_e() // avoids the case where port E is used , both LUTs in the ALM are used and not in 6-input mode
+{
+	// loop across alms, check for ALUTs using port E and both ALUTs in the same ALM are used
+	int total_paths = 0;
+	bool con_top, con_bott;
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			for (int k = 0; k < FPGAsizeZ / 6; k++)
+			{
+				// check how many alms use port E and have two different outputs (both top and bottom LUTS are used)
+				if (fpgaLogic[i][j][k*ALUTtoALM].utilization>0 && fpgaLogic[i][j][k*ALUTtoALM + LUTFreq].utilization>0) // check that both ALUTs in the ALM are used
+				{
+					if (fpgaLogic[i][j][k*ALUTtoALM].inputPorts[portE] || fpgaLogic[i][j][k*ALUTtoALM + LUTFreq].inputPorts[portE]) // check if port E is used, then something must go man
+					{
+						con_top = check_control_signal_required(i, j, k*ALUTtoALM);
+						con_bott = check_control_signal_required(i, j, k*ALUTtoALM+LUTFreq);
+						// either signals using port E must go or one ALUT must go
+						total_paths+=reduce_due_to_port_e(i, j, k);
+					}
+				}
+			}
+		}
+	}
+	std::cout << "Total Paths Delted from port e constraint = " << total_paths << std::endl;
+}
+
+void handle_port_d_shared_with_e() // handles the case when the created LUT has 6 inputs and one of them is port D from the pin that is also connected to port E (coming from the original circuit). In that case somehting must go because we cannot connect D from this pin and still connect to port E
+{
+	int totalDeleted = 0;
+	bool flagD;
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			for (int k = 0; k < FPGAsizeZ; k++)
+			{
+				if (fpgaLogic[i][j][k].usedInputPorts == 4 && check_control_signal_required(i, j, k)) // this means we need to isntantiate a 6-inputs LUT, so we must ensure that port D is not used through the shitty PIN
+				{
+					// check if port D is used
+					if (!fpgaLogic[i][j][k].inputPorts[portD]) // port D is not used
+						continue;
+
+					/////////////////////////////////////////////////
+					// check if the block inpout mux has an odd index value, in this case dont add a dummy as this pin can not be shared with port E
+					flagD = false;
+				
+					int feederPath, feederNode;
+					// must find which LUT feeds port D of cell i,j, topZ
+					assert(get_feeder(i, j, k, portD, feederPath, feederNode));
+					int xFeeder = paths[feederPath][feederNode].x;
+					int yFeeder = paths[feederPath][feederNode].y;
+					int zFeeder = paths[feederPath][feederNode].z;
+
+					// find routing connection from feeder to the current cell
+					for (int x = 0; x < (int)fpgaLogic[xFeeder][yFeeder][zFeeder].connections.size(); x++)
+					{
+						if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[x].destinationX == i && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[x].destinationY == j && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[x].destinationZ == k && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[x].destinationPort == portD)
+						{
+							assert(fpgaLogic[xFeeder][yFeeder][zFeeder].connections[x].usedRoutingResources.size()>1);
+							std::string blockInput = fpgaLogic[xFeeder][yFeeder][zFeeder].connections[x].usedRoutingResources[fpgaLogic[xFeeder][yFeeder][zFeeder].connections[x].usedRoutingResources.size() - 1]; // the last routing element is th e block input mux
+							assert(blockInput[0] == 'B');
+							if ((blockInput[blockInput.size() - 1] - '0') % 2 == 0) // if it is even
+							{
+								if (need_to_add_dummy(blockInput))
+									flagD = true;
+								else
+									flagD = false;
+							}
+							else
+								flagD = false;
+
+							break;
+						}
+					}
+
+					if (flagD) // port d is used through the shitty pin, then we must reduce one input from this LUT
+					{
+						// since port D is used through the shitty pin, port E can not be used, double check this
+						assert(!fpgaLogic[i][j][k].inputPorts[portE]);
+						int currentALM = k / ALUTtoALM;
+						totalDeleted+=reduce_ALUT_inputs(i,j , currentALM, fpgaLogic[i][j][currentALM*ALUTtoALM].usedInputPorts, fpgaLogic[i][j][currentALM*ALUTtoALM + LUTFreq].usedInputPorts);
+
+					}
+					
+					//////////////////////////////////
+				}
+			}
+		}
+	}
+
+
+	std::cout << "Total Paths Delted from connecting port D to shitty pin and requiring 6 inputs-LUTt = " << totalDeleted << std::endl;
+}
+
+int reduce_ALUT_inputs(int x, int y, int z, int topInputs, int bottomInputs) // takes co-ordinates of the ALM , the number of inputs to the top and bottom luts. This functions is called when the number of inputs to the alm is < 8.
+{
+	assert(alms[x][y][z].numOfInputs < ALMinputSize); // however this does not include the contol signals. it should include that.
+	/// initialize all port as not seen
+	std::vector <bool> topInputsSeen;
+	topInputsSeen.resize(LUTinputSize);
+	std::fill(topInputsSeen.begin(), topInputsSeen.end(), false);
+
+	std::vector <bool> bottomInputsSeen;
+	bottomInputsSeen.resize(LUTinputSize);
+	std::fill(bottomInputsSeen.begin(), bottomInputsSeen.end(), false);
+
+	// empty vectors that will store the input ports by imprtance (criticality), the pairs used is (port,path)
+	std::vector <std::pair<int, int>> topInputImportance;
+	topInputImportance.resize(0);
+	std::vector <std::pair<int, int>> bottomInputImportance;
+	bottomInputImportance.resize(0);
+	
+	int topZ = z *ALUTtoALM;
+	int bottomZ = topZ + LUTFreq;
+	
+	int tempPort;
+	// order input ports of the top ALUT
+	for (int i = 0; i < (int)fpgaLogic[x][y][topZ].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][topZ].nodes[i].path][0].deleted)
+			continue;
+		tempPort = paths[fpgaLogic[x][y][topZ].nodes[i].path][fpgaLogic[x][y][topZ].nodes[i].node].portIn;
+
+		if (!topInputsSeen[tempPort]) // have not seen this input port before
+		{
+			topInputsSeen[tempPort] = true;
+			topInputImportance.push_back(std::make_pair(tempPort, fpgaLogic[x][y][topZ].nodes[i].path));
+		}
+	}
+	// order input ports of the bottom ALUT
+	for (int i = 0; i < (int)fpgaLogic[x][y][bottomZ].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][bottomZ].nodes[i].path][0].deleted)
+			continue;
+		tempPort = paths[fpgaLogic[x][y][bottomZ].nodes[i].path][fpgaLogic[x][y][bottomZ].nodes[i].node].portIn;
+
+		if (!bottomInputsSeen[tempPort]) // have not seen this input port before
+		{
+			bottomInputsSeen[tempPort] = true;
+			bottomInputImportance.push_back(std::make_pair(tempPort, fpgaLogic[x][y][bottomZ].nodes[i].path));
+		}
+	}
+	// top and bottom LUTs must be used, // this assertion is not necessarily true. MAybe a LUT has 7 inputs and the other has zero LUTs
+	assert(bottomInputImportance.size() > 0 || topInputImportance.size() > 0);
+
+	if (bottomInputImportance.size() == 0)
+		goto delete_from_top;
+	if (topInputImportance.size() == 0)
+		goto delete_from_bottom;
+
+	int worstLUT;
+	int worstPort;
+	if (bottomInputImportance[bottomInputImportance.size() - 1].second > topInputImportance[topInputImportance.size() - 1].second) // bottom LUT has a less critical port and it will be deleted
+	{
+	delete_from_bottom:
+		worstLUT = bottomZ;
+		worstPort = bottomInputImportance[bottomInputImportance.size() - 1].first;
+	}
+	else
+	{
+	delete_from_top:
+		worstLUT = topZ;
+		worstPort = topInputImportance[topInputImportance.size() - 1].first;
+	}
+
+	int pathsDeleted = 0;
+
+	/// delete paths using worst port in worsLUT
+	for (int i = 0; i < (int)fpgaLogic[x][y][worstLUT].nodes.size(); i++)
+	{
+
+		if (paths[fpgaLogic[x][y][worstLUT].nodes[i].path][fpgaLogic[x][y][worstLUT].nodes[i].node].portIn == worstPort)
+		{
+			if (delete_path_stratix(fpgaLogic[x][y][worstLUT].nodes[i].path))
+			{
+				pathsDeleted++;
+			}
+		}
+	}
+	return pathsDeleted;
+}
+
+int reduce_ALM_inputs(int x, int y, int z) // reduce an alm inputs
+{
+	assert(alms[x][y][z].numOfInputs < ALMinputSize); // however this does not include the contol signals. it should include that.
+													  /// initialize all port as not seen
+	std::vector <bool> topInputsSeen;
+	topInputsSeen.resize(LUTinputSize);
+	std::fill(topInputsSeen.begin(), topInputsSeen.end(), false);
+
+	std::vector <bool> bottomInputsSeen;
+	bottomInputsSeen.resize(LUTinputSize);
+	std::fill(bottomInputsSeen.begin(), bottomInputsSeen.end(), false);
+
+	// empty vectors that will store the input ports by imprtance (criticality), the pairs used is (port,path)
+	std::vector <std::pair<int, int>> topInputImportance;
+	topInputImportance.resize(0);
+	std::vector <std::pair<int, int>> bottomInputImportance;
+	bottomInputImportance.resize(0);
+
+	int topZ = z *ALUTtoALM;
+	int bottomZ = topZ + LUTFreq;
+
+	int tempPort;
+	// order input ports of the top ALUT
+	for (int i = 0; i < (int)fpgaLogic[x][y][topZ].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][topZ].nodes[i].path][0].deleted)
+			continue;
+		tempPort = paths[fpgaLogic[x][y][topZ].nodes[i].path][fpgaLogic[x][y][topZ].nodes[i].node].portIn;
+
+		if (!topInputsSeen[tempPort]) // have not seen this input port before
+		{
+			topInputsSeen[tempPort] = true;
+			topInputImportance.push_back(std::make_pair(tempPort, fpgaLogic[x][y][topZ].nodes[i].path));
+		}
+	}
+	// order input ports of the bottom ALUT
+	for (int i = 0; i <(int)fpgaLogic[x][y][bottomZ].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][bottomZ].nodes[i].path][0].deleted)
+			continue;
+		tempPort = paths[fpgaLogic[x][y][bottomZ].nodes[i].path][fpgaLogic[x][y][bottomZ].nodes[i].node].portIn;
+
+		if (!bottomInputsSeen[tempPort]) // have not seen this input port before
+		{
+			bottomInputsSeen[tempPort] = true;
+			bottomInputImportance.push_back(std::make_pair(tempPort, fpgaLogic[x][y][bottomZ].nodes[i].path));
+		}
+	}
+
+	//// now update the importance in case something is shared
+	for (int i = 0; i < (int)topInputImportance.size(); i++)
+	{
+		if (fpgaLogic[x][y][topZ].isInputPortShared[topInputImportance[i].first]) // this port is shared, check if this port is used with higher criticality in the bottom ALUT
+		{
+			int sharedPort = fpgaLogic[x][y][topZ].sharedWith[topInputImportance[i].first];
+			for (int j = 0; j < (int)bottomInputImportance.size(); j++)
+			{
+				if (sharedPort == bottomInputImportance[j].first) // found shared port in the bottom LUT
+				{
+					assert(fpgaLogic[x][y][topZ].isInputPortShared[topInputImportance[i].first] && fpgaLogic[x][y][bottomZ].isInputPortShared[bottomInputImportance[j].first]);
+					assert(topInputImportance[i].second != bottomInputImportance[j].second);
+					if (topInputImportance[i].second < bottomInputImportance[j].second) // top LUT use th input with a more critical path
+					{
+						bottomInputImportance[j].second = topInputImportance[i].second;
+					}
+					else
+					{
+						topInputImportance[i].second = bottomInputImportance[j].second;
+					}
+				}
+			}
+		}
+	}
+
+//// ge the worst top and bottom lut input
+	//int worstLUT;
+	int worstPort;
+	
+	int worstIndexTop, worstIndexBottom;
+
+	if (topInputImportance.size() == 0)
+	{
+		worstIndexTop = -1;
+	}
+	else
+	{
+		worstIndexTop = 0;// topInputImportance[0].first;
+	}
+
+	if (bottomInputImportance.size() == 0)
+	{
+		worstIndexBottom = -1;
+	}
+	else
+	{
+		worstIndexBottom = 0;// bottomInputImportance[0].first;
+	}
+
+	for (int i = 0; i < (int)topInputImportance.size(); i++)
+	{
+		if (topInputImportance[i].second > topInputImportance[worstIndexTop].second)
+		{
+			worstIndexTop = i;
+		}
+	}
+
+	for (int i = 0; i < (int)bottomInputImportance.size(); i++)
+	{
+		if (bottomInputImportance[i].second > bottomInputImportance[worstIndexBottom].second)
+		{
+			worstIndexBottom = i;
+		}
+	}
+
+	assert((worstIndexBottom != -1) || (worstIndexBottom != -1));
+
+	if (worstIndexBottom == -1)
+		goto delete_from_top;
+
+	if (worstIndexTop == -1)
+		goto delete_from_bottom;
+
+
+	int pathsDeleted = 0;
+	if ((topInputImportance[worstIndexTop].second > bottomInputImportance[worstIndexBottom].second)) // bottom is more critical 
+	{
+	delete_from_top:	
+		worstPort = topInputImportance[worstIndexTop].first;
+		/// delete paths using worst port in worsLUT
+		for (int i = 0; i < (int)fpgaLogic[x][y][topZ].nodes.size(); i++)
+		{
+
+			if (paths[fpgaLogic[x][y][topZ].nodes[i].path][fpgaLogic[x][y][topZ].nodes[i].node].portIn == worstPort)
+			{
+				if (delete_path_stratix(fpgaLogic[x][y][topZ].nodes[i].path))
+				{
+					pathsDeleted++;
+				}
+			}
+		}
+		return pathsDeleted;
+	}
+	else // top is more critical or equal criticality
+	{
+	delete_from_bottom:
+		worstPort = bottomInputImportance[worstIndexBottom].first;
+		/// delete paths using worst port in worsLUT
+		for (int i = 0; i < (int)fpgaLogic[x][y][bottomZ].nodes.size(); i++)
+		{
+
+			if (paths[fpgaLogic[x][y][bottomZ].nodes[i].path][fpgaLogic[x][y][bottomZ].nodes[i].node].portIn == worstPort)
+			{
+				if (delete_path_stratix(fpgaLogic[x][y][bottomZ].nodes[i].path))
+				{
+					pathsDeleted++;
+				}
+			}
+		}
+	}
+
+	if (worstIndexBottom == -1 || worstIndexTop == -1)
+		return pathsDeleted;
+
+	// if we reached this point, then we have deleted the paths connected to the worst input in the bottom LUT, now check if this is shared with top, if so then delete paths from top LUT too
+	if (topInputImportance[worstIndexTop].second == bottomInputImportance[worstIndexBottom].second)
+	{
+		worstPort = topInputImportance[worstIndexTop].first;
+		/// delete paths using worst port in worsLUT
+		for (int i = 0; i < (int)fpgaLogic[x][y][topZ].nodes.size(); i++)
+		{
+
+			if (paths[fpgaLogic[x][y][topZ].nodes[i].path][fpgaLogic[x][y][topZ].nodes[i].node].portIn == worstPort)
+			{
+				if (delete_path_stratix(fpgaLogic[x][y][topZ].nodes[i].path))
+				{
+					pathsDeleted++;
+				}
+			}
+		}
+	}
+	return pathsDeleted;
+}
+
+int reduce_due_to_port_e(int x, int y, int z) // currently delete such that we keep the most critical path intact
+{
+	int top_priority, bottom_priority, port_e_priority; // priorities of top, bottom ALUT and port e
+	int topZ = z*ALUTtoALM;
+	int bottomZ = z*ALUTtoALM + LUTFreq;
+	port_e_priority = -1;
+	bool top_use_e = false; // top alut uses port E
+	bool bottom_use_e = false; // bottom alut uses port e
+
+	int paths_deleted = 0;
+
+	top_priority = fpgaLogic[x][y][topZ].owner.path;
+	bottom_priority = fpgaLogic[x][y][bottomZ].owner.path;
+
+	// check port e priority by checking the most critical path using port e from the top and bottom LUTs
+	for (int i = 0; i < (int)fpgaLogic[x][y][topZ].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][topZ].nodes[i].path][0].deleted)
+			continue;
+		if (paths[fpgaLogic[x][y][topZ].nodes[i].path][fpgaLogic[x][y][topZ].nodes[i].node].portIn == portE)
+		{
+			port_e_priority = fpgaLogic[x][y][topZ].nodes[i].path;
+			top_use_e = true;
+			break;
+		}
+	}
+
+
+	for (int i = 0; i <  (int)fpgaLogic[x][y][bottomZ].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][bottomZ].nodes[i].path][0].deleted)
+			continue;
+		if (paths[fpgaLogic[x][y][bottomZ].nodes[i].path][fpgaLogic[x][y][bottomZ].nodes[i].node].portIn == portE)
+		{
+			bottom_use_e = true;
+			if (fpgaLogic[x][y][bottomZ].nodes[i].path < port_e_priority || port_e_priority < 0)
+			{
+				port_e_priority = fpgaLogic[x][y][bottomZ].nodes[i].path;
+			}
+			break;
+		}
+	}
+
+
+	// we have two cases, 
+	//first that both ALUTs are using port e
+	if (bottom_use_e&&top_use_e)
+	{
+		assert(fpgaLogic[x][y][topZ].inputPorts[portE] && fpgaLogic[x][y][bottomZ].inputPorts[portE]);
+
+		if (top_priority < bottom_priority) // top LUT is more importane, so it is not deleted
+		{
+			if (bottom_priority < port_e_priority) // the least important path uses port e so we will delete all paths using port e in the top and bottom ALUT, this will allow us to complete the testing procedure
+			{
+				paths_deleted+=delete_ALUT_port_stratix(x, y, topZ, portE);
+				paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+			}
+			else if (port_e_priority < bottom_priority)// delete the bottom LUT
+			{
+		//		if (fpgaLogic[x][y][bottomZ].usedInputPorts>1) // trial. if more than one input port is used then may be it is better to delete port e instead of all bottom AUT
+		///		{
+		//			paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+		//			paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+		///		}
+		//		else
+		//		{
+					paths_deleted += delete_ALUT_stratix(x, y, bottomZ);
+
+//				}
+			}
+			else // bottom=port_e and they are less important than top, delete e or b which ever has less effect on number of paths deleted
+			{
+				
+				if (fpgaLogic[x][y][bottomZ].usedInputPorts>1) // check if the bottom ALUT has more than one port used, then it migh make sense to delete port e instead of the whole bottom ALUT
+				{
+					paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+					paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+				}
+				else
+				{
+					// delete bottom ALUT
+
+			//		if (fpgaLogic[x][y][bottomZ].usedInputPorts>1) // trial. if more than one input port is used then may be it is better to delete port e instead of all bottom AUT
+			//		{
+			//			paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+			///			paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+			//		}
+			//		else
+			//		{
+						paths_deleted += delete_ALUT_stratix(x, y, bottomZ);
+		//			}
+					
+				}
+			}
+		}
+		else if (bottom_priority < top_priority)// bottom LUT is more important
+		{
+			if (top_priority < port_e_priority) // the least important path uses port e so we will delete all paths using port e in the top and bottom ALUT, this will allow us to complete the testing procedure
+			{
+				paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+				paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+			}
+			else if (port_e_priority < top_priority) // delete top ALUT
+			{
+
+			//	if (fpgaLogic[x][y][topZ].usedInputPorts>1) // trial. if more than one input port is used then may be it is better to delete port e instead of all bottom AUT
+			//	{
+			//		paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+			//		paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+			//	}
+			//	else
+			//	{
+					paths_deleted += delete_ALUT_stratix(x, y, topZ);
+
+			//	}
+			}
+			else// top=port_e and they are less important than top, delete e or t which ever has less effect on number of paths deleted
+			{
+				if (fpgaLogic[x][y][bottomZ].usedInputPorts>1) // check if the bottom ALUT has more than one port used, then it migh make sense to delete port e instead of the whole bottom ALUT
+				{
+					paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+					paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+				}
+				else
+				{
+
+				//	if (fpgaLogic[x][y][topZ].usedInputPorts>1) // trial. if more than one input port is used then may be it is better to delete port e instead of all bottom AUT
+				//	{
+				//		paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+				//		paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+				//	}
+				//	else
+				//	{
+						paths_deleted += delete_ALUT_stratix(x, y, topZ);
+				//	}
+					// delete top ALUT
+					
+				}
+			}
+		}
+		else // top and bottom are equal
+		{
+			if ((top_priority > port_e_priority)) //port e is more important, so delete top or bottom, whichever has less paths
+			{
+				if (fpgaLogic[x][y][topZ].utilization  > fpgaLogic[x][y][bottomZ].utilization)
+				{
+					paths_deleted += delete_ALUT_stratix(x, y, bottomZ);
+				}
+				else
+				{
+					paths_deleted += delete_ALUT_stratix(x, y, topZ);
+				}
+
+			}
+			else // either top=bottom=edge or top=bottom (more important than port_e), then delete port e
+			{
+				if (top_priority == port_e_priority) // top=bottom = e
+				{
+					if (fpgaLogic[x][y][bottomZ].usedInputPorts==1) // if it only has ine used port (e), then just delete this
+					{ 
+						paths_deleted += delete_ALUT_stratix(x, y, bottomZ);
+					}
+					else if (fpgaLogic[x][y][topZ].usedInputPorts == 1)
+					{ 
+						paths_deleted += delete_ALUT_stratix(x, y, topZ);
+					}
+					else // delete port e
+					{
+						paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+						paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+					}
+
+
+				}
+				else // top = bottom and they are more important than e, then de;lete e
+				{
+					paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+					paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+
+				}
+			}
+
+		}
+	}
+	else // second, only one ALUT is using port E
+	{
+		assert(!(fpgaLogic[x][y][topZ].inputPorts[portE] && fpgaLogic[x][y][bottomZ].inputPorts[portE]));
+
+		if (top_use_e) // top ALUT uses port e, so we have to either delete port e or delete bottom port
+		{
+			if (bottom_priority < port_e_priority) // delete port e from top LUT
+			{
+				paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE);
+			}
+			else
+			{
+				if (port_e_priority < bottom_priority) // port e is more important so delete bottom ALUT
+				{
+			//		if (fpgaLogic[x][y][bottomZ].usedInputPorts<2) // trial. if more than one input port is used then may be it is better to delete port e instead of all bottom AUT
+						paths_deleted += delete_ALUT_stratix(x, y, bottomZ);
+			//		else
+			//		{
+			//			paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE); // todo : check if this make sense
+			//		}
+				}
+				else // bottom priority and port e have same priority, not sure what to do here
+				{
+					paths_deleted += delete_ALUT_port_stratix(x, y, topZ, portE); // todo : check if this make sense
+				}
+			}
+		}
+		else if (bottom_use_e) // bottom ALUT uses port e
+		{
+			if (top_priority < port_e_priority) // delete port e from bottom LUT
+			{
+				paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE);
+			}
+			else
+			{
+				if (port_e_priority < top_priority) // port e is more important so delete top ALUT
+				{
+		//			if (fpgaLogic[x][y][topZ].usedInputPorts<2) // trial. if more than one input port is used then may be it is better to delete port e instead of all bottom AUT
+						paths_deleted += delete_ALUT_stratix(x, y, topZ);
+			//		else
+			//			paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE); // todo : check if this make sense
+
+				}
+				else // top priority and port e have same priority, not sure what to do here
+				{
+					paths_deleted += delete_ALUT_port_stratix(x, y, bottomZ, portE); // todo : check if this make sense
+				}
+			}
+		}
+		else
+		{
+			std::cout << std::endl << "SOme thing wrong at port e deletion tak care man" << std::endl;
+		}
+	}
+	return paths_deleted;
+}
+
+#endif
