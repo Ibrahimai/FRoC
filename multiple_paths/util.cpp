@@ -19,7 +19,7 @@ bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, 
 			continue;
 		if (fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts>1) // more than one port used
 		{
-			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts < LUTinputSize - 1);
+			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts <= LUTinputSize ); /*I now call it before deleting any paths so it may just hapen that a LUT is using all of its inputs, added equal sign to allow Luts to use only one control signal "fix"*/
 			return true;
 		}
 	}
@@ -42,7 +42,8 @@ bool check_control_signal_required_second(int x, int y, int z) // checks if cell
 			continue;
 		if (fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts>1) // more than one port used
 		{
-			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts < LUTinputSize - 1);
+			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts <= LUTinputSize - 1); //dded equal sign to allow Luts to use only one control signal "fix"*/
+
 			return true;
 		}
 	}

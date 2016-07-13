@@ -4,18 +4,20 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs); // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based on the importance of the port (the more critical the port the more important it is)
 
-
-void remove_fanin_higher_than_three()
+void remove_fanin_higher_than_three() // esnures that he number of inputs + the number of required control signals is <= LUTs inputs
 {
 
 	int total = 0;
 	int totalIn = 0;
 	int all = 0;
-	int i, j, k, x;
+	int i, j, k;
 	int port1 = -1;
 	int port2 = -1;
-	std::cout << "removing fanin higher than 3 " << std::endl;
+	int avoidable = 0;
+	int requiredControlSignals = 1;// by default we need at least one control signal to control the edge transition (edge)
+	std::cout << "removing fanin to satisfy number of inputs constraint " << std::endl;
 	for (i = 0; i < FPGAsizeX; i++)
 	{
 		for (j = 0; j < FPGAsizeY; j++)
@@ -24,7 +26,31 @@ void remove_fanin_higher_than_three()
 			{
 				port1 = -1;
 				port2 = -1;
-				if (fpgaLogic[i][j][k].usedInputPorts>2) // inputs are more than 2. we will delete some paths
+				requiredControlSignals = 1;// by default we need at least one control signal to control the edge transition (edge)
+
+				if (fpgaLogic[i][j][k].usedInputPorts < 2) // either a FF or a LUT with only one input so we dont have to do anything
+					continue;
+				if (check_control_signal_required(i, j, k)) // if fix signal is required then add one to the number of required control signals
+				{
+					requiredControlSignals++;
+				}
+				else // todo : should be considered further, possible better solution to handle cout
+				{
+					if (fpgaLogic[i][j][k].outputPorts[Cout - 5]) // this ensures that the LUT is i arith mode, we can only test paths using maximum 2 input ports, I think this could be relaxed a bit
+					{
+						requiredControlSignals++;
+					}
+				}
+
+				int excessInputs = fpgaLogic[i][j][k].usedInputPorts + requiredControlSignals - LUTinputSize;
+
+				if (excessInputs > 0)
+					total++;
+
+				totalIn += reduce_number_of_LUT_inputs(i, j, k, excessInputs);
+
+
+			/*			if (fpgaLogic[i][j][k].usedInputPorts>2) // inputs are more than 2. we will delete some paths
 				{
 					total++;
 					// check which inputs will remain. We decided to keep the most critical ones
@@ -41,23 +67,90 @@ void remove_fanin_higher_than_three()
 						}
 					}
 					assert(port2 > -1 && port1>-1 && port1 != port2);
+
+					
+					bool controlRequired = true;
 					// delete all paths not using port1 or port2
+
+					controlRequired = check_control_signal_required(i, j, k);
+					if (!controlRequired)
+						std::cout << "LUT number " << i << " " << j << " " << k << std::endl;
+
 					for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++)
 					{
 						if (paths[fpgaLogic[i][j][k].nodes[x].path][fpgaLogic[i][j][k].nodes[x].node].portIn != port1 && paths[fpgaLogic[i][j][k].nodes[x].path][fpgaLogic[i][j][k].nodes[x].node].portIn != port2)
 						{
 							if (delete_path(fpgaLogic[i][j][k].nodes[x].path))
+							{
 								totalIn++;
+								if (!controlRequired)
+									avoidable++;
+							}
 						}
 					}
-
-				}
+					
+				}*/
 			}
 		}
 	}
-	std::cout << "total number of LE using more than 2 inputs: " << total << std::endl;
+	std::cout << "total number of LE requirng to delete inputs to satusfy number of inputs constraint: " << total << std::endl;
 	std::cout << "**********Number of deleted paths due to number of inputs contraint is : " << totalIn << " **********" << std::endl;
+	std::cout << "Number of deleted paths that could be avoided considering that they dont require a control signal : " << avoidable <<  std::endl;
 	IgnoredPathStats << totalIn << "\t";
+
+}
+
+
+int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs) // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based on the importance of the port (the more critical the port the more important it is)
+{
+	assert(fpgaLogic[x][y][z].usedInputPorts <= LUTinputSize);
+
+	if (excessInputs < 1) // nothing to delete
+		return 0;
+
+	std::vector <bool> inputsSeen;
+	inputsSeen.resize(LUTinputSize+1); // +1 for cin
+	std::fill(inputsSeen.begin(), inputsSeen.end(), false);
+
+	std::vector <std::pair<int, int>> inputImportance;
+	inputImportance.resize(0);
+	int pathsDeleted = 0;
+	int tempPort;
+
+	for (int i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted) // deleted path so ignore it
+			continue;
+
+		tempPort = paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].portIn;
+
+		if (!inputsSeen[tempPort]) // have not seen this input port before
+		{
+			inputsSeen[tempPort] = true;
+			inputImportance.push_back(std::make_pair(tempPort, fpgaLogic[x][y][z].nodes[i].path));
+		}
+	}
+
+	for (int i = 0; i < excessInputs; i++)
+	{
+		tempPort = inputImportance[inputImportance.size() - 1 - i].first; // get the least important port
+		for (int j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
+		{
+			if (paths[fpgaLogic[x][y][z].nodes[j].path][0].deleted)
+				continue;
+
+			if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].portIn == tempPort)
+			{
+				if (delete_path(fpgaLogic[x][y][z].nodes[j].path))
+				{
+					pathsDeleted++;
+				}
+			}
+		}
+
+	}
+
+	return pathsDeleted;
 
 }
 
@@ -162,7 +255,7 @@ std::vector<Path_logic_component> number_of_distinct_inputs_to_lab(int x, int y,
 //		std::cout << "hoppa" << std::endl;
 	for (i = 0; i < FPGAsizeZ; i++) // loop across all cells in each lab
 	{
-		assert(fpgaLogic[x][y][i].usedInputPorts < LUTinputSize - 1); // extra check
+		assert(fpgaLogic[x][y][i].usedInputPorts <= LUTinputSize); // extra check
 		if (fpgaLogic[x][y][i].utilization == 0)
 			continue;
 

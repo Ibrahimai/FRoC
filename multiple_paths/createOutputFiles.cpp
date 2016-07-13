@@ -941,6 +941,41 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 							controllerFile << "0"; // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b0; " << std::endl;
 
 					}
+					else if (fpgaLogic[x][y][z].LUTMask == "6996") // three inputs are used and only combout used
+					{
+						assert(!fpgaLogic[x][y][z].outputPorts[Cout - 5]);
+						if (fpgaLogic[x][y][z].inputPorts[Cin] && portIn_t != Cin) // Cin is being used and the curent path is using another input
+						{
+							// find what coud does the feeder of this in gives when it is turned off
+							assert(get_feeder(x, y, z, Cin, feederPath, feederNode));
+							// if the feeder defaults cout to zero
+							if (fpgaLogic[paths[feederPath][feederNode].x][paths[feederPath][feederNode].y][paths[feederPath][feederNode].z].CoutFixedDefaultValue)
+							{
+								if (inverting_t)
+									controllerFile << "0";  // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b1; " << std::endl;
+								else
+									controllerFile << "1"; // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b0; " << std::endl;
+							}
+							else // feeeder defaults Cout to 1
+							{
+								if (inverting_t)
+									controllerFile << "1"; // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b0; " << std::endl;
+								else
+									controllerFile << "0"; // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b1; " << std::endl;
+							}
+						}
+						else // all three inputs are normal inputs
+						{
+							assert(portInToCombout > -1);
+							// for inverting with only one input used F should be 1. Since we the two other inputs are fixed at vcc
+							if (inverting_t)
+								controllerFile << "1";  //option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b1; " << std::endl;
+							else
+								controllerFile << "0";  //option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b0; " << std::endl;
+
+
+						}
+					}
 					else
 					{
 						std::cout << "Could not match LUT mask to something known." << std::endl;
@@ -1301,6 +1336,8 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 // this may have problems I removed it from location X1;
 void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1, int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting)
 {
+	int pathFeederPort3, nodeFeederPort3;
+	int port3 = -1;
 	if (fpgaLogic[i][j][k].outputPorts[Combout - 5] && !fpgaLogic[i][j][k].outputPorts[Cout - 5]) // output is only from Combout
 	{
 
@@ -1397,8 +1434,113 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 		}
 		else
 		{
-			std::cout << "ERROR: A LUT which uses " << fpgaLogic[i][j][k].usedInputPorts << " is not supported. SomethingWrong.";
+			if (fpgaLogic[i][j][k].usedInputPorts)
+			{
+				 port3 = -1;
+				// get the two ports used
+				for (int x = 0; x < InputPortSize; x++)
+				{
+					if (fpgaLogic[i][j][k].inputPorts[x] && port1 < 0) // 1st port not yet set
+					{
+						port1 = x;
+					}
+					else if (fpgaLogic[i][j][k].inputPorts[x] && port2 < 0) // 1st port ws set, so set the second port
+					{
+						port2 = x;
+					}
+					else if (fpgaLogic[i][j][k].inputPorts[x])
+					{
+						port3 = x;
+					}
+
+				}
+				// at least one port must be used
+				assert(port1 > -1);
+				assert(port2 > -1);
+				assert(port3 > -1);
+
+				if (fpgaLogic[i][j][k].inputPorts[Cin]) // Cin is used to connect to combout
+				{
+					int pathFeederPort3, nodeFeederPort3;
+					assert(get_feeder(i, j, k, port1, pathFeederPort1, nodeFeederPort1));
+					assert(get_feeder(i, j, k, port2, pathFeederPort2, nodeFeederPort2));
+					assert(get_feeder(i, j, k, port3, pathFeederPort3, nodeFeederPort3));
+
+					controlSignals.push_back(Path_logic_component(path, node)); //stores all the nodes requiring control signals
+
+					verilogFile << "cycloneive_lcell_comb PATH" << path << "NODE" << node << "_t (" << std::endl;
+
+				/*	if (check_control_signal_required(i, j, k)) //ib New check control
+						verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << "Con )," << std::endl;
+					else
+						verilogFile << "	.dataa(vcc)," << std::endl;
+
+						*/
+
+					if (port1 == Cin) // port 1 is Cin
+					{
+							verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+							verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout )," << std::endl;
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+							//ib0502verilogFile << "	.datad(vcc )," << std::endl;
+						
+					}
+					else if (port2 == Cin)// port 2 is  cin and port 1 must be used
+					{
+						assert(port2>-1);
+						verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+						verilogFile << "	.cin(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << "_Cout )," << std::endl;
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						//ib0502verilogFile << "	.datad(vcc )," << std::endl;
+					}
+					else
+					{
+						assert(port3 == Cin);
+						verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+						verilogFile << "	.cin(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << "_Cout )," << std::endl;
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					}
+					verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
+					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .sum_lutc_input = \"cin\";" << std::endl;
+					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'h6996;" << std::endl;
+					fpgaLogic[i][j][k].LUTMask = "6996";
+					fpgaLogic[i][j][k].CoutFixedDefaultValue = false; // probably not needed as this case has no cout as output
+
+				}
+				else // normal inputs to combout // common case
+				{
+
+					assert(get_feeder(i, j, k, port1, pathFeederPort1, nodeFeederPort1));
+					assert(get_feeder(i, j, k, port2, pathFeederPort2, nodeFeederPort2));
+					assert(get_feeder(i, j, k, port3, pathFeederPort3, nodeFeederPort3));
+
+					controlSignals.push_back(Path_logic_component(path, node)); //stores all the nodes requiring control signals
+																				//// instantiate the wysiwyg
+					verilogFile << "cycloneive_lcell_comb PATH" << path << "NODE" << node << "_t (" << std::endl;
+
+					verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+					verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+					
+					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					//ib0502verilogFile << "	.datad(vcc )," << std::endl;
+					verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
+					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .sum_lutc_input = \"datac\";" << std::endl;
+					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'h6996;" << std::endl;
+					fpgaLogic[i][j][k].LUTMask = "6996";
+					fpgaLogic[i][j][k].CoutFixedDefaultValue = false;
+				}
+			}
+			else
+			{
+				std::cout << "ERROR: A LUT which uses " << fpgaLogic[i][j][k].usedInputPorts << " is not supported. SomethingWrong.";
+			}
+			
 		}
+		
 	}
 	else // output can be cout or (cout,combout)
 	{

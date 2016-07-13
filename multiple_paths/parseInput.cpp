@@ -42,6 +42,8 @@ int parseIn(int argc, char* argv[])
 			tempPath.clear();
 			//}
 			path++;
+			if (path == 44)
+				std::cout << "debugging" << std::endl;
 			node = 0;
 			// add slack value to pathSlack
 			slackReached = false;
