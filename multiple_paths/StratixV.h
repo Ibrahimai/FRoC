@@ -46,7 +46,7 @@
 
 #define ALUTtoALM 6
 
-#define LUTFreq 3 // means that every 2 z points a lut exists 0,3,6,9,12,15,...
+#define LUTFreq 3 // means that every 3 z points a lut exists 0,3,6,9,12,15,...
 #define LUTinputSize 6
 #define ALMinputSize 8
 #define LocalInterconnect 38 // not correct

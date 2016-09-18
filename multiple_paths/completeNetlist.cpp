@@ -32,7 +32,7 @@ void set_netlist()// sets the complete netlist, should be called immediately aft
 
 void update_paths_complete() // this is called after deleting paths and the whole process, this function marks the tested path as tested
 {
-	for (int i = 0; i < paths.size(); i++)
+	for (int i = 0; i < (int)paths.size(); i++)
 	{
 		if (paths[i].size()>0)
 		{
@@ -53,10 +53,10 @@ void update_testedPaths(std::vector <std::vector<int> > test_structure) // test 
 	tested_path_in_current_bitstream.resize(0);
 	tested_path_in_phase.resize(0);
 
-	for (int i = 0; i < test_structure.size(); i++)
+	for (int i = 0; i < (int)test_structure.size(); i++)
 	{
 		tested_path_in_phase.push_back(test_structure[i].size());
-		for (int j = 0; j < test_structure[i].size(); j++)
+		for (int j = 0; j < (int)test_structure[i].size(); j++)
 		{
 			tested_path_in_current_bitstream.push_back(test_structure[i][j]);
 		}
@@ -64,7 +64,7 @@ void update_testedPaths(std::vector <std::vector<int> > test_structure) // test 
 
 	/// double check
 	int total = 0;
-	for (int i = 0; i < tested_path_in_phase.size(); i++)
+	for (int i = 0; i < (int)tested_path_in_phase.size(); i++)
 	{
 		total += tested_path_in_phase[i];
 	}
@@ -93,9 +93,9 @@ void update_currentFabric() // resets the current global variables to the origin
 
 	////// start deleting tested paths
 
-	for (int i = 0; i < paths_complete.size(); i++)
+	for (int i = 0; i <(int)paths_complete.size(); i++)
 	{
-		for (int j = 0; j < paths_complete[i].size(); j++)
+		for (int j = 0; j < (int)paths_complete[i].size(); j++)
 		{
 			if (paths_complete[i][0].tested)
 			{
@@ -114,9 +114,9 @@ void update_currentFabric() // resets the current global variables to the origin
 bool get_allPathsTested(int & remaining) // returns true if all paths are tested, false otherwise and remaining indicate the number of untested paths
 {
 	remaining = 0;
-	for (int i = 0; i < paths_complete.size(); i++)
+	for (int i = 0; i <(int)paths_complete.size(); i++)
 	{
-		for (int j = 0; j < paths_complete[i].size(); j++)
+		for (int j = 0; j < (int)paths_complete[i].size(); j++)
 		{
 			if (!paths_complete[i][0].tested)
 			{
@@ -142,18 +142,19 @@ void print_stats()
 	std::cout << "Stats on the genereated bit streams are:- " << std::endl;
 	std::cout << "A) " << testedPaths.size() << " Bitstreams are required to test 100% of the given paths. " << std::endl;
 	std::cout << "B) The number of paths at each bit stream and the number of test phases are as follows:- " << std::endl;
-	for (int i = 0; i < testPathsDistribution.size(); i++)
+	for (int i = 0; i < (int)testPathsDistribution.size(); i++)
 	{
 		std::cout << "\t Bitstream number " << i << " has " << testPathsDistribution[i].size() << " test phases and " << testedPaths[i].size() << " tested paths" << std::endl;;
-		for (int j = 0; j < testPathsDistribution[i].size(); j++)
+		for (int j = 0; j < (int)testPathsDistribution[i].size(); j++)
 		{
 			std::cout << "\t\t Test phase number " << j << " has " << testPathsDistribution[i][j] << " paths" << std::endl;
 		}
 	}
-	for (int i = 0; i < testPathsDistribution.size(); i++)
+	for (int i = 0; i < (int)testPathsDistribution.size(); i++)
 	{
 		IgnoredPathStats <<  i << "\t" << testedPaths[i].size() << "\t" << testPathsDistribution[i].size() << std::endl;;
 
 	}
+
 	return;
 }

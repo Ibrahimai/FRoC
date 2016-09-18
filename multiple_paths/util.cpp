@@ -3,20 +3,59 @@
 
 bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int & feederNode); // returns the path and node that feeds element x,y,z through portIn, it is special as it returns a value even if the feeder cell is deleted, but it checks that it did exist before.
 
+
+bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc (x,y,z) is a cascaded register. Meaning that it is a sink and a source at the same time
+{
+	assert(z % LUTFreq != 0); // this is a register
+
+	int l = 0;
+	bool source = false;
+	bool sink = false;
+	for (l = 0; l < fpgaLogic[x][y][z].nodes.size(); l++)
+	{
+		if (paths[fpgaLogic[x][y][z].nodes[l].path][0].deleted) // if this path is deleted, then we shouldnt be accounting for it
+			continue;
+		if (fpgaLogic[x][y][z].nodes[l].node == 0)
+		{
+			source = true;
+		}
+		else
+		{
+			sink = true;
+			assert(fpgaLogic[x][y][z].nodes[l].node == paths[fpgaLogic[x][y][z].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
+		}
+		if (source && sink)
+		{
+			return true;
+		}
+
+	}
+}
+
+
 bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, requires a control signal or not
 {
 	int i;
-	int currentPath, currentNode;
+	int currentPath, currentNode, nextNode;
 	assert(z % LUTFreq == 0); // must be a lut
 						//return true;
 	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
 	{
 		currentPath = fpgaLogic[x][y][z].nodes[i].path;
 		currentNode = fpgaLogic[x][y][z].nodes[i].node;
+		nextNode = currentNode + 1;
 		if (paths[currentPath][0].deleted)
 			continue;
-		if (currentNode == paths[currentPath].size() - 2) // this node feeds a register, now just ignore it, for cascaded paths this cell must be controlled todo: if this is true return true; 
-			continue;
+		if (currentNode == paths[currentPath].size() - 2) // this node is the b4 last cell so it feeds a register, now just ignore it, for cascaded paths this cell must be controlled todo: if this is true return true; 
+		{
+			// this means that this node is the cell before the last, so it feeds a aregister, we must check if this register is a cascaded register then we must control it.
+			
+			// check if this node feeds a cascaded register
+			if (is_cascaded_reg(paths[currentPath][nextNode].x, paths[currentPath][nextNode].y, paths[currentPath][nextNode].z)) // if it feeds a cascaded register, then return true as we do need the control signal.
+			{
+				return true;
+			}
+		}
 		if (fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts>1) // more than one port used
 		{
 			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts <= LUTinputSize ); /*I now call it before deleting any paths so it may just hapen that a LUT is using all of its inputs, added equal sign to allow Luts to use only one control signal "fix"*/
@@ -28,7 +67,7 @@ bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, 
 // todo :delete this function
 bool check_control_signal_required_second(int x, int y, int z) // checks if cell x, y, requires a control signal or not
 {
-	int i;
+	/*int i;
 	int currentPath, currentNode;
 	assert(z % LUTFreq == 0); // must be a lut
 						//	return true;
@@ -42,12 +81,13 @@ bool check_control_signal_required_second(int x, int y, int z) // checks if cell
 			continue;
 		if (fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts>1) // more than one port used
 		{
-			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts <= LUTinputSize - 1); //dded equal sign to allow Luts to use only one control signal "fix"*/
+			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts <= LUTinputSize - 1); //dded equal sign to allow Luts to use only one control signal "fix"/
 
 			return true;
 		}
 	}
-	return false;
+	return false; */
+	return check_control_signal_required(x, y, z);
 }
 
 

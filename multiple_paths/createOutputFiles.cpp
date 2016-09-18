@@ -771,7 +771,17 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 				if (path_t == -1) // this element has no paths that should be tested in the current phase, so set control signals to stop it
 				{
 					//option 1
-					controllerFile << "01";
+					//controllerFile << "01";
+
+					// to have combout as 1, when LUT is fixed we should check what LUT mask do we have, first.
+					if (fpgaLogic[x][y][z].LUTMask == "827D" || fpgaLogic[x][y][z].LUTMask == "22DD" || fpgaLogic[x][y][z].LUTMask == "609F")
+					{
+						controllerFile << "00";
+					}
+					else
+					{
+						controllerFile << "01";
+					}
 					// option 2
 					/*	controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "Con <= 1'b0; " << std::endl;
 					controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b1; " << std::endl;*/
@@ -1239,7 +1249,7 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 				if (k % LUTFreq == 0) // LUT
 				{
 #ifdef CycloneIV
-					// location X1, put the code into a functoin and calling it below. not tested may have problems
+					// location X1, put the code into a functoin and calling it below. 
 					LUT_WYSIWYG_CycloneIV(i, j, k, verilogFile, port1, port2, CoutSignals, controlSignals, path, node, pathFeederPort1, nodeFeederPort1, pathFeederPort2, nodeFeederPort2, inverting);
 #endif
 #ifdef StratixV
@@ -1343,6 +1353,7 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 
 		if (fpgaLogic[i][j][k].usedInputPorts < 3) // check that maximum 2 inputs are being used
 		{
+			assert(!check_control_signal_required(i, j, k)); // double check that this cell does not require a control (fix) signal
 			// get the two ports used
 			for (int x = 0; x < InputPortSize; x++)
 			{
@@ -1398,8 +1409,8 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 				}
 				verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
 				verilogFile << "defparam PATH" << path << "NODE" << node << "_t .sum_lutc_input = \"cin\";" << std::endl;
-				verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'hD77D;" << std::endl;
-				fpgaLogic[i][j][k].LUTMask = "D77D";
+				verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'hD728;" << std::endl; //D77D 
+				fpgaLogic[i][j][k].LUTMask = "D728";
 				fpgaLogic[i][j][k].CoutFixedDefaultValue = false; // probably not needed as this case has no cout as output
 
 			}
@@ -1427,17 +1438,18 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 				//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 				verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
 				verilogFile << "defparam PATH" << path << "NODE" << node << "_t .sum_lutc_input = \"datac\";" << std::endl;
-				verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'hD77D;" << std::endl;
-				fpgaLogic[i][j][k].LUTMask = "D77D";
+				verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'hD728;" << std::endl;// D77D
+				fpgaLogic[i][j][k].LUTMask = "D728";
 				fpgaLogic[i][j][k].CoutFixedDefaultValue = false;
 			}
 		}
 		else
 		{
-			if (fpgaLogic[i][j][k].usedInputPorts)
+			assert(fpgaLogic[i][j][k].usedInputPorts < 4);
+			if (fpgaLogic[i][j][k].usedInputPorts < 4)
 			{
 				 port3 = -1;
-				// get the two ports used
+				// get the three ports used
 				for (int x = 0; x < InputPortSize; x++)
 				{
 					if (fpgaLogic[i][j][k].inputPorts[x] && port1 < 0) // 1st port not yet set
@@ -1454,7 +1466,7 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 					}
 
 				}
-				// at least one port must be used
+				// all three ports must be used
 				assert(port1 > -1);
 				assert(port2 > -1);
 				assert(port3 > -1);
@@ -1577,7 +1589,7 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 					verilogFile << "	.dataa(vcc)," << std::endl;
 				if (port1 == Cin) // port 1 is Cin
 				{
-					if (port2 < 0) // no port 2, set port b to gnd
+					if (port2 < 0) // no port 2, set port b to Vcc
 					{
 						verilogFile << "	.datab(vcc)," << std::endl; // set b to vcc so that cin is inverted to cout
 						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout)," << std::endl;
@@ -1608,8 +1620,8 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 				// function to decide which LUT mask to use
 				if (check_down_link_edge_transition(i, j, k)) // if the down link has an inverting/non-inverting edge between its inputports (other than cin) and cout, then this bock should give 1/0 from its cout when it is shut off
 				{
-					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'hD77D;" << std::endl; // cout is 1 when off
-					fpgaLogic[i][j][k].LUTMask = "D77D";
+					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'h827D;" << std::endl; // cout is 1 when off, D77D
+					fpgaLogic[i][j][k].LUTMask = "827D"; //D77D
 					fpgaLogic[i][j][k].CoutFixedDefaultValue = false;
 				}
 				else
@@ -1691,13 +1703,13 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 					fpgaLogic[i][j][k].CoutFixedDefaultValue = false; // since with this mask cout is set to 1 when off to allow the down link logic to be served correctly (inverting or non inverting).
 					if (port2 > -1) // new
 					{
-						verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'h6F9F;" << std::endl; // cout is one when off
-						fpgaLogic[i][j][k].LUTMask = "6F9F";
+						verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'h609F;" << std::endl; // cout is one when off, //6F9F
+						fpgaLogic[i][j][k].LUTMask = "609F";
 					}
 					else
 					{
-						verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'h77DD;" << std::endl; // cout is one when off
-						fpgaLogic[i][j][k].LUTMask = "77DD";
+						verilogFile << "defparam PATH" << path << "NODE" << node << "_t .lut_mask = 16'h22DD;" << std::endl; // cout is one when off, //h77DD
+						fpgaLogic[i][j][k].LUTMask = "22DD";
 					}
 				}
 

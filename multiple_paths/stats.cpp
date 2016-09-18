@@ -4,7 +4,7 @@ void count_cascaded_paths()
 {
 
 	int total = 0;
-	int i, j;
+	int i, j, k, l;
 	for (i = 1; i < (int)paths.size(); i++) // loop over all paths
 	{
 		for (j = 0; j < (int)fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes.size(); j++)
@@ -16,7 +16,50 @@ void count_cascaded_paths()
 			}
 		}
 	}
-	std::cout << "total numer of cascaded incidents: " << total << std::endl;
+
+	int totalCascadedFF = 0;
+	for (i = 0; i < FPGAsizeX; i++)
+	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			for (k = 0; k < FPGAsizeZ; k++)
+			{
+				if (k%LUTFreq == 0) // lut, then continue
+					continue;
+
+				bool source = false;
+				bool sink = false;
+				for (l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+				{
+					if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted) // if this path is deleted, then dont bother accounting for it
+						continue;
+
+					if (fpgaLogic[i][j][k].nodes[l].node == 0)
+					{
+						source = true;
+					}
+					else
+					{
+						sink = true;
+						assert(fpgaLogic[i][j][k].nodes[l].node == paths[fpgaLogic[i][j][k].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
+					}
+					if (source && sink)
+					{
+						totalCascadedFF++;
+						break;
+					}
+
+				}
+
+
+			}
+		}
+	}
+
+
+
+	std::cout << "total numer of cascaded paths: " << total << std::endl;
+	std::cout << "total numer of cascaded FFs: " << totalCascadedFF << std::endl;
 }
 
 
