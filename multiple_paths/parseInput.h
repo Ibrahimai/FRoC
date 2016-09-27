@@ -5,3 +5,4 @@ void read_routing(char* routingFile);// read routing file, should be called afte
 void check_routing(char* routingFilePost);
 void check_shared_inputs();
 bool compare_routing();
+void update_cascaded_list(); // adds cascaded paths to the list of cascadedPaths at every LUT.

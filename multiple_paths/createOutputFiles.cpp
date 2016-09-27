@@ -4,7 +4,7 @@
 
 #ifdef CycloneIV
 
-void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1, int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting);
+void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSignals, int i, int j, int k, std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1, int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting);//, std::vector <Path_logic_component>& cascadedControlSignals);
 void create_location_contraint_file() // modified for STratix V
 {
 	int i, j, k;
@@ -80,7 +80,7 @@ void create_location_contraint_file() // modified for STratix V
 }
 
 
-void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> CoutSignals, std::vector <Path_logic_component> sources) // to be merged with the WYSIWYGs file to complete the source file.
+void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> CoutSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals) // to be merged with the WYSIWYGs file to complete the source file.
 {
 	std::ofstream verilogFile;
 	verilogFile.open("AuxilFile.txt");
@@ -152,6 +152,29 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 
 		verilogFile << "PATH" << CoutSignals[i].path << "NODE" << CoutSignals[i].node << "_Cout;" << std::endl;
 	}
+
+	//// wires used for cacaded stuff
+	verilogFile << "// cascaded LUTs estra wires required for controlling the testing of cascaded paths" << std::endl;
+	int cascPath, cascNode;
+	for (i = 0; i < (int)cascadedControlSignals.size(); i++)
+	{
+		cascPath = cascadedControlSignals[i].path;
+		cascNode = cascadedControlSignals[i].node;
+		if (i == 0)
+		{
+			verilogFile << "wire source_path_" << cascPath << "_node" << cascNode << " , cascaded_selector_path" << cascPath << "_node" << cascNode << " , PATH" << cascPath << "NODE" << cascNode << "F_cascaded ";
+		}
+		else
+		{
+			verilogFile << ", source_path_" << cascPath << "_node" << cascNode << " , cascaded_selector_path" << cascPath << "_node" << cascNode << " , PATH" << cascPath << "NODE" << cascNode << "F_cascaded ";
+
+		}
+	}
+	if (cascadedControlSignals.size() > 0)
+		verilogFile << " ;" << std::endl;
+
+
+
 	//// input signals to sources
 	verilogFile << std::endl << "//input signal to sources " << std::endl;
 	verilogFile << "reg [" << sources.size() - 1 << ":0] Xin;" << std::endl;;
@@ -180,6 +203,21 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 	verilogFile << std::endl << "//counter to count how long to stay at each test phase " << std::endl;
 	verilogFile << "counter_testing count0 (.CLK(CLK),.clr(reset_counter), .timerReached(timerReached));";
 
+
+	// cascaded stuff
+	verilogFile << std::endl << "//cascaded MUXES and tFFs " << std::endl;
+	for (i = 0; i < (int)cascadedControlSignals.size(); i++) // for each cascaded control signal we instantiate a Tff and a 2to1 mux
+	{
+		verilogFile << "t_ff " << "t_" << i << " (.reset(reset), .out( source_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << "), .clk(CLK));" << std::endl;
+		verilogFile << "mux2to1 mux_" << i << "(.in0( source_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << "), .in1( PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F ), .s( cascade_selector_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << " ), .out (PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F_cascaded)); " << std::endl;
+
+	}
+	verilogFile << std::endl << std::endl;
+
+
+
+
+
 	verilogFile << std::endl << "//create the controller " << std::endl;
 	verilogFile << "controller control0(.CLK(CLK),.start_test(start_test),.reset(reset),.error(error),.timer_reached(timerReached),.reset_counter(reset_counter),.controlSignals({";
 	for (i = 0; i < (int)controlSignals.size() - 1; i++)
@@ -196,6 +234,24 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 		verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << ", ";
 	}
 	verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "}), ";
+
+
+
+	// cascaded LUTs mux selector
+	if (cascadedControlSignals.size() > 0)
+	{
+		verilogFile << ".cascaded_select({ cascaded_selector_path" << cascadedControlSignals[0].path << "_node" << cascadedControlSignals[0].node;
+	}
+
+	for (i = 1; i < (int)cascadedControlSignals.size(); i++)
+	{
+		cascPath = cascadedControlSignals[i].path;
+		cascNode = cascadedControlSignals[i].node;
+		verilogFile << ", cascaded_selector_path" << cascPath << "_node" << cascNode;
+	}
+	if (cascadedControlSignals.size() > 0)
+		verilogFile << "}), ";
+
 	verilogFile << ".finished_one_iteration(fuck),.set_source_registers(set_source_registers));" << std::endl;
 
 
@@ -204,7 +260,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 
 
 
-void create_controller_module(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> sources)
+void create_controller_module(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals)
 {
 
 	std::ofstream controllerFile;
@@ -256,11 +312,19 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	// option 2 finish */
 	// set signal for source registers 
 	controllerFile << "output reg [" << sources.size() - 1 << ":0] set_source_registers, ";
+
+	// cascaded LUTs mux selector cascaded_select
+	if (cascadedControlSignals.size() > 0)
+		controllerFile << "output [" << cascadedControlSignals.size() - 1 << ":0] cascacded_select, ";
+
+
 	controllerFile << "output reg finished_one_iteration );" << std::endl;
 
 	// create reg to hold the buffered values of the sinks, these values will be xored with the values from the sinks to ensure that the value changes every cycle
 	controllerFile << "reg [" << sinks.size() - 1 << ":0] sinks_buff , sinks_buff_buff ;" << std::endl;
 	controllerFile << "reg [" << 2 * controlSignals.size() - 1 << ":0] controlSignals_temp;";
+	if (cascadedControlSignals.size() > 0)
+		controllerFile << "reg [" << cascadedControlSignals.size() - 1 << ":0] cascacded_select_temp, ";
 	controllerFile << "reg [" << sinks.size() - 1 << ":0] errorVec;" << std::endl;
 	controllerFile << "reg error_temp;" << std::endl;
 	// create states
@@ -328,6 +392,9 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	controllerFile << "end" << std::endl << std::endl << std::endl;
 
 	controllerFile << std::endl << "assign controlSignals = controlSignals_temp;" << std::endl;
+
+	if (cascadedControlSignals.size() > 0)
+		controllerFile << std::endl << "assign cascaded_select = cascaded_select_temp " << std::endl << std::endl;
 
 	controllerFile << "//////////////////////////////////////////////////////////////////" << std::endl;
 	controllerFile << "// starting the Sequential part of the FSM changing between states" << std::endl;
@@ -740,7 +807,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 				portInToCombout = -1;
 				portIn_t = -1;
 				inverting_t = false; // default value of inverting, chosen randomly with no specific reason. If combout is used then later code will set this bool accordingly.
-									 // loop across nodes using this WYSIWYG to see of any path using this LUT is tested at the current phase
+				 // loop across nodes using this WYSIWYG to see of any path using this LUT is tested at the current phase
 				for (k = 0; k < (int)fpgaLogic[x][y][z].nodes.size(); k++)
 				{
 					if (paths[fpgaLogic[x][y][z].nodes[k].path][0].testPhase == i) // this path should be tested in the current test phase
@@ -796,7 +863,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 					// assign F as if the signal tranisition is inverting
 					// important to remember F has no control on Cout. Cout is adjusted by adjusting the other inputs when creating the WYSIWYGs
 					// F only controls the transition to Combout, this depends on the LUT mask created. So lets figure out how to choose F to get the edge we want man		
-					if (fpgaLogic[x][y][z].LUTMask == "D77D" || fpgaLogic[x][y][z].LUTMask == "D728")
+					if (fpgaLogic[x][y][z].LUTMask == /*"D77D"*/ "827D" || fpgaLogic[x][y][z].LUTMask == "D728")
 					{
 						// there are two differnet LUT configuration that use this mask one with cout and one withou
 						if (fpgaLogic[x][y][z].outputPorts[Cout - 5]) // cout is one of the outputs and cin is used for sure
@@ -860,7 +927,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 						}
 						else // output is only combout
 						{
-							assert(fpgaLogic[x][y][z].LUTMask == "D77D");
+							assert(fpgaLogic[x][y][z].LUTMask == "D728");
 							if (fpgaLogic[x][y][z].usedInputPorts == 1)
 							{
 								assert(portInToCombout > -1);
@@ -905,9 +972,9 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 					}
 					else if (fpgaLogic[x][y][z].LUTMask == "9F60") // cout is one of the outputs, cin is not used and two input ports are used
 					{
-						assert(fpgaLogic[x][y][z].usedInputPorts > 1);
-						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]);
-						assert(!fpgaLogic[x][y][z].inputPorts[Cin]);
+						assert(fpgaLogic[x][y][z].usedInputPorts > 1); // more than 1 port used
+						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]); // cout is used
+						assert(!fpgaLogic[x][y][z].inputPorts[Cin]); // cin is not used
 						if (inverting_t)
 							controllerFile << "0"; // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b0; " << std::endl;
 						else
@@ -917,11 +984,11 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 
 
 					}
-					else if (fpgaLogic[x][y][z].LUTMask == "6F9F") // cout is one of the outputs, cin is not used and two input ports are used
+					else if (fpgaLogic[x][y][z].LUTMask == /*"6F9F"*/ "609F") // cout is one of the outputs, cin is not used and two input ports are used
 					{
-						assert(fpgaLogic[x][y][z].usedInputPorts > 1);
-						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]);
-						assert(!fpgaLogic[x][y][z].inputPorts[Cin]);
+						assert(fpgaLogic[x][y][z].usedInputPorts > 1); // more than 1 port used
+						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]); // cout is used
+						assert(!fpgaLogic[x][y][z].inputPorts[Cin]); // cin is not used
 						if (inverting_t)
 							controllerFile << "1"; // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b1; " << std::endl;
 						else
@@ -931,20 +998,20 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 					}
 					else if (fpgaLogic[x][y][z].LUTMask == "DD22") // cout is one of the outputs, cin not used, only one port is used 
 					{
-						assert(fpgaLogic[x][y][z].usedInputPorts == 1);
-						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]);
-						assert(!fpgaLogic[x][y][z].inputPorts[Cin]);
+						assert(fpgaLogic[x][y][z].usedInputPorts == 1); // only 1 input port used
+						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]); // cout is used
+						assert(!fpgaLogic[x][y][z].inputPorts[Cin]); // cin is not used
 						if (inverting_t)
 							controllerFile << "0";  // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b0; " << std::endl;
 						else
 							controllerFile << "1"; // option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b1; " << std::endl;
 
 					}
-					else if (fpgaLogic[x][y][z].LUTMask == "77DD")
+					else if (fpgaLogic[x][y][z].LUTMask == "22DD")
 					{
-						assert(fpgaLogic[x][y][z].usedInputPorts == 1);
-						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]);
-						assert(!fpgaLogic[x][y][z].inputPorts[Cin]);
+						assert(fpgaLogic[x][y][z].usedInputPorts == 1); // only 1 port used
+						assert(fpgaLogic[x][y][z].outputPorts[Cout - 5]); // cout is used
+						assert(!fpgaLogic[x][y][z].inputPorts[Cin]); // cin is not used
 						if (inverting_t)
 							controllerFile << "1"; //option 2 controllerFile << "\t\t\tPATH" << controlSignals[j].path << "NODE" << controlSignals[j].node << "F <= 1'b1; " << std::endl;
 						else
@@ -994,6 +1061,49 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 
 			}
 			controllerFile << " ; " << std::endl;
+			//////// cascaded LUTs selector
+
+			if (cascadedControlSignals.size()>0)
+				controllerFile << "\t\t\tcascaded_select_temp <= " << cascadedControlSignals.size() << "'b";
+			for (j = 0; j < (int)cascadedControlSignals.size(); j++)
+			{
+				x = paths[cascadedControlSignals[j].path][cascadedControlSignals[j].node].x;
+				y = paths[cascadedControlSignals[j].path][cascadedControlSignals[j].node].y;
+				z = paths[cascadedControlSignals[j].path][cascadedControlSignals[j].node].z;
+				assert(fpgaLogic[x][y][z].cascadedPaths.size()>0); // this must be true, other wise why does this LUT have a cascaded control signal
+				bool cascTested = false;
+				for (int p = 0; p < (int)fpgaLogic[x][y][z].cascadedPaths.size(); p++) // loop across all cascaded paths
+				{
+					int currentCascPath = fpgaLogic[x][y][z].cascadedPaths[p];
+					if (paths[currentCascPath][0].deleted) // if this is deleted
+						continue;
+
+					if (paths[currentCascPath][0].testPhase == i) // this cascaded path is tested at the current test phase i
+					{
+						cascTested = true;
+						break;
+					}
+
+				}
+
+				if (cascTested)
+				{
+					//////////// double check that should be deleted //////// if the ith test phase is testing one of the cascaded paths at LUT x,y,z then it can't be testing any path going through LUT x,y,z;
+					for (int dd = 0; dd < (int)fpgaLogic[x][y][z].nodes.size(); dd++)
+					{
+						assert(paths[fpgaLogic[x][y][z].nodes[dd].path][0].testPhase != i);
+					}
+
+					///////// end double check ///////
+					controllerFile << "0"; // this select signal goes to the mux and ensure that the f signal of the lut is connected to the tff
+				}
+				else
+				{
+					controllerFile << "1";
+				}
+			}
+			controllerFile << " ; " << std::endl;
+
 
 			///// output set source registers
 			controllerFile << "\t\t\tset_source_registers <= " << sources.size() << "'b";
@@ -1208,6 +1318,7 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 	std::vector <Path_logic_component> sources; // stores source flipflops
 	std::vector <Path_logic_component> sinks; // stores the output signals of the tested paths;
 	std::vector <Path_logic_component> controlSignals; // stores the control signals of the tested paths;
+	std::vector <Path_logic_component> cascadedControlSignals; // stores the control signals of LUTs feeding a cascaded register;
 	std::vector <Path_logic_component> CoutSignals;
 	std::vector <Path_logic_component> DummyRegSignals;
 	DummyRegSignals.resize(0);
@@ -1250,7 +1361,7 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 				{
 #ifdef CycloneIV
 					// location X1, put the code into a functoin and calling it below. 
-					LUT_WYSIWYG_CycloneIV(i, j, k, verilogFile, port1, port2, CoutSignals, controlSignals, path, node, pathFeederPort1, nodeFeederPort1, pathFeederPort2, nodeFeederPort2, inverting);
+					LUT_WYSIWYG_CycloneIV(cascadedControlSignals,i, j, k, verilogFile, port1, port2, CoutSignals, controlSignals, path, node, pathFeederPort1, nodeFeederPort1, pathFeederPort2, nodeFeederPort2, inverting);// , cascadedControlSignals);
 #endif
 #ifdef StratixV
 					ALUT_WYSIWYGS_StratixV(i, j, k,verilogFile);
@@ -1334,8 +1445,8 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 #endif
 	verilogFile << "endmodule" << std::endl;
 	verilogFile.close();
-	create_auxil_file(sinks, controlSignals, CoutSignals, sources);
-	create_controller_module(sinks, controlSignals, sources);
+	create_auxil_file(sinks, controlSignals, CoutSignals, sources, cascadedControlSignals);
+	create_controller_module(sinks, controlSignals, sources, cascadedControlSignals);
 
 
 }
@@ -1344,16 +1455,36 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 
 
 // this may have problems I removed it from location X1;
-void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1, int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting)
+void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSignals,int i, int j, int k, std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1, int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting)//, std::vector <Path_logic_component>& cascadedControlSignals)
 {
 	int pathFeederPort3, nodeFeederPort3;
 	int port3 = -1;
+	//std::vector <Path_logic_component>& cascadedControlSignals;
+	bool feedsCascaded = false;
+
+//	if (i == 19 && j == 7 && k == 18)
+//		std::cout << "wasaaal" << std::endl;
+
+	for (int ii = 0; ii < (int)fpgaLogic[i][j][k].cascadedPaths.size(); ii++) //loop through list of cascaded path to check if one of them is not deleted
+	{
+		if (!paths[fpgaLogic[i][j][k].cascadedPaths[ii]][0].deleted) // if it is not deleted
+		{
+			feedsCascaded = true;
+			break;
+		}
+	}
+
+	if (feedsCascaded)
+	{
+		cascadedControlSignals.push_back(Path_logic_component(path, node)); //stores all the nodes requiring cascaded control signals
+	}
+
 	if (fpgaLogic[i][j][k].outputPorts[Combout - 5] && !fpgaLogic[i][j][k].outputPorts[Cout - 5]) // output is only from Combout
 	{
 
 		if (fpgaLogic[i][j][k].usedInputPorts < 3) // check that maximum 2 inputs are being used
 		{
-			assert(!check_control_signal_required(i, j, k)); // double check that this cell does not require a control (fix) signal
+			//assert(!check_control_signal_required(i, j, k)); // double check that this cell does not require a control (fix) signal [not sure y i had this, 25/09/2016 I think I dont need it]
 			// get the two ports used
 			for (int x = 0; x < InputPortSize; x++)
 			{
@@ -1388,14 +1519,30 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 					{
 						verilogFile << "	.datab(gnd)," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout )," << std::endl;
-						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						if (feedsCascaded)
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+						}
+						else
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						}
+						
 						// ib0502 verilogFile << "	.datad(vcc )," << std::endl;
 					}
 					else // port 2 is also used 
 					{
 						verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout )," << std::endl;
-						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						if (feedsCascaded)
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+						}
+						else
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						}
+						
 						//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 					}
 				}
@@ -1404,7 +1551,16 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 					assert(port2>-1);
 					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
 					verilogFile << "	.cin(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << "_Cout )," << std::endl;
-					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					if (feedsCascaded)
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+					}
+					else
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+
+					}
+					
 					//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 				}
 				verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
@@ -1434,7 +1590,15 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 				else // only one port is used
 					verilogFile << "	.datac(gnd)," << std::endl;
 
-				verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+				if (feedsCascaded)
+				{
+					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+				}
+				else
+				{
+					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+				}
+				
 				//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 				verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
 				verilogFile << "defparam PATH" << path << "NODE" << node << "_t .sum_lutc_input = \"datac\";" << std::endl;
@@ -1494,7 +1658,15 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 							verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
 							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
 							verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout )," << std::endl;
-							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+							if (feedsCascaded)
+							{
+								verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+							}
+							else
+							{
+								verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+							}
+							
 							//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 						
 					}
@@ -1504,7 +1676,15 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 						verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
 						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << "_Cout )," << std::endl;
-						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						if (feedsCascaded)
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+						}
+						else
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						}
+						
 						//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 					}
 					else
@@ -1513,7 +1693,15 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 						verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
 						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << "_Cout )," << std::endl;
-						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						if (feedsCascaded)
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+						}
+						else
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						}
+						
 					}
 					verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
 					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .sum_lutc_input = \"cin\";" << std::endl;
@@ -1537,7 +1725,15 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
 					verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
 					
-					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					if (feedsCascaded)
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+					}
+					else
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					}
+					
 					//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 					verilogFile << "	.combout(PATH" << path << "NODE" << node << "));" << std::endl;
 					verilogFile << "defparam PATH" << path << "NODE" << node << "_t .sum_lutc_input = \"datac\";" << std::endl;
@@ -1593,14 +1789,30 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 					{
 						verilogFile << "	.datab(vcc)," << std::endl; // set b to vcc so that cin is inverted to cout
 						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout)," << std::endl;
-						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F)," << std::endl;
+						if (feedsCascaded)
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+						}
+						else
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						}
+						
 						//ib0502 verilogFile << "	.datad(vcc )," << std::endl;
 					}
 					else // port 2 is also used 
 					{
 						verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << ")," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout)," << std::endl;
-						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F)," << std::endl;
+						if (feedsCascaded)
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+						}
+						else
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						}
+						
 						//ib0502 verilogFile << "	.datad(vcc )," << std::endl;
 					}
 				}
@@ -1608,7 +1820,15 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 				{
 					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << ")," << std::endl;
 					verilogFile << "	.cin(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << "_Cout)," << std::endl;
-					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F)," << std::endl;
+					if (feedsCascaded)
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+					}
+					else
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					}
+					
 					//ib0502 verilogFile << "	.datad(vcc )," << std::endl;
 				}
 				// output
@@ -1656,7 +1876,15 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 						verilogFile << "	.cin(PATH" << path << "NODE" << node << "Con)," << std::endl;
 					else
 						verilogFile << "	.cin(vcc)," << std::endl;
-					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F)," << std::endl;
+					if (feedsCascaded)
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+					}
+					else
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					}
+					
 					//ib0502 verilogFile << "	.datad(vcc )," << std::endl;
 				}
 				else // only one port non cin is used then do not use cin for control as it is not needed
@@ -1665,7 +1893,16 @@ void LUT_WYSIWYG_CycloneIV(int i, int j, int k, std::ofstream& verilogFile, int 
 						verilogFile << "	.dataa(PATH" << path << "NODE" << node << "Con)," << std::endl;
 					else
 						verilogFile << "	.dataa(vcc)," << std::endl;
-					verilogFile << "	.datad(PATH" << path << "NODE" << node << "F)," << std::endl;
+					
+					if (feedsCascaded)
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+					}
+					else
+					{
+						verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+					}
+					
 					//ib0502 verilogFile << "	.datad(vcc )," << std::endl;
 				}
 				//////////////////////////////// end new

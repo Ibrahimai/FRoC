@@ -246,7 +246,7 @@ void cycloneIV_stuff()
 int remainig_paths(std::vector< std::vector<Path_node> > paths_total)
 {
 	int total = 0;
-	for (int i = 1; i < paths_total.size(); i++)
+	for (int i = 1; i <(int)paths_total.size(); i++)
 	{
 
 		if (!paths_total[i][0].deleted)

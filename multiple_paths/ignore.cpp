@@ -532,7 +532,9 @@ void assign_test_phases_ib()
 	std::vector < std::vector <int> > pathRelationGraph;
 	// create the graph representing the connections between paths
 	delete_especial_reconvergent_fanout();
-	generate_pathRelationGraph(pathRelationGraph);
+	generate_pathRelationGraph(pathRelationGraph); //creates the PRG and add edges to ensure that all off path inputs of every tested path is fixed (cannot test 2 oaths with fan-in overlap)
+
+	add_cascaded_edges_to_pathRelationGraph(pathRelationGraph);
 
 	// start assigning phases ////////////////////////// graph coloring, coloring pathRelationGraph, could be improved significantly
 	unsigned int i, j;
@@ -579,11 +581,57 @@ void assign_test_phases_ib()
 	numberOfTestPhases = possPhases.size();
 }
 
+void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph)// add edges to the PRG to handle cascaded paths
+{
+	
+	int i, j, k, l, m;
+	for (i = 0; i < FPGAsizeX; i++)// loop through all LUTs of the FPGA fabric
+	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			for (k = 0; k < FPGAsizeZ; k++)
+			{
+				if (k%LUTFreq == 0) // this is a LUT
+				{
+					////// adding edges between all paths using LUT i,j,k and all paths in the cascaded list of LUT i,j,k
+					if (fpgaLogic[i][j][k].cascadedPaths.size()>0) // this LUTs feed a cascaded register, then we must add edges between all paths usgin this LUT and paths in the cascaded list
+					{
+						for (l = 0; l < (int)fpgaLogic[i][j][k].cascadedPaths.size(); l++) // loop across all paths using the cascaded register
+						{
+							int currentCascadedPath = fpgaLogic[i][j][k].cascadedPaths[l];
+							if (paths[currentCascadedPath][0].deleted) // this cascaded path is deleted so go on to the next one
+								continue;
 
+							for (m = 0; m < (int)fpgaLogic[i][j][k].nodes.size(); m++) // now loop across all paths using LUT i,j,k
+							{
+								assert(currentCascadedPath != fpgaLogic[i][j][k].nodes[m].path); // this must be true any path using lut i,j,k can not be a cascaded path that starts in the cascaded FF
+							
+								if (paths[fpgaLogic[i][j][k].nodes[m].path][0].deleted) // if ythis path is deleted then continue
+									continue;
+
+								// add connection between currentCascadedPath and path m of LUT i,j,k
+								add_connection(pathRelationGraph, currentCascadedPath, fpgaLogic[i][j][k].nodes[m].path);
+							
+							}
+						}
+
+					}
+
+					// adding edges between all paths using LUT i,j,k and all paths in the cascaded list of LUTs that feed LUT i,j,k [already added this to the "generate_pathRelationGraph" function]
+
+
+
+
+				}
+			}
+		}
+	}
+
+}
 void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph)
 {
 	pathRelationGraph.resize(paths.size());
-	unsigned int i, j, k, kk;
+	unsigned int i, j, k, kk, l;
 	bool shouldDelete = false;
 	int tempComponentX, tempComponentY, tempComponentZ;
 	int deletedPaths = 0;
@@ -644,6 +692,7 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 
 				if (!shouldDelete)
 				{
+					//add edges between path i and all paths using LUT tempComponentX, tempComponentY, tempComponentZ
 					for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // tod0: currently we fix cout and combout together, if we need to fix combout we also fix cout. This is not necessary we could change that.
 					{
 						//		if (paths[tempNode.path][tempNode.node - 1].portOut == paths[fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path][fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].node].portOut)
@@ -651,7 +700,21 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 							add_connection(pathRelationGraph, i, fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path);
 						//		else
 						//			std::cout << "7assal" << std::endl;
+
 					}
+
+					// add edges between path i and all paths in the cascaded list of LUT tempComponentX, tempComponentY, tempComponentZ
+					for (l = 0; l < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].cascadedPaths.size(); l++)
+					{
+						int currentCascadedPath = fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].cascadedPaths[l];
+						assert(i != currentCascadedPath); // this must be true any path using lut i,j,k can not be a cascaded path that starts in the cascaded FF
+
+						if (!paths[currentCascadedPath][0].deleted)
+							add_connection(pathRelationGraph, i, currentCascadedPath);
+
+					}
+
+
 				}
 				shouldDelete = false;;
 

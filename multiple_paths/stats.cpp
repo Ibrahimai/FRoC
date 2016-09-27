@@ -29,7 +29,7 @@ void count_cascaded_paths()
 
 				bool source = false;
 				bool sink = false;
-				for (l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+				for (l = 0; l < (int)fpgaLogic[i][j][k].nodes.size(); l++)
 				{
 					if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted) // if this path is deleted, then dont bother accounting for it
 						continue;

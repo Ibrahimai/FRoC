@@ -155,12 +155,66 @@ int parseIn(int argc, char* argv[])
 	tempPath.clear();
 
 	read_routing(argv[2]);
+
+	update_cascaded_list();
+
 	return 1;
 }
 
 
 
 #endif
+
+
+
+
+void update_cascaded_list() // go through all LEs and adds cscaded paths to every LUT feeding a cascaded FF
+{
+	int i, j, k;
+	int feederPath, feederNode;
+
+	int feederX, feederY, feederZ;
+	
+	for (i = 0; i < FPGAsizeX; i++)
+	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			for (k = 0; k < FPGAsizeZ; k++)
+			{
+				if (k%LUTFreq == 0) // get FFs only
+					continue;
+				if (fpgaLogic[i][j][k].utilization == 0) // if not used then skip it
+					continue;
+
+				if (!is_cascaded_reg(i, j, k)) // if not cacsaded reg then skip it
+					continue;
+				// if it is a reg and used and cascaded, then get feeder node [it is only one feeder]
+				if (!get_feeder(i, j, k, feederPath, feederNode)) // get the feedrer to this LUT, when this function returns false, this means that this register is not a sink. It is only a source so it doesnt have any feeders
+					continue;
+
+				feederX = paths[feederPath][feederNode].x;
+				feederY = paths[feederPath][feederNode].y;
+				feederZ = paths[feederPath][feederNode].z;
+
+				for (int x = 0; x <(int)fpgaLogic[i][j][k].nodes.size(); x++) // loop across all nodes using FF i,j,k
+				{
+					if (fpgaLogic[i][j][k].nodes[x].node == 0) // this node is a source at FF i,j,k so it can't be tested with any paths in the feeder to FF i,j,k
+					{
+						if (paths[fpgaLogic[i][j][k].nodes[x].path].back().x == i && paths[fpgaLogic[i][j][k].nodes[x].path].back().y == j && paths[fpgaLogic[i][j][k].nodes[x].path].back().z == k) // if the sink of path (fpgaLogic[i][j][k].nodes[x].path) is the same as the source location, then this is a wraparound path. so we dont add it as acascaded path
+						{
+							continue;
+						}
+
+						fpgaLogic[feederX][feederY][feederZ].cascadedPaths.push_back(fpgaLogic[i][j][k].nodes[x].path); // add this path to the list of cascaded paths at LUT feederX,Y,Z.
+					}
+
+				}
+
+			}
+		}
+	}
+
+}
 
 bool check_source(std::string target);
 bool check_destination(std::string target);

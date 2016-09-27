@@ -149,6 +149,7 @@ public:
 	bool CoutFixedDefaultValue; // Cout deafult fixed value is 0, this variable is true when this is the case. For some cases we have to change that to allow the desired behaviour in the subsequent element. We must mark the cell accordingly.
 	std::vector<Path_logic_component> nodes; // list of nodes representing which path and node use this le
 	std::vector<Routing_connection> connections; // vector of the connections of all fanouts for each logic element
+	std::vector<int> cascadedPaths; // each element in this vector represent a path that starts at FF x. Where the input of x is connected to the output of THIS logic element.
 	Logic_element();
 	Logic_element(int over);
 	int get_utilization();

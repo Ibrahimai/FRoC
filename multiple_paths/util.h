@@ -11,3 +11,4 @@ bool check_down_link_edge_transition(int i, int j, int k);
 bool delete_path_stratix(int path);
 int delete_ALUT_port_stratix(int x, int y, int z, int port);
 int delete_ALUT_stratix(int x, int y, int z);
+bool is_cascaded_reg(int x, int y, int z); // returns true if the register in loc (x,y,z) is a cascaded register. Meaning that it is a sink and a source at the same time

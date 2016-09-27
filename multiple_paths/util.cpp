@@ -3,7 +3,7 @@
 
 bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int & feederNode); // returns the path and node that feeds element x,y,z through portIn, it is special as it returns a value even if the feeder cell is deleted, but it checks that it did exist before.
 
-
+// todo: currently the function assumes there is no wraparound paths. To make it formally correct, we need to check that the source and sink found are from different paths. Otherwise, we could falsely identify a wraparound path as cascaded paths.
 bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc (x,y,z) is a cascaded register. Meaning that it is a sink and a source at the same time
 {
 	assert(z % LUTFreq != 0); // this is a register
@@ -11,7 +11,7 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 	int l = 0;
 	bool source = false;
 	bool sink = false;
-	for (l = 0; l < fpgaLogic[x][y][z].nodes.size(); l++)
+	for (l = 0; l < (int)fpgaLogic[x][y][z].nodes.size(); l++)
 	{
 		if (paths[fpgaLogic[x][y][z].nodes[l].path][0].deleted) // if this path is deleted, then we shouldnt be accounting for it
 			continue;
@@ -30,6 +30,8 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 		}
 
 	}
+
+	return false;
 }
 
 
@@ -380,19 +382,33 @@ bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode) // retu
 	if (fpgaLogic[x][y][z].nodes.size() < 1) // make sure that this element is actually used
 		return false;
 
-	if (fpgaLogic[x][y][z].nodes[0].node < 1) // make sure that this element is not a source, i.e something feeds it
+//	if (fpgaLogic[x][y][z].nodes[0].node < 1) // make sure that this element is not a source, i.e something feeds it
+//		return false;
+
+	int i, nodeIndex;
+	nodeIndex = -1;
+	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+	{
+		if (fpgaLogic[x][y][z].nodes[i].node>0) // this is not a source node
+		{
+			nodeIndex = i;
+			break;
+		}
+	}
+
+	if (nodeIndex == -1) // this FF is not a sink, so it has no feeder. return false
 		return false;
 
 	int feederX, feederY, feederZ;
 
-	/// gets the element that feeds the given element through the first path using this node. Even if this path is deleted the feeder x, y and z would be the same, it is imposisble for two different cells to feed the same cell
-	// these assumes the absence of cascaded paths. IT assumes that any node at location x, y, z will  have the same feeder, but what if this register is a source and a sink.{casc}
-	feederX = paths[fpgaLogic[x][y][z].nodes[0].path][fpgaLogic[x][y][z].nodes[0].node - 1].x;
-	feederY = paths[fpgaLogic[x][y][z].nodes[0].path][fpgaLogic[x][y][z].nodes[0].node - 1].y;
-	feederZ = paths[fpgaLogic[x][y][z].nodes[0].path][fpgaLogic[x][y][z].nodes[0].node - 1].z;
+	/// gets the element that feeds the given element through the first path using this node. Even if this path is deleted the feeder x, y and z would be the same, it is imposisble for two different cells to feed the same register
+	// [corected now it works with no assumptions]  (old note) --> these assumes the absence of cascaded paths. IT assumes that any node at location x, y, z will  have the same feeder, but what if this register is a source and a sink.{casc}
+	feederX = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].x;
+	feederY = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].y;
+	feederZ = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].z;
 	feederPath = -1;
 	feederNode = -1;
-	int i;
+//	int i;
 
 	for (i = 0; i < (int)fpgaLogic[feederX][feederY][feederZ].nodes.size(); i++) // loop through paths using this feeder the first nondeletred one is the name that should be used
 	{

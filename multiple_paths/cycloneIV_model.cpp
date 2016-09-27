@@ -4,6 +4,7 @@ Logic_element::Logic_element()
 {
 	connections.resize(0);
 	nodes.resize(0);
+	cascadedPaths.resize(0);
 	utilization = 0;
 	inputPorts[portA] = false;
 	inputPorts[portB] = false;
