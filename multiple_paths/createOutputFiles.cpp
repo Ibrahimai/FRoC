@@ -162,11 +162,11 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 		cascNode = cascadedControlSignals[i].node;
 		if (i == 0)
 		{
-			verilogFile << "wire source_path_" << cascPath << "_node" << cascNode << " , cascaded_selector_path" << cascPath << "_node" << cascNode << " , PATH" << cascPath << "NODE" << cascNode << "F_cascaded ";
+			verilogFile << "wire source_path" << cascPath << "_node" << cascNode << " , cascaded_selector_path" << cascPath << "_node" << cascNode << " , PATH" << cascPath << "NODE" << cascNode << "F_cascaded ";
 		}
 		else
 		{
-			verilogFile << ", source_path_" << cascPath << "_node" << cascNode << " , cascaded_selector_path" << cascPath << "_node" << cascNode << " , PATH" << cascPath << "NODE" << cascNode << "F_cascaded ";
+			verilogFile << ", source_path" << cascPath << "_node" << cascNode << " , cascaded_selector_path" << cascPath << "_node" << cascNode << " , PATH" << cascPath << "NODE" << cascNode << "F_cascaded ";
 
 		}
 	}
@@ -209,7 +209,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 	for (i = 0; i < (int)cascadedControlSignals.size(); i++) // for each cascaded control signal we instantiate a Tff and a 2to1 mux
 	{
 		verilogFile << "t_ff " << "t_" << i << " (.reset(reset), .out( source_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << "), .clk(CLK));" << std::endl;
-		verilogFile << "mux2to1 mux_" << i << "(.in0( source_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << "), .in1( PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F ), .s( cascade_selector_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << " ), .out (PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F_cascaded)); " << std::endl;
+		verilogFile << "mux2to1 mux_" << i << "(.in0( source_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << "), .in1( PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F ), .s( cascaded_selector_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << " ), .out (PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F_cascaded)); " << std::endl;
 
 	}
 	verilogFile << std::endl << std::endl;
@@ -315,16 +315,16 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 
 	// cascaded LUTs mux selector cascaded_select
 	if (cascadedControlSignals.size() > 0)
-		controllerFile << "output [" << cascadedControlSignals.size() - 1 << ":0] cascacded_select, ";
+		controllerFile << "output [" << cascadedControlSignals.size() - 1 << ":0] cascaded_select, ";
 
 
 	controllerFile << "output reg finished_one_iteration );" << std::endl;
 
 	// create reg to hold the buffered values of the sinks, these values will be xored with the values from the sinks to ensure that the value changes every cycle
 	controllerFile << "reg [" << sinks.size() - 1 << ":0] sinks_buff , sinks_buff_buff ;" << std::endl;
-	controllerFile << "reg [" << 2 * controlSignals.size() - 1 << ":0] controlSignals_temp;";
+	controllerFile << "reg [" << 2 * controlSignals.size() - 1 << ":0] controlSignals_temp;" << std::endl;
 	if (cascadedControlSignals.size() > 0)
-		controllerFile << "reg [" << cascadedControlSignals.size() - 1 << ":0] cascacded_select_temp, ";
+		controllerFile << "reg [" << cascadedControlSignals.size() - 1 << ":0] cascaded_select_temp; " << std::endl;
 	controllerFile << "reg [" << sinks.size() - 1 << ":0] errorVec;" << std::endl;
 	controllerFile << "reg error_temp;" << std::endl;
 	// create states
@@ -394,7 +394,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	controllerFile << std::endl << "assign controlSignals = controlSignals_temp;" << std::endl;
 
 	if (cascadedControlSignals.size() > 0)
-		controllerFile << std::endl << "assign cascaded_select = cascaded_select_temp " << std::endl << std::endl;
+		controllerFile << std::endl << "assign cascaded_select = cascaded_select_temp; " << std::endl << std::endl;
 
 	controllerFile << "//////////////////////////////////////////////////////////////////" << std::endl;
 	controllerFile << "// starting the Sequential part of the FSM changing between states" << std::endl;
@@ -776,6 +776,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	// reset counter output
 	controllerFile << "\t\t\treset_counter <= 1'b1; " << std::endl;
 	controllerFile << "\t\t\treset_counter_reset <= 1'b1;" << std::endl;
+	if (cascadedControlSignals.size()>0)
+		controllerFile << "\t\t\tcascaded_select_temp <= {" << cascadedControlSignals.size() << "{1'b1}}; " << std::endl;
 	// reset counter output
 	controllerFile << "\t\t\terror_temp <= 1'b0; " << std::endl;
 	// finished_one_iteration
@@ -1061,6 +1063,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 
 			}
 			controllerFile << " ; " << std::endl;
+
 			//////// cascaded LUTs selector
 
 			if (cascadedControlSignals.size()>0)
@@ -1162,6 +1165,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 					{
 						if (paths[fpgaLogic[x][y][z].nodes[k].path][0].testPhase == i)
 						{
+							if (fpgaLogic[x][y][z].nodes[k].node == 0) // if this node is a source then we shouldnt be checking the output of this FF for erro. THis only happens in cascaded cases.
+								continue;
 							assert(!paths[fpgaLogic[x][y][z].nodes[k].path][0].deleted);
 							currentlyTested = true;
 							break;
@@ -1225,6 +1230,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	// reset counter output
 	controllerFile << "\t\t\treset_counter <= 1'b1; " << std::endl;
 	controllerFile << "\t\t\treset_counter_reset <= 1'b1;" << std::endl;
+	if (cascadedControlSignals.size()>0)
+		controllerFile << "\t\t\tcascaded_select_temp <= {" << cascadedControlSignals.size() << "{1'b1}}; " << std::endl;
 	// reset counter output
 	controllerFile << "\t\t\terror_temp <= 1'b0; " << std::endl;
 	controllerFile << "\t\t\tset_source_registers <= {" << sources.size() << "{1'b1}};" << std::endl;
@@ -1245,6 +1252,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	// reset counter output
 	controllerFile << "\t\t\treset_counter <= 1'b1; " << std::endl;
 	controllerFile << "\t\t\treset_counter_reset <= 1'b1;" << std::endl;
+	if (cascadedControlSignals.size()>0)
+		controllerFile << "\t\t\tcascaded_select_temp <= {" << cascadedControlSignals.size() << "{1'b1}}; " << std::endl;
 	// reset counter output
 	controllerFile << "\t\t\terror_temp <= 1'b0; " << std::endl;
 	// finished_one_iteration
