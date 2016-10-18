@@ -111,9 +111,11 @@ bool delete_path(int path)
 		z = paths[path][i].z;
 		// reduce this node utilization
 		fpgaLogic[x][y][z].utilization--;
+
 		// todo: remove this from the nodes of fpgalogic[x][y][z].nodes
 		portInStillExists = false;
 		portOutStillExists = false;
+
 		for (j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
 		{
 			if (fpgaLogic[x][y][z].nodes[j].path == path) // same path, so continue to next path
@@ -130,16 +132,23 @@ bool delete_path(int path)
 		}
 
 		// change owner ship
+		bool isUsed = false;
 		for (j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
 		{
 			if (!paths[fpgaLogic[x][y][z].nodes[j].path][0].deleted) // if this path is deleted then continue to next path
 			{
 				fpgaLogic[x][y][z].owner.path = fpgaLogic[x][y][z].nodes[j].path;
 				fpgaLogic[x][y][z].owner.node = fpgaLogic[x][y][z].nodes[j].node;
+				isUsed = true;
 				break;
 			}
 		}
+		if (!isUsed) // this is not used
+		{
+			fpgaLogic[x][y][z].owner.path = -1;
+			fpgaLogic[x][y][z].owner.node = -1;
 
+		}
 		if (!portInStillExists) // input port must be deleted
 		{
 			if (z%LUTFreq == 0) // LUT
@@ -161,6 +170,36 @@ bool delete_path(int path)
 				for (int counter = 0; counter < (int)fpgaLogic[xFeeder][yFeeder][zFeeder].connections.size(); counter++)
 				{
 					if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX == x && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationY == y && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationZ == z && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationPort == paths[path][i].portIn) // connection matched
+					{
+						assert(!extraCheck);
+						//.deletedConn							fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].deleted = true;
+						// trial ibrahim 23/05/2016
+						fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX = -1;
+						extraCheck = true;
+
+					}
+				}
+
+			}
+			else if (i>0) // FF and sink of path path
+			{
+				int nodeFeeder, pathFeeder;
+				assert(get_feeder_special(x, y, z, pathFeeder, nodeFeeder)); // this function returns th feeder even if it was deleted
+				//get_feeder_special(int x, int y, int z, int & feederPath, int & feederNode)
+
+				int xFeeder = paths[pathFeeder][nodeFeeder].x;
+				int yFeeder = paths[pathFeeder][nodeFeeder].y;
+				int zFeeder = paths[pathFeeder][nodeFeeder].z;
+
+				// utilizing the fact that when I delete a path I keep the nodes array intact
+				assert(fpgaLogic[xFeeder][yFeeder][zFeeder].nodes.size() > 0);
+
+				bool extraCheck = false;
+
+				// loop across all connections in the feeder node to delete the one that matches the deleted input port
+				for (int counter = 0; counter < (int)fpgaLogic[xFeeder][yFeeder][zFeeder].connections.size(); counter++)
+				{
+					if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX == x && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationY == y && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationZ == z) // connection matched
 					{
 						assert(!extraCheck);
 						//.deletedConn							fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].deleted = true;
@@ -422,7 +461,53 @@ bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode) // retu
 	return false;
 }
 
+bool get_feeder_special(int x, int y, int z, int & feederPath, int & feederNode) // return path and node that feeds the register at x, y and z, difference with the non-special is that it does not check for deleted path. it returns the path even if it is deleted.
+{
+	if (z % LUTFreq == 0) // ensure that the given cell is a register
+		return false;
 
+	if (fpgaLogic[x][y][z].nodes.size() < 1) // make sure that this element is actually used
+		return false;
+
+	//	if (fpgaLogic[x][y][z].nodes[0].node < 1) // make sure that this element is not a source, i.e something feeds it
+	//		return false;
+
+	int i, nodeIndex;
+	nodeIndex = -1;
+	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+	{
+		if (fpgaLogic[x][y][z].nodes[i].node>0) // this is not a source node
+		{
+			nodeIndex = i;
+			break;
+		}
+	}
+
+	if (nodeIndex == -1) // this FF is not a sink, so it has no feeder. return false
+		return false;
+
+	int feederX, feederY, feederZ;
+
+	/// gets the element that feeds the given element through the first path using this node. Even if this path is deleted the feeder x, y and z would be the same, it is imposisble for two different cells to feed the same register
+	// [corected now it works with no assumptions]  (old note) --> these assumes the absence of cascaded paths. IT assumes that any node at location x, y, z will  have the same feeder, but what if this register is a source and a sink.{casc}
+	feederX = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].x;
+	feederY = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].y;
+	feederZ = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].z;
+	feederPath = -1;
+	feederNode = -1;
+	//	int i;
+
+	for (i = 0; i < (int)fpgaLogic[feederX][feederY][feederZ].nodes.size(); i++) // loop through paths using this feeder the first nondeletred one is the name that should be used
+	{
+	//	if (!paths[fpgaLogic[feederX][feederY][feederZ].nodes[i].path][0].deleted)
+	//	{
+			feederPath = fpgaLogic[feederX][feederY][feederZ].nodes[i].path;
+			feederNode = fpgaLogic[feederX][feederY][feederZ].nodes[i].node;
+			return true;
+	//	}
+	}
+	return false;
+}
 
 bool check_down_link_edge_transition(int i, int j, int k) // returns true if the cell feeded by fpgaLogic[i][j][k].cout is inverting from normal inputs to cout
 {
@@ -522,7 +607,7 @@ bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int &
 		return false;
 	int possibleFeedingPath = -1;
 	int possibleFeedingNode = -1;
-	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++) // loop through paths using the questioned element, the first non-deleted path feeding the desired input port is used to get the feeder.
+	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++) // loop through paths using the questioned element, the first path feeding the desired input port is used to get the feeder.
 	{
 		if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].portIn == portIn)// && !paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted)
 		{

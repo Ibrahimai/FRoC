@@ -6,6 +6,7 @@ Logic_element::Logic_element()
 	nodes.resize(0);
 	cascadedPaths.resize(0);
 	utilization = 0;
+	FFMode = -1;
 	inputPorts[portA] = false;
 	inputPorts[portB] = false;
 	inputPorts[portC] = false;

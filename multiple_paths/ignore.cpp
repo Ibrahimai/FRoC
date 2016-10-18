@@ -743,7 +743,7 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 		{
 			if (fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].node != 0) // if a path uses this node and not at its first node then these two paths are cascaded
 			{
-				std::cout << "7assal CASCADE " << std::endl;
+	//			std::cout << "7assal CASCADE " << std::endl;
 				if (i == fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].path) // this is a wraparound path. its source and target are the same FF. My current idea is to use syn clear or sync load to test these kind of paths. TO do so we must ensure that no other registers are used in the same LAB because of the global control signals
 				{
 					if (delete_path(i))

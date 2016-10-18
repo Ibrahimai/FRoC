@@ -136,7 +136,7 @@ bool get_allPathsTested(int & remaining) // returns true if all paths are tested
 	}
 }
 
-void print_stats()
+void print_stats(char* argv[])
 {
 	std::cout << "**********************************************************DONE BIAAAATCH**************************************************" << std::endl;
 	std::cout << "Stats on the genereated bit streams are:- " << std::endl;
@@ -150,11 +150,36 @@ void print_stats()
 			std::cout << "\t\t Test phase number " << j << " has " << testPathsDistribution[i][j] << " paths" << std::endl;
 		}
 	}
+
+	IgnoredPathStats << "=============================================================================================================" << std::endl;
+	IgnoredPathStats << "=============================================================================================================" << std::endl;
+	IgnoredPathStats << "=============================================================================================================" << std::endl << std::endl;
+
+	IgnoredPathStats << "#\tPa\tPh" << std::endl;
 	for (int i = 0; i < (int)testPathsDistribution.size(); i++)
 	{
 		IgnoredPathStats <<  i << "\t" << testedPaths[i].size() << "\t" << testPathsDistribution[i].size() << std::endl;;
 
 	}
+
+	// arv[4] top_level
+	std::ofstream output_summary;
+	std::string temp = argv[4];
+	std::string stats_file_name = temp + "_summary.txt";
+	output_summary.open(stats_file_name);
+
+	output_summary << stats_file_name << std::endl;
+	output_summary << "Number of Paths : " << paths.size() - 1 << std::endl;
+	output_summary << "Critical Path Delay : " << pathSlack[1] << " , Best slack is : " << pathSlack[pathSlack.size() - 1] << std::endl;
+	output_summary << "Calibration Bitstreams Required : " << testPathsDistribution.size() << std::endl;
+	output_summary << "#\tPh\tPa" << std::endl;
+
+	for (int i = 0; i < (int)testPathsDistribution.size(); i++)
+	{
+		output_summary <<  i << "\t" << testPathsDistribution[i].size() << "\t" << testedPaths[i].size() << "\t" << std::endl;
+	}
+
+
 
 	return;
 }

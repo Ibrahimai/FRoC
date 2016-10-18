@@ -343,9 +343,17 @@ int main(int argc, char* argv[])
 	
 	
 	if (parseIn(argc, argv) != 1)
+	{
+		std::cout << "Error incorrect input parameters, expecting <metaData> <routing data> <routing data of calibration bitstream> <toplevel name used to wrtie output ot text file>";
 		return 0;
-	
-	IgnoredPathStats.open("stats_File.txt");
+	}
+	//IgnoredPathStats.open("stats_File.txt");
+
+	std::string temp = "tryingshitfuck";// argv[4];
+	std::string stats_file_name = temp + "_stats.txt";
+
+	IgnoredPathStats.open(stats_file_name);
+	IgnoredPathStats << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "reconv fnout" << std::endl;
 	set_netlist(); // set original copy of netlist (without deleting anything)
 	int remaining_paths = 0;
 	while (true)
@@ -353,7 +361,7 @@ int main(int argc, char* argv[])
 		cycloneIV_stuff();
 		if (get_allPathsTested(remaining_paths))
 		{
-			print_stats();
+			print_stats(argv);
 			break;
 		}
 		else

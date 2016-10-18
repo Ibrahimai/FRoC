@@ -1105,7 +1105,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 					controllerFile << "1";
 				}
 			}
-			controllerFile << " ; " << std::endl;
+			if (cascadedControlSignals.size()>0)
+				controllerFile << " ; " << std::endl;
 
 
 			///// output set source registers
@@ -1361,7 +1362,7 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 						break;
 					}
 				}
-				
+
 				if (path == -1 || node == -1) // all paths using this node are deleted so do not instantiate a wysiwygs for this node
 					continue;
 				assert(path == fpgaLogic[i][j][k].owner.path && node == fpgaLogic[i][j][k].owner.node);
@@ -1380,18 +1381,40 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 				}
 				else // FLIPFLOP
 				{
+					// check if a sink uses this FF (can not simply use node as we might have cascaded or wrap-around paths)
+					bool isSink = false;
+
+					for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++)
+					{
+						if (fpgaLogic[i][j][k].nodes[x].node != 0) // node x uses FF i,j,k as asink register
+						{
+							isSink = true;
+							break;
+						}
+					}
+
 					verilogFile << "dffeas PATH" << path << "NODE" << node << "_t (" << std::endl;
 					verilogFile << "	.clk(CLK)," << std::endl;
-					if (node == 0) // this is a source register, assuming no cascaded paths, no register is a source and a sink
+					if (!isSink/*node == 0*/) // [old]--> this is a source register, assuming no cascaded paths, no register is a source and a sink
 					{
 						verilogFile << "	.d(Xin[" << sources.size() << "])," << std::endl; // assuming that all sources will share the same input
 						verilogFile << "	.q(PATH" << path << "NODE" << node << "));" << std::endl;
 						sources.push_back(Path_logic_component(path, node));
 					}
-					else // this is a sink register
+					else // this is a sink regist+
+						
 					{
 						assert(get_feeder(i, j, k, pathFeeder, nodeFeeder));
-						verilogFile << "	.d(PATH" << pathFeeder << "NODE" << nodeFeeder << ")," << std::endl; // assuming that all sources will share the same input
+						if (fpgaLogic[i][j][k].FFMode == sData) // input is connected using asdata
+						{
+							verilogFile << "	.asdata(PATH" << pathFeeder << "NODE" << nodeFeeder << ")," << std::endl; // connected to the sdata port
+							verilogFile << "	.sload(1'b1)," << std::endl; // sload is high
+						}
+						else
+						{
+							verilogFile << "	.d(PATH" << pathFeeder << "NODE" << nodeFeeder << ")," << std::endl; // assuming that all sources will share the same input
+
+						}
 						verilogFile << "	.q(PATH" << path << "NODE" << node << "));" << std::endl;
 						sinks.push_back(Path_logic_component(path, node));
 
@@ -2180,7 +2203,20 @@ void create_RCF_file()
 						assert(pathDest == fpgaLogic[destX][destY][destZ].owner.path && nodeDest == fpgaLogic[destX][destY][destZ].owner.node); // check that the owner is correct
 						assert(pathDest > -1);
 						RoFile << "\t" << "dest = (";
-						if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 2) // 2 output ports are used then name the destination signal as if it was combout
+						if (destZ%LUTFreq != 0) // FF
+						{
+							if (fpgaLogic[destX][destY][destZ].FFMode != sData)
+							{
+								std::cout << "something is wrog with one of the registers when creating destiantion port in rcf file" << std::endl;
+								assert(1 == 2);
+
+							}
+							else
+							{
+								RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", D ), route_port = ";
+							}
+						}
+						else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 2) // 2 output ports are used then name the destination signal as if it was combout
 						{
 							RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
 						}
@@ -2215,7 +2251,14 @@ void create_RCF_file()
 							RoFile << "DATAD ;" << std::endl << std::endl;
 							break;
 						default:
-							std::cout << "Something wron with destination port when creatubg RCF files" << std::endl;
+							if (destZ%LUTFreq==0 || fpgaLogic[destX][destY][destZ].FFMode != sData)
+							{
+								std::cout << "Something wron with destination port when creatubg RCF files at the final case statement of destination port" << std::endl;
+							}
+							else
+							{
+								RoFile << "ASDATA ;" << std::endl << std::endl;
+							}
 							break;
 						}
 

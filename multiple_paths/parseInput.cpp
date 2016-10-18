@@ -6,7 +6,7 @@
 #ifdef CycloneIV
 int parseIn(int argc, char* argv[])
 {
-	if (argc<3)
+	if (argc<4)
 	{
 		std::cout << "No Input file was given. Terminating.... /n";
 		return 0;
@@ -128,6 +128,32 @@ int parseIn(int argc, char* argv[])
 		}
 		// have x and y and z stored
 		fpgaLogic[x][y][z].add_node(path, node, pIn, pOut);
+		// handle FF with sdata or data
+		if (node!=0 && z%LUTFreq==1) // this is a FF and not a source, it is a sink FF
+		{
+			int tempFFMode;
+			assert(node - 1 == tempPath.size() - 1);
+			if (tempPath[node - 1].x == x && tempPath[node - 1].y == y && (tempPath[node - 1].z == z - 1)) // means its fed from the LUT connected to the D input
+			{
+				tempFFMode = dInput;
+			}
+			else
+			{
+				tempFFMode = sData;
+			}
+			if (fpgaLogic[x][y][z].FFMode == -1) // modes is still undefined, as this FF was not used b4
+			{
+			//	if (tempFFMode == sData)
+			//		std::cout << "new sdata FF ";
+				fpgaLogic[x][y][z].FFMode = tempFFMode;
+			}
+			else
+			{
+				assert(tempFFMode == fpgaLogic[x][y][z].FFMode); // we only support one mode of FF, either input through d or through sdata, but not both.
+			}
+		}
+
+
 		assert(x >= 0 && y >= 0 && z >= 0);
 		tempPath.push_back(Path_node(x, y, z, pIn, pOut, invertingSignal));
 		for (i = 0; i<(int)fpgaLogic[x][y][z].nodes.size(); i++) // pass through all path nodes that uses this logic element
@@ -154,7 +180,10 @@ int parseIn(int argc, char* argv[])
 	paths.push_back(tempPath);
 	tempPath.clear();
 
-	read_routing(argv[2]);
+	if (read_routing(argv[2]) == 1)
+		return 1;
+	else
+		return 0;
 
 	update_cascaded_list();
 
@@ -519,14 +548,14 @@ void check_shared_inputs() {
 	}
 }
 #endif 
-void read_routing(char* routingFile) // read routing files and model routing structure. Must be called after paths are deleted.
+int read_routing(char* routingFile) // read routing files and model routing structure. Must be called after paths are deleted.
 {
 	int i, path, node;
 	std::ifstream metaData(routingFile);
 	if (!metaData)
 	{
 		std::cout << "Can not find file" << routingFile << "  Terminating.... " << std::endl;
-		return;
+		return 0;
 	}
 	Routing_connection tempConnection;
 	std::string line;
@@ -645,7 +674,7 @@ void read_routing(char* routingFile) // read routing files and model routing str
 		}
 
 	}
-
+	return 1;
 
 }
 

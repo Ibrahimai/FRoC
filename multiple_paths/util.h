@@ -7,6 +7,7 @@ bool check_control_signal_required_second(int x, int y, int z);
 bool delete_path(int path);
 bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederNode);
 bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode);
+bool get_feeder_special(int x, int y, int z, int & feederPath, int & feederNode);
 bool check_down_link_edge_transition(int i, int j, int k);
 bool delete_path_stratix(int path);
 int delete_ALUT_port_stratix(int x, int y, int z, int port);

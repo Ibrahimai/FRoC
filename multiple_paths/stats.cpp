@@ -5,6 +5,18 @@ void count_cascaded_paths()
 
 	int total = 0;
 	int i, j, k, l;
+	int totalFeedback = 0;
+	for (i = 1; i < (int)paths.size(); i++) // check for feed-back paths, by looping across all paths and checking if the first and last node have the same locations
+	{
+		if (paths[i][0].x == paths[i].back().x && paths[i][0].y == paths[i].back().y && paths[i][0].z == paths[i].back().z)
+		{
+			totalFeedback++;
+			std::cout << "Feedback register @" << paths[i][0].x << "_" << paths[i][0].y << "_" << paths[i][0].z << std::endl;
+		}
+
+	}
+
+
 	for (i = 1; i < (int)paths.size(); i++) // loop over all paths
 	{
 		for (j = 0; j < (int)fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes.size(); j++)
@@ -60,6 +72,7 @@ void count_cascaded_paths()
 
 	std::cout << "total numer of cascaded paths: " << total << std::endl;
 	std::cout << "total numer of cascaded FFs: " << totalCascadedFF << std::endl;
+	std::cout << "total numer of feedback paths: " << totalFeedback << std::endl;
 }
 
 
