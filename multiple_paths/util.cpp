@@ -103,6 +103,7 @@ bool delete_path(int path)
 	int i, x, y, z, j;
 	bool portInStillExists = false;
 	bool portOutStillExists = false;
+	bool isStillSink = false;
 	/// loop across all nodes of this path and adjust them accordingly
 	for (i = 0; i < (int)paths[path].size(); i++)
 	{
@@ -115,6 +116,7 @@ bool delete_path(int path)
 		// todo: remove this from the nodes of fpgalogic[x][y][z].nodes
 		portInStillExists = false;
 		portOutStillExists = false;
+		isStillSink = false;
 
 		for (j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
 		{
@@ -122,6 +124,13 @@ bool delete_path(int path)
 				continue;
 			if (paths[fpgaLogic[x][y][z].nodes[j].path][0].deleted) // if this path is deleted then continue to next path
 				continue;
+
+			if (i == paths[path].size() - 1) // last element in the path which is the sink reg
+			{
+				assert(z%LUTFreq != 0); // make sure its a reg
+				if (fpgaLogic[x][y][z].nodes[j].node>0) // check if node j at reg x, y, z is a sink register. If thats the case then this register is still a sink
+					isStillSink = true;
+			}
 
 			if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].portIn == paths[path][i].portIn) // another path is using the same element using the same portIn
 				portInStillExists = true;
@@ -149,10 +158,11 @@ bool delete_path(int path)
 			fpgaLogic[x][y][z].owner.node = -1;
 
 		}
-		if (!portInStillExists) // input port must be deleted
+		if (!portInStillExists || (!isStillSink&&(z%LUTFreq!=0))) // input port must be deleted or the sink register is no longer there
 		{
 			if (z%LUTFreq == 0) // LUT
 			{
+				assert(!portInStillExists); // ensure that his part is only executed for LUTs when !portInstillexists is true
 				// portIn is removed so I have to delete routing connection from the feeder node
 				int nodeFeeder, pathFeeder;
 				assert(get_feeder_special(x, y, z, paths[path][i].portIn, pathFeeder, nodeFeeder)); // this function returns th feeder even if it was deleted
@@ -179,6 +189,8 @@ bool delete_path(int path)
 
 					}
 				}
+				fpgaLogic[x][y][z].inputPorts[paths[path][i].portIn] = false;
+				fpgaLogic[x][y][z].usedInputPorts--;
 
 			}
 			else if (i>0) // FF and sink of path path
@@ -209,11 +221,13 @@ bool delete_path(int path)
 
 					}
 				}
+				fpgaLogic[x][y][z].inputPorts[paths[path][i].portIn] = false;
+				fpgaLogic[x][y][z].usedInputPorts--;
 
 			}
 
-			fpgaLogic[x][y][z].inputPorts[paths[path][i].portIn] = false;
-			fpgaLogic[x][y][z].usedInputPorts--;
+		//	fpgaLogic[x][y][z].inputPorts[paths[path][i].portIn] = false;
+		//	fpgaLogic[x][y][z].usedInputPorts--;
 		}
 			
 		

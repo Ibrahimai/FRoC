@@ -1386,7 +1386,7 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 
 					for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++)
 					{
-						if (fpgaLogic[i][j][k].nodes[x].node != 0) // node x uses FF i,j,k as asink register
+						if (fpgaLogic[i][j][k].nodes[x].node != 0 && !paths[fpgaLogic[i][j][k].nodes[x].path][0].deleted) // node x uses FF i,j,k as asink register and it is not deleted
 						{
 							isSink = true;
 							break;
@@ -1404,6 +1404,8 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 					else // this is a sink regist+
 						
 					{
+						if (!get_feeder(i, j, k, pathFeeder, nodeFeeder))
+							std::cout << "debugging problem 19/10/2016" << std::endl;
 						assert(get_feeder(i, j, k, pathFeeder, nodeFeeder));
 						if (fpgaLogic[i][j][k].FFMode == sData) // input is connected using asdata
 						{
