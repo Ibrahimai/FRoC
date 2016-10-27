@@ -42,8 +42,8 @@ int parseIn(int argc, char* argv[])
 			tempPath.clear();
 			//}
 			path++;
-			if (path == 44)
-				std::cout << "debugging" << std::endl;
+		//	if (path == 44)
+		//		std::cout << "debugging" << std::endl;
 			node = 0;
 			// add slack value to pathSlack
 			slackReached = false;
@@ -180,12 +180,14 @@ int parseIn(int argc, char* argv[])
 	paths.push_back(tempPath);
 	tempPath.clear();
 
+	update_cascaded_list();
+
 	if (read_routing(argv[2]) == 1)
 		return 1;
 	else
 		return 0;
 
-	update_cascaded_list();
+	
 
 	return 1;
 }
@@ -232,7 +234,11 @@ void update_cascaded_list() // go through all LEs and adds cscaded paths to ever
 						if (paths[fpgaLogic[i][j][k].nodes[x].path].back().x == i && paths[fpgaLogic[i][j][k].nodes[x].path].back().y == j && paths[fpgaLogic[i][j][k].nodes[x].path].back().z == k) // if the sink of path (fpgaLogic[i][j][k].nodes[x].path) is the same as the source location, then this is a wraparound path. so we dont add it as acascaded path
 						{
 							continue;
+				//			assert(false);
 						}
+						//fpgaLogic[66][22][30]
+						if (feederX == 66 && feederY == 22 && feederZ == 30)
+							std::cout << "shit" << i << " " << j << " " <<k << std::endl;
 
 						fpgaLogic[feederX][feederY][feederZ].cascadedPaths.push_back(fpgaLogic[i][j][k].nodes[x].path); // add this path to the list of cascaded paths at LUT feederX,Y,Z.
 					}
@@ -610,8 +616,8 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 				sourceY = paths[path][node].y;
 				sourceZ = paths[path][node].z;
 
-				if (sourceX == 132 && sourceY == 56 && sourceZ == 39)
-					std::cout << "debug" << std::endl;
+		//		if (sourceX == 132 && sourceY == 56 && sourceZ == 39)
+		//			std::cout << "debug" << std::endl;
 
 				tempConnection.sourcePort = paths[path][node].portOut; // assign the source of this connection to the output port of the node in question
 			}

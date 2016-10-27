@@ -13,3 +13,4 @@ bool delete_path_stratix(int path);
 int delete_ALUT_port_stratix(int x, int y, int z, int port);
 int delete_ALUT_stratix(int x, int y, int z);
 bool is_cascaded_reg(int x, int y, int z); // returns true if the register in loc (x,y,z) is a cascaded register. Meaning that it is a sink and a source at the same time
+bool reg_free_input(int x, int y, int z); // returns true if the register in loc (x,y,z) has its input free, only a source

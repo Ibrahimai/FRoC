@@ -3,7 +3,7 @@
 
 bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int & feederNode); // returns the path and node that feeds element x,y,z through portIn, it is special as it returns a value even if the feeder cell is deleted, but it checks that it did exist before.
 
-// todo: currently the function assumes there is no wraparound paths. To make it formally correct, we need to check that the source and sink found are from different paths. Otherwise, we could falsely identify a wraparound path as cascaded paths.
+// we check for wraparound apths[old] currently the function assumes there is no wraparound paths. To make it formally correct, we need to check that the source and sink found are from different paths. Otherwise, we could falsely identify a wraparound path as cascaded paths.
 bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc (x,y,z) is a cascaded register. Meaning that it is a sink and a source at the same time
 {
 	assert(z % LUTFreq != 0); // this is a register
@@ -11,6 +11,10 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 	int l = 0;
 	bool source = false;
 	bool sink = false;
+	std::vector<int> sources;
+	std::vector<int> sinks;
+	sources.resize(0);
+	sinks.resize(0);
 	for (l = 0; l < (int)fpgaLogic[x][y][z].nodes.size(); l++)
 	{
 		if (paths[fpgaLogic[x][y][z].nodes[l].path][0].deleted) // if this path is deleted, then we shouldnt be accounting for it
@@ -18,22 +22,98 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 		if (fpgaLogic[x][y][z].nodes[l].node == 0)
 		{
 			source = true;
+			sources.push_back(fpgaLogic[x][y][z].nodes[l].path);
 		}
 		else
 		{
 			sink = true;
+
+			sinks.push_back(fpgaLogic[x][y][z].nodes[l].path);
 			assert(fpgaLogic[x][y][z].nodes[l].node == paths[fpgaLogic[x][y][z].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
 		}
-		if (source && sink)
-		{
-			return true;
-		}
+	//	if (source && sink)
+	//	{
+		//	return true;
+//		}
 
 	}
 
-	return false;
+	if (sink&&source) // this register is a sink and source, just gonna check if they are all cascaded or not (some may be wraparound/feedback)
+	{
+		for (int i = 0; i < sinks.size(); i++)
+		{
+			for (int j = 0; j < sources.size(); j++)
+			{
+				if (sinks[i] == sources[j]) // then this is a cascaded path so remove it from both
+				{
+					sinks.erase(sinks.begin() + i); // delete the ith element, if i is zero element @ index 0 is deleted
+					sources.erase(sources.begin() + j); // delete the jth element
+					i--;
+					break;
+				}
+			}
+		}
+
+		if (sinks.size() > 0 && sources.size()>0) // if after deleting allc ascaded paths we still have items in the sources and sinks list then baaaam thats cascaded register
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+	
 }
 
+bool reg_free_input(int x, int y, int z) // returns true if the register in loc (x,y,z) has its input free, only a source
+{
+	assert(z % LUTFreq != 0); // this is a register
+
+	int l = 0;
+	bool source = false;
+	bool sink = false;
+	//std::vector<int> sources;
+	//std::vector<int> sinks;
+	//sources.resize(0);
+	//sinks.resize(0);
+	for (l = 0; l < (int)fpgaLogic[x][y][z].nodes.size(); l++)
+	{
+		if (paths[fpgaLogic[x][y][z].nodes[l].path][0].deleted) // if this path is deleted, then we shouldnt be accounting for it
+			continue;
+		if (fpgaLogic[x][y][z].nodes[l].node == 0)
+		{
+			source = true;
+		//	sources.push_back(fpgaLogic[x][y][z].nodes[l].path);
+		}
+		else
+		{
+			sink = true;
+
+		//	sinks.push_back(fpgaLogic[x][y][z].nodes[l].path);
+			assert(fpgaLogic[x][y][z].nodes[l].node == paths[fpgaLogic[x][y][z].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
+		}
+		//	if (source && sink)
+		//	{
+		//	return true;
+		//		}
+
+	}
+
+	if (sink&&source) // this register is a sink and source, so cannot control its input. Thus input is not free
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+
+}
 
 bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, requires a control signal or not
 {
@@ -97,6 +177,28 @@ bool delete_path(int path)
 {
 	if (paths[path][0].deleted) // already deleted this path
 		return false;
+
+//	if (paths[path][0].x == 58 && paths[path][0].y == 21 && paths[path][0].z == 17)
+//		std::cout << "debuging 21-10-2016" << std::endl;
+
+	// see if this is a cascaded path (it source reg is actually a sink register for something else)
+	bool isCascadedReg = is_cascaded_reg(paths[path][0].x, paths[path][0].y, paths[path][0].z);
+
+	// used to handle updating the cascaded list when the deleted path is a cascaded path
+	int cascadedFeederPath, cascadedFeederNode;
+	int cascadedFeederX, cascadedFeederY, cascadedFeederZ;
+
+
+	if (isCascadedReg)
+	{
+		assert(get_feeder(paths[path][0].x, paths[path][0].y, paths[path][0].z, cascadedFeederPath, cascadedFeederNode));
+		cascadedFeederX = paths[cascadedFeederPath][cascadedFeederNode].x;
+		cascadedFeederY = paths[cascadedFeederPath][cascadedFeederNode].y;
+		cascadedFeederZ = paths[cascadedFeederPath][cascadedFeederNode].z;
+
+		assert(fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.size() > 0); // since it is cascaded it must have a cascaded list
+	}
+
 	// mark the path as deleted
 	paths[path][0].deleted = true;
 	//std::cout << "deleted : " << path << std::endl;
@@ -219,6 +321,16 @@ bool delete_path(int path)
 						fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX = -1;
 						extraCheck = true;
 
+						// since we have deleted a connection to a register we must update the cascaded list of xfeeder,yfeeder zfeeder by removing all paths starting at reg x, y, z
+						for (int pop = 0; pop < fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths.size(); pop++)
+						{
+							// check if this cascaded path start at reg x, y,z. If so, then delete it from the cascaded list
+							if (paths[fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths[pop]][0].x == x && paths[fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths[pop]][0].y == y && paths[fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths[pop]][0].z == z)
+							{
+								fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths.erase(fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths.begin() + pop);
+								pop--;
+							}
+						}
 					}
 				}
 				fpgaLogic[x][y][z].inputPorts[paths[path][i].portIn] = false;
@@ -240,6 +352,34 @@ bool delete_path(int path)
 		}
 
 	}
+
+	// delete this path from cascaded list if it is a cascaded path
+	if (isCascadedReg)
+	{
+		//sert(get_feeder(paths[path][0].x, paths[path][0].y, paths[path][0].z, cascadedFeederPath, cascadedFeederNode));
+
+
+		// get the cascaded LUT that feeds the csacaded regsiter
+	//	int cascadedFeederX = paths[cascadedFeederPath][cascadedFeederNode].x;
+	//	int cascadedFeederY = paths[cascadedFeederPath][cascadedFeederNode].y;
+	//	int cascadedFeederZ = paths[cascadedFeederPath][cascadedFeederNode].z;
+
+	//	assert(fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.size() > 0); // since it is cascaded
+
+		for (i = 0; i < fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.size(); i++) 
+		{
+
+			if (fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths[i] == path)
+			{
+				fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.erase(fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.begin() + i);
+				i--;
+			}
+		}
+
+
+
+	}
+
 	return true;
 }
 

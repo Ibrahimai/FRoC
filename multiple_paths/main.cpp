@@ -179,10 +179,18 @@ void delete_all()
 }
 
 
-void cycloneIV_stuff()
+void cycloneIV_stuff(int feedbackPaths, int remainingPaths)
 {
 	int i;
 	calc_stats();
+	if (remainingPaths > feedbackPaths)
+		remove_feedback_paths();
+	else
+	{
+		std::cout << "starting risky region" << std::endl;
+	}
+	// try ibrahim
+	//delete_especial_reconvergent_fanout();
 	remove_fanin_higher_than_three();
 	std::cout << "after removing fanin higher than three  number of Luts is ,";
 	int totalTimingEdges = check_number_of_timing_edges_more();
@@ -194,7 +202,8 @@ void cycloneIV_stuff()
 	remove_to_match_routing_constraint();
 	std::cout << "after removing routing congestion number of LUTs is  ,";
 	check_LE_outputs();
-
+	remove_to_fix_off_path_inputs();
+	remove_to_toggle_source();
 
 
 	numberOfTestPhases = 1;
@@ -349,17 +358,22 @@ int main(int argc, char* argv[])
 	}
 	//IgnoredPathStats.open("stats_File.txt");
 
-	std::string temp = "tryingshitfuck";// argv[4];
+	std::string temp =  argv[4];
 	std::string stats_file_name = temp + "_stats.txt";
 
 	IgnoredPathStats.open(stats_file_name);
-	IgnoredPathStats << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "reconv fnout" << std::endl;
+	IgnoredPathStats << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << std::endl;
 	set_netlist(); // set original copy of netlist (without deleting anything)
-	int remaining_paths = 0;
+	int remainingPaths = paths.size();
+	int feedbackPaths = count_cascaded_paths();
+	get_cascaded_paths_inverting_behaviour();
+
+
+		
 	while (true)
 	{
-		cycloneIV_stuff();
-		if (get_allPathsTested(remaining_paths))
+		cycloneIV_stuff(feedbackPaths, remainingPaths);
+		if (get_allPathsTested(remainingPaths))
 		{
 			print_stats(argv);
 			break;
@@ -368,9 +382,12 @@ int main(int argc, char* argv[])
 		{
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
-			std::cout << "      " << remaining_paths << "remainig" << std::endl;
+			std::cout << "      " << remainingPaths << "remainig" << std::endl;
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
+
+			if (remainingPaths == feedbackPaths)
+				set_number_of_bitstreams_ohne_feedback();
 		}
 
 	}

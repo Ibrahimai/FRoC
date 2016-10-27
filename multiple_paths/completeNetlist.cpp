@@ -7,6 +7,7 @@ Logic_element fpgaLogic_complete[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cy
 std::vector< std::vector<int> > testedPaths; // 2-d array of tested path, index is bitstream and this gives a vector of the tested paths at the corresponding bitSteam
 std::vector< std::vector <int > > testPathsDistribution;// first index gives number of bit stream, this gives access to a vector of int, the ith element in this vector is the number of paths tested at the ith phase.
 
+int bitstreamsOhneFeedback = -1;
 
 void set_netlist()// sets the complete netlist, should be called immediately after parsing the input and before deleting any paths
 {
@@ -111,6 +112,12 @@ void update_currentFabric() // resets the current global variables to the origin
 }
 
 
+void set_number_of_bitstreams_ohne_feedback()
+{
+	bitstreamsOhneFeedback = testedPaths.size();
+
+}
+
 bool get_allPathsTested(int & remaining) // returns true if all paths are tested, false otherwise and remaining indicate the number of untested paths
 {
 	remaining = 0;
@@ -172,6 +179,7 @@ void print_stats(char* argv[])
 	output_summary << "Number of Paths : " << paths.size() - 1 << std::endl;
 	output_summary << "Critical Path Delay : " << pathSlack[1] << " , Best slack is : " << pathSlack[pathSlack.size() - 1] << std::endl;
 	output_summary << "Calibration Bitstreams Required : " << testPathsDistribution.size() << std::endl;
+	output_summary << "To test all paths while ignoring the cascaded paths we needed " << bitstreamsOhneFeedback << std::endl;
 	output_summary << "#\tPh\tPa" << std::endl;
 
 	for (int i = 0; i < (int)testPathsDistribution.size(); i++)

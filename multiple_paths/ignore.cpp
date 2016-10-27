@@ -313,7 +313,24 @@ void remove_arithLUT_with_two_inputs_and_no_cin()
 	IgnoredPathStats << total << "\t";
 }
 
+void remove_feedback_paths()
+{
+	int total = 0;
 
+	for (int i = 0; i < paths.size(); i++)
+	{
+		if (paths[i].size() < 1)
+			continue;
+
+		if (paths[i][0].x == paths[i][paths[i].size() - 1].x && paths[i][0].y == paths[i][paths[i].size() - 1].y && paths[i][0].z == paths[i][paths[i].size() - 1].z)
+		{
+			if (delete_path(i))
+				total++;
+		}
+	}
+	std::cout << "**********Number of deleted paths due to wrap around paths : " << total << " **********" << std::endl;
+
+}
 
 std::vector<Path_logic_component> number_of_distinct_inputs_to_lab(int x, int y, double & numberOfDistinctInputs)
 {
@@ -446,6 +463,227 @@ void remove_to_match_routing_constraint()
 }
 
 
+void remove_to_fix_off_path_inputs() // off path inputs can be fixed using the fix signals. However, this is not enough sometimes you can have reconvergent fanout, this is dealt with in the reconvergent fanout function. This function handles the case when the off-path input is fed by a regiser. It checks if this register can have its output fixed while we test the LUT it is feeding.
+{
+	int total = 0;
+
+	/*for (int i = 1; i < paths.size(); i++) // loop across all paths, it could be done by looping through fpgalogic instead
+	{
+		for (int j = 0; j < paths[i].size(); j++)
+		{
+
+		}
+	}*/
+
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			for (int k = 0; k < FPGAsizeZ; k++)
+			{
+				if (k%LUTFreq != 0) // if it's a reg then skip
+					continue;
+
+				// LUTs only
+				if (fpgaLogic[i][j][k].utilization < 2) // if one or less (zero) paths are using this LUT then skip we will never need to fix an off-path input coz there aint
+					continue;
+				if (fpgaLogic[i][j][k].usedInputPorts < 2) // no off path inputs since only one port is used
+					continue;
+
+				// LUT used with more than one input port used
+				for (int z = 0; z < InputPortSize; z++)
+				{
+					if (fpgaLogic[i][j][k].inputPorts[z]) // check if this port is used
+					{
+						int pathFeeder, nodeFeeder;
+						assert(get_feeder(i, j, k, z, pathFeeder, nodeFeeder)); // get the feeder for this LUT using the z port
+
+						int feeederX = paths[pathFeeder][nodeFeeder].x;
+						int feeederY = paths[pathFeeder][nodeFeeder].y;
+						int feeederZ = paths[pathFeeder][nodeFeeder].z;
+
+						if (feeederZ%LUTFreq == 0) // if the feeder is a lut then skip this port as we can fix this input port using the fix signal of the feeder LUT
+							continue;
+
+					// feeder is a reg
+					///	if (!is_cascaded_reg(i, j, k)) // if its not a cascaded reg, then we can control it 
+					//		continue;
+
+						
+						if (reg_free_input(feeederX, feeederY, feeederZ)) // if its input is free we can control this reg, so thats fine
+							continue;
+
+						// could be cascaded or a feed-back path
+
+						int regFeederPath, regFeederNode;
+						assert(get_feeder(feeederX, feeederY, feeederZ, regFeederPath, regFeederNode)); // get the feeder for this reg 
+
+						int regFeederX = paths[regFeederPath][regFeederNode].x;
+						int regFeederY = paths[regFeederPath][regFeederNode].y;
+						int regFeederZ = paths[regFeederPath][regFeederNode].z;
+
+						bool shouldDelete = false;
+
+						std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
+						pathsToReg.resize(0);
+						std::vector<int> pathsIJKandRegFeeder; // paths using lut i,j,k and using an input other than z and going through the lut feeding the reg
+						pathsIJKandRegFeeder.resize(0);
+
+						for (int ii = 0; ii < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size();ii++) // loop across all paths using the lut feeding the reg in question
+						{
+							Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[ii];
+							if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
+								continue;
+
+							// check if this path feeds the reg
+							if (paths[tempNode.path][tempNode.node + 1].x == feeederX && paths[tempNode.path][tempNode.node + 1].y == feeederY && paths[tempNode.path][tempNode.node + 1].z == feeederZ)
+							{
+								pathsToReg.push_back(tempNode.path);
+							}
+
+
+							// loop across nodes using LUT i,j,k to see all paths using lut i,k,k from an input other than port z
+							for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+							{
+								if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted)
+									continue;
+
+
+								if (paths[fpgaLogic[i][j][k].nodes[l].path][fpgaLogic[i][j][k].nodes[l].node].portIn != z) // found a path using lut i,j,k from a node other than Z
+								{
+									if (fpgaLogic[i][j][k].nodes[l].path == tempNode.path) // one of the found paths also use the LUt feeding the reg
+									{
+										pathsIJKandRegFeeder.push_back(fpgaLogic[i][j][k].nodes[l].path);
+										shouldDelete = true;
+									}
+
+
+								}
+
+							}
+
+						}
+
+						if (shouldDelete) // we should delte some stuff coz we cant fix all off-path inputs
+						{
+							std::vector<int> deletedPaths;
+							if (pathsIJKandRegFeeder.size() > pathsToReg.size())
+								deletedPaths = pathsToReg;
+							else
+								deletedPaths = pathsIJKandRegFeeder;
+
+							for (int pop = 0; pop < deletedPaths.size(); pop++)
+							{
+								if (delete_path(deletedPaths[pop]))
+								{
+									total++;
+									std::cout << "fix off path " << deletedPaths[pop] << std::endl;
+								}
+							}
+
+						}
+
+
+					}
+				}
+
+
+
+			}
+		}
+	}
+
+	std::cout << "*************************************** deleted paths to fix off path inputs = " << total << "**********************************" << std::endl;
+	IgnoredPathStats << total << "\t";
+}
+
+
+void  remove_to_toggle_source()
+{
+
+	int total = 0;
+	for (int i = 1; i < paths.size(); i++)
+	{
+		if (paths[i].size() < 1)
+			continue;
+
+		if (paths[i][0].deleted) // if its deleted
+			continue;
+
+		int sourceRegX = paths[i][0].x;
+		int sourceRegY = paths[i][0].y;
+		int sourceRegZ = paths[i][0].z;
+
+		assert(sourceRegZ%LUTFreq != 0);// muts be reg
+
+		if (paths[i][paths[i].size() - 1].x == sourceRegX && paths[i][paths[i].size() - 1].y == sourceRegY && paths[i][paths[i].size() - 1].z == sourceRegZ) // cascaded path so ignore it for now
+			continue;
+
+		if (reg_free_input(sourceRegX, sourceRegY, sourceRegZ)) // if its input is free we can control this reg, so thats fine
+			continue;
+
+		// could be cascaded or a feed-back path
+
+		int regFeederPath, regFeederNode;
+		assert(get_feeder(sourceRegX, sourceRegY, sourceRegZ, regFeederPath, regFeederNode)); // get the feeder for this reg 
+
+		int regFeederX = paths[regFeederPath][regFeederNode].x;
+		int regFeederY = paths[regFeederPath][regFeederNode].y;
+		int regFeederZ = paths[regFeederPath][regFeederNode].z;
+
+		bool shouldDelete = false;
+
+		for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
+		{
+			if (fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[j].path == i)
+			{
+				if (delete_path(i))
+				{
+					total++;
+					shouldDelete = true;
+					break;
+				}
+			}
+		}
+
+		if (!shouldDelete) // path i was not deleted as we can toggle the source reg. But now we will check can we toggle the source reg and at the same time keep all off path-inputs of path i fixed ?
+		{
+
+			int destinationX, destinationY, destinationZ;
+
+			for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
+			{
+				// get destination j
+				destinationX = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationX;
+				destinationY = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationY;
+				destinationZ = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationZ;
+
+				if (destinationX == -1) // deleted connection
+					continue;
+
+				for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
+				{
+					if (fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].path == i) // then this destination is a lut that is also used by path i, we can not toggle the source of path i while keeping the off-path inputs at this LUT fixed.
+					{
+						if (delete_path(i))
+						{
+							total++;
+							std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+							std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+							std::cout << "Hit the extreme corner case" << std::endl;
+							break;
+						}
+					}
+				}
+
+			}
+
+		}
+
+	}
+	std::cout << "*************************************** deleted paths to control source reg = " << total << "**********************************" << std::endl;
+	IgnoredPathStats << total << "\t";
+}
 void delete_especial_reconvergent_fanout()
 {
 
@@ -604,6 +842,7 @@ void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > &
 
 							for (m = 0; m < (int)fpgaLogic[i][j][k].nodes.size(); m++) // now loop across all paths using LUT i,j,k
 							{
+
 								assert(currentCascadedPath != fpgaLogic[i][j][k].nodes[m].path); // this must be true any path using lut i,j,k can not be a cascaded path that starts in the cascaded FF
 							
 								if (paths[fpgaLogic[i][j][k].nodes[m].path][0].deleted) // if ythis path is deleted then continue
@@ -622,7 +861,7 @@ void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > &
 
 					// adding edges between all paths using LUT i,j,k and all paths in the cascaded list of LUTs that feed LUT i,j,k [already added this to the "generate_pathRelationGraph" function]
 
-
+					// also adding edges between all paths using the 1st LUT (immediately after a cascaded regsiter) and all paths using the LUT feeding the cascaded register
 
 
 				}
@@ -642,7 +881,7 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 	std::vector < Path_logic_component > rootNodes;
 	std::vector <bool> inputs(InputPortSize, false);
 	//	Logic_element tempCell;
-	for (i = 0; i < paths.size(); i++) // loop across all paths, another approach would be to loop across used logic elements
+	for (i = 0; i < paths.size(); i++) // loop across all paths, another (better todo) approach would be to loop across used logic elements
 	{
 		for (j = 0; j < paths[i].size(); j++) // loop across nodes in that path
 		{
@@ -681,13 +920,14 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 				tempComponentY = paths[tempNode.path][tempNode.node - 1].y;
 				tempComponentZ = paths[tempNode.path][tempNode.node - 1].z;
 				//// trial studd
-				for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this
+				for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this. shouldnt be any since we deleted them earlier
 				{
 					if (i == fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path)
 					{
 						shouldDelete = true;
 						paths[tempNode.path][0].deleted = true;
 						std::cout << "deleted : in wrong place man : should have been deleted earlier :  " << tempNode.path << std::endl;
+						assert(false);
 						deletedPaths++;
 					}
 
@@ -703,6 +943,33 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 							add_connection(pathRelationGraph, i, fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path);
 						//		else
 						//			std::cout << "7assal" << std::endl;
+
+					}
+					// the node feeding paths[i][j] is a register, we will check if this is a cascaded register then we must add edges between paths[i][j] and all paths using the LUT feeding this cascaded register
+					if (tempComponentZ%LUTFreq != 0) 
+					{
+						if (is_cascaded_reg(tempComponentX, tempComponentY, tempComponentZ)) // if this is a a cascaded register, then must ensure that LUT
+						{
+							int cascadedLUTX, cascadedLUTY, cascadedLUTZ;
+							int cascadedPathFeeder, cascadedNodeFeeder;
+							// get the LUT that feeds this cascaded REG
+							assert(get_feeder(tempComponentX, tempComponentY, tempComponentZ, cascadedPathFeeder, cascadedNodeFeeder));
+
+							cascadedLUTX = paths[cascadedPathFeeder][cascadedNodeFeeder].x;
+							cascadedLUTY = paths[cascadedPathFeeder][cascadedNodeFeeder].y;
+							cascadedLUTZ = paths[cascadedPathFeeder][cascadedNodeFeeder].z;
+
+							assert(fpgaLogic[cascadedLUTX][cascadedLUTY][cascadedLUTZ].cascadedPaths.size() > 0); // must have a cascaded list
+
+							// now add edges between path i and all paths using LUT cascadedLUTX, cascadedLUTX, cascadedLUTX
+							for (kk = 0; kk < fpgaLogic[cascadedLUTX][cascadedLUTY][cascadedLUTZ].nodes.size(); kk++) // tod0: currently we fix cout and combout together, if we need to fix combout we also fix cout. This is not necessary we could change that.
+							{
+								if (!paths[fpgaLogic[cascadedLUTX][cascadedLUTY][cascadedLUTZ].nodes[kk].path][0].deleted)
+									add_connection(pathRelationGraph, i, fpgaLogic[cascadedLUTX][cascadedLUTY][cascadedLUTZ].nodes[kk].path);
+
+							}
+
+						}
 
 					}
 
@@ -739,9 +1006,12 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 		}
 	}
 	int wrapAroundPaths = 0;
+
 	//// add edges between cascaded paths
 	for (i = 1; i < paths.size(); i++) // loop over all paths
 	{
+		if (paths[i][0].deleted)
+			continue;
 		for (j = 0; j < fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes.size(); j++) // loop across nodes using the source of the ith pass
 		{
 			if (fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].node != 0) // if a path uses this node and not at its first node then these two paths are cascaded
@@ -749,11 +1019,13 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 	//			std::cout << "7assal CASCADE " << std::endl;
 				if (i == fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].path) // this is a wraparound path. its source and target are the same FF. My current idea is to use syn clear or sync load to test these kind of paths. TO do so we must ensure that no other registers are used in the same LAB because of the global control signals
 				{
-					if (delete_path(i))
-					{
-						wrapAroundPaths++;
-						continue; // dont add an edge
-					}
+				//	if (delete_path(i))
+				//	{
+						//assert(false);
+				//		wrapAroundPaths++;
+				//		continue; // dont add an edge
+				//	}
+//					std::cout << "feedback path " << std::endl;
 
 				}
 				else

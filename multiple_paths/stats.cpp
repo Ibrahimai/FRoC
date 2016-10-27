@@ -1,6 +1,17 @@
 #include "globalVar.h"
 
-void count_cascaded_paths()
+void print_path(int path)
+{
+	std::cout << "PATH NUMBER " << path << " look like this :" << std::endl;
+	for (int i = 0; i < paths[path].size(); i++)
+	{
+
+		std::cout << paths[path][i].x << "\t" << paths[path][i].y << "\t" << paths[path][i].z << "\t" << "using port " << paths[path][i].portIn <<std::endl;
+	}
+	std::cout << std::endl << std::endl;
+}
+
+int count_cascaded_paths() // returns number of feedback paths
 {
 
 	int total = 0;
@@ -11,7 +22,8 @@ void count_cascaded_paths()
 		if (paths[i][0].x == paths[i].back().x && paths[i][0].y == paths[i].back().y && paths[i][0].z == paths[i].back().z)
 		{
 			totalFeedback++;
-			std::cout << "Feedback register @" << paths[i][0].x << "_" << paths[i][0].y << "_" << paths[i][0].z << std::endl;
+	//		std::cout << "Feedback register @" << paths[i][0].x << "_" << paths[i][0].y << "_" << paths[i][0].z << std::endl;
+	//		print_path(i);
 		}
 
 	}
@@ -19,14 +31,17 @@ void count_cascaded_paths()
 
 	for (i = 1; i < (int)paths.size(); i++) // loop over all paths
 	{
+		bool isCascaded = false;
 		for (j = 0; j < (int)fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes.size(); j++)
 		{
 			if (fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].node != 0)
 			{
 				//	std::cout << "7assal " << std::endl;
-				total++;
+				isCascaded = true;
 			}
 		}
+		if (isCascaded)
+			total++;
 	}
 
 	int totalCascadedFF = 0;
@@ -73,8 +88,37 @@ void count_cascaded_paths()
 	std::cout << "total numer of cascaded paths: " << total << std::endl;
 	std::cout << "total numer of cascaded FFs: " << totalCascadedFF << std::endl;
 	std::cout << "total numer of feedback paths: " << totalFeedback << std::endl;
+	return totalFeedback;
 }
 
+
+void get_cascaded_paths_inverting_behaviour()
+{
+	int compliantPaths = 0;
+	int total = 0;
+	for (int i = 0; i < paths.size(); i++)
+	{
+		int inverters = 0;
+		if (paths[i].size() < 2)
+			continue;
+
+		if (paths[i][0].x == paths[i][paths[i].size() - 1].x && paths[i][0].y == paths[i][paths[i].size() - 1].y && paths[i][0].z == paths[i][paths[i].size() - 1].z) // is a feedback path
+		{
+			total++;
+		
+			for (int j = 1; j < paths[i].size()-1; j++) // loop through the LUTs used in this feedback path
+			{
+				if (paths[i][j].inverting)
+					inverters++;
+			}
+
+			if (inverters % 2 != 0)
+				compliantPaths++;
+		}
+	}
+
+	std::cout << "Out of " << total << " cascaded paths, " << compliantPaths << " have the compliant odd number of inverters and dont need adjustments.";
+}
 
 void check_LE_outputs()
 {

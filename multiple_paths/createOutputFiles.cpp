@@ -119,9 +119,11 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 
 	if (i != 0) // source is bigger than 1
 		verilogFile << "PATH" << sources[i].path << "NODE" << sources[i].node << " ;" << std::endl;
-	else
-		verilogFile << "wire PATH" << sources[i].path << "NODE" << sources[i].node << " ;" << std::endl;
-
+	else 
+	{
+		if (sources.size()>0)
+			verilogFile << "wire PATH" << sources[i].path << "NODE" << sources[i].node << " ;" << std::endl;
+	}
 
 	// todo: check if controlSignals has only one element
 	// intermediate signals
@@ -177,7 +179,8 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 
 	//// input signals to sources
 	verilogFile << std::endl << "//input signal to sources " << std::endl;
-	verilogFile << "reg [" << sources.size() - 1 << ":0] Xin;" << std::endl;;
+	if (sources.size()>0)
+		verilogFile << "reg [" << sources.size() - 1 << ":0] Xin;" << std::endl;;
 
 	verilogFile << "wire vcc, gnd;" << std::endl;
 	verilogFile << "assign vcc = 1'b1;" << std::endl;
@@ -187,17 +190,20 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 	verilogFile << "wire reset_counter, timerReached;";
 
 	verilogFile << std::endl << "//connections between source registers and controller " << std::endl;
-	verilogFile << "wire [" << sources.size() - 1 << ":0] set_source_registers;" << std::endl;
+	if (sources.size()>0)
+		verilogFile << "wire [" << sources.size() - 1 << ":0] set_source_registers;" << std::endl;
 
 	// always block to genreate t-flipflop which feeds all sources
 	verilogFile << std::endl << "//input signal to sources " << std::endl;
-	verilogFile << "always @ (posedge CLK or posedge reset) begin" << std::endl;
-	verilogFile << "\tif (reset) " << std::endl;
-	verilogFile << "\t\tXin <= " << sources.size() << "'b0;" << std::endl;
-	verilogFile << "\telse " << std::endl;
-	verilogFile << "\t\tXin <= ~Xin | set_source_registers;" << std::endl;
-	verilogFile << "end" << std::endl;
-
+	if (sources.size() > 0)
+	{
+		verilogFile << "always @ (posedge CLK or posedge reset) begin" << std::endl;
+		verilogFile << "\tif (reset) " << std::endl;
+		verilogFile << "\t\tXin <= " << sources.size() << "'b0;" << std::endl;
+		verilogFile << "\telse " << std::endl;
+		verilogFile << "\t\tXin <= ~Xin | set_source_registers;" << std::endl;
+		verilogFile << "end" << std::endl;
+	}
 
 	/// counter to be connected to controller
 	verilogFile << std::endl << "//counter to count how long to stay at each test phase " << std::endl;
@@ -252,7 +258,11 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 	if (cascadedControlSignals.size() > 0)
 		verilogFile << "}), ";
 
-	verilogFile << ".finished_one_iteration(fuck),.set_source_registers(set_source_registers));" << std::endl;
+	verilogFile << ".finished_one_iteration(fuck)";
+	if (sources.size() > 0)
+		verilogFile << ",.set_source_registers(set_source_registers));" << std::endl;
+	else
+		verilogFile << ");" << std::endl;
 
 
 	verilogFile.close();
@@ -311,7 +321,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	}
 	// option 2 finish */
 	// set signal for source registers 
-	controllerFile << "output reg [" << sources.size() - 1 << ":0] set_source_registers, ";
+	if (sources.size()>0) // when testing only cascaded path we dont have any sources.
+		controllerFile << "output reg [" << sources.size() - 1 << ":0] set_source_registers, ";
 
 	// cascaded LUTs mux selector cascaded_select
 	if (cascadedControlSignals.size() > 0)
@@ -765,7 +776,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	//////////// Finish trial
 	////////////////////////////////////////////////////////////////////////////
 	controllerFile << "\t\t\treset_or_network <= 1'b1;" << std::endl;
-	controllerFile << "\t\t\tset_source_registers <= {" << sources.size() << "{1'b1}};" << std::endl;
+	if (sources.size()>0)
+		controllerFile << "\t\t\tset_source_registers <= {" << sources.size() << "{1'b1}};" << std::endl;
 	//// option 2
 	/*	for (i = 0; i < controlSignals.size(); i++)
 	{
@@ -1110,7 +1122,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 
 
 			///// output set source registers
-			controllerFile << "\t\t\tset_source_registers <= " << sources.size() << "'b";
+			if (sources.size()>0)
+				controllerFile << "\t\t\tset_source_registers <= " << sources.size() << "'b";
 			//	std::cout << "phase " << i << " :";
 			for (j = sources.size() - 1; j > -1; j--)
 			{
@@ -1142,7 +1155,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 
 			}
 			//		std::cout << std::endl;
-			controllerFile << " ; " << std::endl;
+			if (sources.size()>0)
+				controllerFile << " ; " << std::endl;
 
 			if (l == 1) // test phase state
 			{
@@ -1235,7 +1249,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 		controllerFile << "\t\t\tcascaded_select_temp <= {" << cascadedControlSignals.size() << "{1'b1}}; " << std::endl;
 	// reset counter output
 	controllerFile << "\t\t\terror_temp <= 1'b0; " << std::endl;
-	controllerFile << "\t\t\tset_source_registers <= {" << sources.size() << "{1'b1}};" << std::endl;
+	if (sources.size()>0)
+		controllerFile << "\t\t\tset_source_registers <= {" << sources.size() << "{1'b1}};" << std::endl;
 	// finished_one_iteration
 	controllerFile << "\t\t\tfinished_one_iteration <= 1'b1; " << std::endl;
 	controllerFile << "\t\t\treset_or_network <= 1'b1;" << std::endl;
@@ -1249,7 +1264,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	controllerFile << "; " << std::endl;
 
 	controllerFile << "\t\t\treset_or_network <= 1'b1;" << std::endl;
-	controllerFile << "\t\t\tset_source_registers <= {" << sources.size() << "{1'b1}};" << std::endl;
+	if (sources.size()>0)
+		controllerFile << "\t\t\tset_source_registers <= {" << sources.size() << "{1'b1}};" << std::endl;
 	// reset counter output
 	controllerFile << "\t\t\treset_counter <= 1'b1; " << std::endl;
 	controllerFile << "\t\t\treset_counter_reset <= 1'b1;" << std::endl;
@@ -1404,8 +1420,6 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 					else // this is a sink regist+
 						
 					{
-						if (!get_feeder(i, j, k, pathFeeder, nodeFeeder))
-							std::cout << "debugging problem 19/10/2016" << std::endl;
 						assert(get_feeder(i, j, k, pathFeeder, nodeFeeder));
 						if (fpgaLogic[i][j][k].FFMode == sData) // input is connected using asdata
 						{
