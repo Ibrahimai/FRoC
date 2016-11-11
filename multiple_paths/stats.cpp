@@ -363,6 +363,298 @@ void print_path_coverage_to_file()
 	pathCoverageFile.close();
 }
 
+
+
+
+// generate a map of timing edges counting ic and cell delay different timing edges (timingEdgeSlack), this should be called before deleting any path to create the total timing edges map
+// also create sthe timing edges to paths map, which stores all paths using each timing edge.
+void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<int> > & timingEdgeToPaths)
+{
+	int i, j, k;
+	int sX, sY, sZ, sP, dX, dY, dZ, dP; // source port is the output port of a node, destination port is the output port of the destination
+	int pIn;
+	std::string tempKey;
+	timingEdgeSlack.clear();
+	timingEdgeToPaths.clear();
+	std::vector<int> tempPaths;
+	//std::map<std::string, double> timingEdgeSlack;
+	int bestPath, tempPath, tempNode;
+	for (i = 1; i < (int)paths.size(); i++) // loop across all paths
+	{
+		for (j = 0; j < (int)paths[i].size() - 1; j++) // loop across all nodes in each path
+		{
+			// check if deleted or not
+			if (paths[i][0].deleted)
+			{
+				assert(false);
+				continue;
+			}
+			tempPaths.clear();
+			tempPaths.resize(0);
+			// get source and destination
+			// fist source
+			sX = paths[i][j].x;
+			sY = paths[i][j].y;
+			sZ = paths[i][j].z;
+			sP = paths[i][j].portOut;
+			// then destination
+			dX = paths[i][j + 1].x;
+			dY = paths[i][j + 1].y;
+			dZ = paths[i][j + 1].z;
+			dP = paths[i][j + 1].portIn;
+
+			// check if this edge is already considered 
+			tempKey = "ICsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dX" + std::to_string(dX) + "dY" + std::to_string(dY) + "dZ" + std::to_string(dZ) + "dP" + std::to_string(dP);
+			auto iter = timingEdgeSlack.find(tempKey);
+			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
+			{
+				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
+				pIn = paths[i][j + 1].portIn;
+				bestPath = paths.size();
+				for (k = 0; k < (int)fpgaLogic[dX][dY][dZ].nodes.size(); k++)
+				{
+					tempPath = fpgaLogic[dX][dY][dZ].nodes[k].path;
+					tempNode = fpgaLogic[dX][dY][dZ].nodes[k].node;
+					// if path is deleted ignore it man
+					if (paths[tempPath][0].deleted)
+					{
+						assert(false);
+						continue;
+					}
+
+					if (tempNode == 0) // then this node uses the destination cell as a source, so it does not use the IC so skip it
+						continue;
+
+					
+
+
+					if (paths[tempPath][tempNode].portIn == pIn) // uses the fact that the first path found is the one with lowest slack
+					{
+						if (tempPath<=bestPath)
+							bestPath = tempPath;
+						tempPaths.push_back(tempPath); // push all paths using this edge
+					//	break;    ibrahim_11/11/2016, removed break so that we can get all paths using this edge
+					}
+				}
+
+				timingEdgeSlack.insert(std::pair<std::string, double>(tempKey, pathSlack[bestPath]));
+				timingEdgeToPaths.insert(std::pair<std::string, std::vector<int> >(tempKey, tempPaths));
+			}
+		}
+	}
+
+
+	for (i = 1; i < (int)paths.size(); i++) // loop across all paths
+	{
+		for (j = 0; j <(int)paths[i].size(); j++) // loop across all nodes in each path
+		{
+			// check if deleted or not
+			if (paths[i][0].deleted)
+				continue;
+
+			tempPaths.clear();
+			tempPaths.resize(0);
+			// get source and destination
+			// fist source
+			sX = paths[i][j].x;
+			sY = paths[i][j].y;
+			sZ = paths[i][j].z;
+			sP = paths[i][j].portIn;
+			// then destination
+			dP = paths[i][j].portOut;
+
+			// check if this edge is already considered 
+			tempKey = "CELLsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dP" + std::to_string(dP);
+			auto iter = timingEdgeSlack.find(tempKey);
+			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
+			{
+				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
+				bestPath = paths.size();
+				for (k = 0; k < (int)fpgaLogic[sX][sY][sZ].nodes.size(); k++)
+				{
+					tempPath = fpgaLogic[sX][sY][sZ].nodes[k].path;
+					tempNode = fpgaLogic[sX][sY][sZ].nodes[k].node;
+					// if path is deleted ignore it man
+					if (paths[tempPath][0].deleted)
+						continue;
+				//	if (tempNode == 0) // then this node uses the destination cell as a source, so it does not use the IC so skip it
+				//		continue;
+					if (paths[tempPath][tempNode].portIn == sP && paths[tempPath][tempNode].portOut == dP) // uses the fact that the first path found is the one with lowest slack
+					{
+						if (tempPath <= bestPath)
+							bestPath = tempPath;
+						tempPaths.push_back(tempPath); // push all paths using this edge
+					 //	break;    ibrahim_11/11/2016, removed break so that we can get all paths using this edge
+					}
+				}
+
+				timingEdgeSlack.insert(std::pair<std::string, double>(tempKey, pathSlack[bestPath]));
+				timingEdgeToPaths.insert(std::pair<std::string, std::vector<int> >(tempKey, tempPaths));
+			}
+		}
+	}
+
+}
+
+
+// update a map of timing edges counting ic and cell delay different timing edges
+void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack)
+{
+	int i, j, k;
+	int sX, sY, sZ, sP, dX, dY, dZ, dP; // source port is the output port of a node, destination port is the output port of the destination
+	int pIn;
+	std::string tempKey;
+	//std::map<std::string, double> timingEdgeSlack;
+	int bestPath, tempPath, tempNode;
+	for (i = 1; i < (int)paths.size(); i++) // loop across all paths
+	{
+		for (j = 0; j < (int)paths[i].size() - 1; j++) // loop across all nodes in each path
+		{
+
+			// check if deleted or not
+			if (paths[i][0].deleted)
+				continue;
+			// get source and destination
+			// fist source
+			sX = paths[i][j].x;
+			sY = paths[i][j].y;
+			sZ = paths[i][j].z;
+			sP = paths[i][j].portOut;
+			// then destination
+			dX = paths[i][j + 1].x;
+			dY = paths[i][j + 1].y;
+			dZ = paths[i][j + 1].z;
+			dP = paths[i][j + 1].portIn;
+
+			if (i == 1793)
+				std::cout << "ualla" << std::endl;
+			// check if this edge is already considered 
+			tempKey = "ICsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dX" + std::to_string(dX) + "dY" + std::to_string(dY) + "dZ" + std::to_string(dZ) + "dP" + std::to_string(dP);
+			auto iter = timingEdgeSlack.find(tempKey);
+			if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
+				std::cout << tempKey << std::endl;
+		
+			// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
+			pIn = paths[i][j + 1].portIn;
+			bestPath = paths.size();
+			for (k = 0; k < (int)fpgaLogic[dX][dY][dZ].nodes.size(); k++)
+			{
+
+				tempPath = fpgaLogic[dX][dY][dZ].nodes[k].path;
+				tempNode = fpgaLogic[dX][dY][dZ].nodes[k].node;
+
+				if (tempNode == 0) // then this node uses the destination cell as a source, so it does not use the IC so skip it
+					continue;
+
+				if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
+				{
+					std::cout << tempPath;
+					if (tempPath == 1793)
+						if (paths[tempPath][0].deleted)
+							std::cout << "deleted";
+						else
+							std::cout << "not deleted";
+				}
+				// if path is deleted ignore it man
+				if (paths[tempPath][0].deleted)
+					continue;
+				if (paths[tempPath][tempNode].portIn == pIn) // uses the fact that the first path found is the one with lowest slack
+				{
+					bestPath = tempPath;
+					break;
+				}
+			}
+			if (iter == timingEdgeSlack.end() ) // was not found, so add it to the map with the right slack
+			{
+				timingEdgeSlack.insert(std::pair<std::string, double>(tempKey, pathSlack[bestPath]));
+			}
+			else if ((pathSlack[bestPath] < iter->second)) // was found but we are now testing it with a more critical path, so update the map maan.
+			{
+				iter->second = pathSlack[bestPath];
+				if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
+					std::cout << bestPath << std::endl;
+			}
+		}
+	}
+
+
+	for (i = 1; i < (int)paths.size(); i++) // loop across all paths
+	{
+		for (j = 0; j <(int)paths[i].size(); j++) // loop across all nodes in each path
+		{
+			// check if deleted or not
+			if (paths[i][0].deleted)
+				continue;
+			// get source and destination
+			// fist source
+			sX = paths[i][j].x;
+			sY = paths[i][j].y;
+			sZ = paths[i][j].z;
+			sP = paths[i][j].portIn;
+			// then destination
+			dP = paths[i][j].portOut;
+
+			// check if this edge is already considered 
+			tempKey = "CELLsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dP" + std::to_string(dP);
+			auto iter = timingEdgeSlack.find(tempKey);
+
+				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
+				bestPath = paths.size();
+			for (k = 0; k < (int)fpgaLogic[sX][sY][sZ].nodes.size(); k++)
+			{
+				tempPath = fpgaLogic[sX][sY][sZ].nodes[k].path;
+				tempNode = fpgaLogic[sX][sY][sZ].nodes[k].node;
+				// if path is deleted ignore it man
+				if (paths[tempPath][0].deleted)
+					continue;
+		//		if (tempNode == 0) // then this node uses the destination cell as a source, so it does not use the IC so skip it
+		//			continue;
+				if (paths[tempPath][tempNode].portIn == sP && paths[tempPath][tempNode].portOut == dP) // uses the fact that the first path found is the one with lowest slack
+				{
+					bestPath = tempPath;
+					break;
+				}
+			}
+			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
+			{
+				timingEdgeSlack.insert(std::pair<std::string, double>(tempKey, pathSlack[bestPath]));
+			}
+			else if ((pathSlack[bestPath] < iter->second)) // was found but we are now testing it with a more critical path, so update the map maan.
+			{
+				iter->second = pathSlack[bestPath];
+			}
+		}
+	}
+
+}
+
+
+
+// return the number of tested timing edges. It only counts the timing edge, if it is tested through the longest edge
+int count_timing_edges_realistic(std::map<std::string, double>  testedTimingEdgeSlack, std::map<std::string, double>  completeTimingEdgeSlack) 
+{
+//	auto iter = timingEdgeSlack.find(tempKey);
+//	if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
+	int total = 0;
+	for (auto iter = testedTimingEdgeSlack.begin(); iter != testedTimingEdgeSlack.end(); iter++) // loop across all edges that are currently tested
+	{
+		auto iter_temp = completeTimingEdgeSlack.find(iter->first); // get the equivalent edge from the complete timing net list
+		assert(iter_temp != completeTimingEdgeSlack.end()); // it must be there
+
+		if (iter->second <= iter_temp->second) // only count the tested edge if it is tested through the worst slack
+		{
+			total++;
+		}
+		else
+		{
+			std::cout << "tested using path " << iter->second << "but worst is path " << iter_temp->second << std::endl;
+			std::cout << iter->first << "    " << iter_temp->first << std::endl;
+		}
+	}
+
+	return total;
+}
+
 #ifdef StratixV
 void LUT_inputs_stat()
 {

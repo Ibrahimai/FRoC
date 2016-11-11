@@ -15,6 +15,8 @@
 #include "createOutputFiles.h"
 #include "dummyExtras.h"
 #include "completeNetlist.h"
+#include "ILPSolver.h"
+
 
 #ifdef CycloneIV
 Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
@@ -179,7 +181,7 @@ void delete_all()
 }
 
 
-void cycloneIV_stuff(int feedbackPaths, int remainingPaths)
+void cycloneIV_stuff(int feedbackPaths, int remainingPaths, std::map<std::string, double>  & testedTimingEdgesMap, std::map<std::string, std::vector<int> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete)
 {
 	int i;
 	calc_stats();
@@ -190,7 +192,10 @@ void cycloneIV_stuff(int feedbackPaths, int remainingPaths)
 		std::cout << "starting risky region" << std::endl;
 	}
 	// try ibrahim
-	//delete_especial_reconvergent_fanout();
+//	delete_especial_reconvergent_fanout();
+	//ILP_solve();
+//	ILP_solve_2();
+	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete);
 	remove_fanin_higher_than_three();
 	std::cout << "after removing fanin higher than three  number of Luts is ,";
 	int totalTimingEdges = check_number_of_timing_edges_more();
@@ -213,6 +218,9 @@ void cycloneIV_stuff(int feedbackPaths, int remainingPaths)
 	std::vector <std::vector<int> > test_structure;
 	test_structure.resize(numberOfTestPhases);
 	//////////////////////////////////////////////////////// stats about path and timing edge coverage
+	std::cout << "//////////////\\\\\\\\\\\\ ibrahim number of timing edges tested before = " << testedTimingEdgesMap.size() << std::endl;
+	update_timing_edges_of_all_paths(testedTimingEdgesMap);
+	std::cout << "//////////////\\\\\\\\\\\\ ibrahim number of timing edges tested after = " << testedTimingEdgesMap.size() << std::endl;
 	print_path_coverage_to_file();
 	totalTimingEdges = check_number_of_timing_edges_more();
 	std::cout << "total number of edges " << totalTimingEdges << std::endl;
@@ -362,20 +370,32 @@ int main(int argc, char* argv[])
 	std::string stats_file_name = temp + "_stats.txt";
 
 	IgnoredPathStats.open(stats_file_name);
-	IgnoredPathStats << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << std::endl;
+	IgnoredPathStats << "ILP" << "\t" << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << "\t" << "tested timing edges relaxed" << "\t" << "testing timing edges strict" <<std::endl;
 	set_netlist(); // set original copy of netlist (without deleting anything)
 	int remainingPaths = paths.size();
 	int feedbackPaths = count_cascaded_paths();
 	get_cascaded_paths_inverting_behaviour();
 
+	// generate timing edges info before deleting any thing
+	std::map<std::string, double>  timingEdgesMapComplete;
+	std::map<std::string, std::vector<int> >  timingEdgeToPaths;
+	generate_timing_edges_of_all_paths(timingEdgesMapComplete, timingEdgeToPaths);
 
+	std::cout << "True number of timing edges including IC & Cell delays : " << timingEdgesMapComplete.size() << std::endl;
+
+	// structure to store tested timing edges
+	std::map<std::string, double>  testedTimingEdgesMap;
 		
 	while (true)
 	{
-		cycloneIV_stuff(feedbackPaths, remainingPaths);
+		cycloneIV_stuff(feedbackPaths, remainingPaths, testedTimingEdgesMap, timingEdgeToPaths, timingEdgesMapComplete);
+		IgnoredPathStats << testedTimingEdgesMap.size() << "\t";
+		IgnoredPathStats << count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete) << "\t" << std::endl;
+
 		if (get_allPathsTested(remainingPaths))
 		{
 			print_stats(argv);
+			count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete);
 			break;
 		}
 		else

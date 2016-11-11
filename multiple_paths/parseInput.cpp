@@ -237,8 +237,8 @@ void update_cascaded_list() // go through all LEs and adds cscaded paths to ever
 				//			assert(false);
 						}
 						//fpgaLogic[66][22][30]
-						if (feederX == 66 && feederY == 22 && feederZ == 30)
-							std::cout << "shit" << i << " " << j << " " <<k << std::endl;
+					//	if (feederX == 66 && feederY == 22 && feederZ == 30)
+					//		std::cout << "shit" << i << " " << j << " " <<k << std::endl;
 
 						fpgaLogic[feederX][feederY][feederZ].cascadedPaths.push_back(fpgaLogic[i][j][k].nodes[x].path); // add this path to the list of cascaded paths at LUT feederX,Y,Z.
 					}

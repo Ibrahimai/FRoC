@@ -699,6 +699,8 @@ void delete_especial_reconvergent_fanout()
 	{
 		for (j = 0; j < paths[i].size(); j++) // loop across nodes in that path
 		{
+			if (i == 61 && j == 0)
+				std::cout << "debug reconvergent fanout" << std::endl;
 			if (paths[i][0].deleted) // this path is deleted then continue to the next path
 				break;
 			tempComponentX = paths[i][j].x;
@@ -730,6 +732,8 @@ void delete_especial_reconvergent_fanout()
 				tempComponentX = paths[tempNode.path][tempNode.node - 1].x; // get the location of the LE feeding the node in rootNodes
 				tempComponentY = paths[tempNode.path][tempNode.node - 1].y;
 				tempComponentZ = paths[tempNode.path][tempNode.node - 1].z;
+				if (j == 0)
+					std::cout << i << " " << j << std::endl;
 				//// trial studd
 				for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this
 				{
@@ -760,7 +764,7 @@ void delete_especial_reconvergent_fanout()
 	//// add edges between cascaded paths
 
 	std::cout << "**********Number of deleted paths due to reconvergent fan-out : " << deletedPaths << " **********" << std::endl;
-	IgnoredPathStats << deletedPaths << "\t" << std::endl;;
+	IgnoredPathStats << deletedPaths << "\t";// << std::endl;
 	//std::cout << "Number of Deleted Paths from delete function due to reconvergent fan-out :  " << deletedPaths << std::endl;
 
 }

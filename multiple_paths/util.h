@@ -1,7 +1,6 @@
 #pragma once
 //#include "globalVar.h"
 
-
 bool check_control_signal_required(int x, int y, int z);
 bool check_control_signal_required_second(int x, int y, int z);
 bool delete_path(int path);

@@ -115,7 +115,7 @@ bool reg_free_input(int x, int y, int z) // returns true if the register in loc 
 
 }
 
-bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, requires a control signal or not
+bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, z  requires a control signal or not
 {
 	int i;
 	int currentPath, currentNode, nextNode;
