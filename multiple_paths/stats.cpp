@@ -647,8 +647,8 @@ int count_timing_edges_realistic(std::map<std::string, double>  testedTimingEdge
 		}
 		else
 		{
-			std::cout << "tested using path " << iter->second << "but worst is path " << iter_temp->second << std::endl;
-			std::cout << iter->first << "    " << iter_temp->first << std::endl;
+		//	std::cout << "tested using path " << iter->second << "but worst is path " << iter_temp->second << std::endl;
+		//	std::cout << iter->first << "    " << iter_temp->first << std::endl;
 		}
 	}
 

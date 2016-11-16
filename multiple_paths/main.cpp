@@ -195,7 +195,7 @@ void cycloneIV_stuff(int feedbackPaths, int remainingPaths, std::map<std::string
 //	delete_especial_reconvergent_fanout();
 	//ILP_solve();
 //	ILP_solve_2();
-	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete);
+	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, false);
 	remove_fanin_higher_than_three();
 	std::cout << "after removing fanin higher than three  number of Luts is ,";
 	int totalTimingEdges = check_number_of_timing_edges_more();

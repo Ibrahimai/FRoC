@@ -731,8 +731,63 @@ void ILP_solve_2()
 
 
 
+int number_of_edges_cacsaded_paths(std::map<std::string, std::vector<int> >  timingEdgeToPaths, bool strictEdgeCounting , std::map<std::string, double>  timingEdgesMapComplete) // strictEdgeCounting means we only count this edge if it is tested through the longest critical path
+{
+	int total = 0;
+	bool flag = true;
+	for (auto iter = timingEdgeToPaths.begin(); iter != timingEdgeToPaths.end(); iter++) // loop across all edges
+	{
+		// check if this edge is tested
+		flag = true;
+		std::vector <int> tempPaths = iter->second; // get the equivalent edge from the complete timing net list
+		assert(tempPaths.size() > 0);
+		if (!strictEdgeCounting)
+		{
+
+			for (int i = 0; i < tempPaths.size(); i++)
+			{
+				if ((paths[tempPaths[i]][0].x != paths[tempPaths[i]].back().x) || (paths[tempPaths[i]][0].y != paths[tempPaths[i]].back().y) || ((paths[tempPaths[i]][0].z != paths[tempPaths[i]].back().z)))
+				{
+					flag = false;
+					break;
+				}
+			}
+
+		}
+		else // only check if the first path (most critical path) is a feedback path
+		{
+		//	if ((paths[tempPaths[0]][0].x != paths[tempPaths[0]].back().x) || (paths[tempPaths[0]][0].y != paths[tempPaths[0]].back().y) || ((paths[tempPaths[0]][0].z != paths[tempPaths[0]].back().z)))
+		//	{
+		//		flag = false;
+		//		break;
+		//	}
+
+			for (int i = 0; i < tempPaths.size(); i++)
+			{
+				auto iter_temp = timingEdgesMapComplete.find(iter->first); // get the equivalent edge from the complete timing net list
+				assert(iter_temp != timingEdgesMapComplete.end()); // must be there
+				if (pathSlack[tempPaths[i]]<= iter_temp->second)
+				{ 
+					if ((paths[tempPaths[i]][0].x != paths[tempPaths[i]].back().x) || (paths[tempPaths[i]][0].y != paths[tempPaths[i]].back().y) || ((paths[tempPaths[i]][0].z != paths[tempPaths[i]].back().z)))
+					{
+						flag = false;
+						break;
+					}
+				}
+			}
+
+		}
+		if (flag)
+			total++;
+
+	}
+
+	return total;
+}
+
+
 // maximize number of timing edges teted/ bitstream , uses auxiliary variables tor epresent LUT inputs and timing edges.
-void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdgesMap , std::map<std::string, std::vector<int> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete)
+void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdgesMap , std::map<std::string, std::vector<int> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete , bool strictEdgeCounting)
 {
 	try {
 		GRBEnv env = GRBEnv();
@@ -883,6 +938,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 		//////////////////////////////////////////////////////////////////////
 		////////////////// set tested timing edges to 0 //////////////////////
 		//////////////////////////////////////////////////////////////////////
+		int total_tested_timing_edges = 0;
 		int counter = 0;
 		for (auto iter = timingEdgesMapComplete.begin(); iter != timingEdgesMapComplete.end(); iter++) // loop across all edges
 		{
@@ -890,8 +946,21 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 			auto iter_temp = testedTimingEdgesMap.find(iter->first); // get the equivalent edge from the complete timing net list
 
 			if (iter_temp!= testedTimingEdgesMap.end()) // then this edge exists in the testedTimingEdgesMap, thus it is tested alread so thet it to zero
-				model.addConstr(vars_edges[counter], GRB_EQUAL, 0.0);
-
+			{ 
+				if (!strictEdgeCounting) // if we are not counting timing edges strictly, (strict means that we count timing edge as tested only if it's tested through the most critical edge)
+				{ 
+					model.addConstr(vars_edges[counter], GRB_EQUAL, 0.0);
+					total_tested_timing_edges++;
+				}
+				else
+				{
+					if (iter_temp->second <= iter->second) // if we are strictly testing timing paths then, we only count the edge as testing if it's tested with the worst slack
+					{
+						model.addConstr(vars_edges[counter], GRB_EQUAL, 0.0);
+						total_tested_timing_edges++;
+					}
+				}
+			}
 			counter++;
 
 		}
@@ -906,11 +975,32 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 			// check if this edge is tested
 			auto iter_temp = testedTimingEdgesMap.find(iter->first); // get the equivalent edge from the complete timing net list
 
-			if (iter_temp != testedTimingEdgesMap.end()) // then this edge exists in the testedTimingEdgesMap, thus it is tested alread so go to the next edge as this one is already set to 0
+
+			if (iter_temp != testedTimingEdgesMap.end()) // then this edge exists in the testedTimingEdgesMap, thus it is tested alread so thet it to zero
+			{
+				if (!strictEdgeCounting) // if we are not counting timing edges strictly, (strict means that we count timing edge as tested only if it's tested through the most critical edge)
+				{
+					counter++;
+					continue;
+				}
+				else
+				{
+					if (iter_temp->second <= iter->second) // if we are strictly testing timing paths then, we only count the edge as testing if it's tested with the worst slack
+					{
+						counter++;
+						continue;
+					}
+				}
+			}
+
+
+	/*		if (iter_temp != testedTimingEdgesMap.end() && !strictEdgeCounting) // then this edge exists in the testedTimingEdgesMap, thus it is tested alread so go to the next edge as this one is already set to 0
 			{ 
 				counter++;
 				continue;
 			}
+			*/
+
 			// get the vector of paths corresponding to this edge
 			auto iter_edge_paths = timingEdgeToPaths.find(iter->first);
 
@@ -919,15 +1009,33 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 
 			// add all paths variable to be ored later
 			GRBVar* temp_constr = new GRBVar[paths_using_edge.size()];
-		
+			int number_of_paths = 0;
 			for (int j = 0; j < paths_using_edge.size(); j++)
 			{
-				temp_constr[j] = vars[paths_using_edge[j] - 1];
+				if (!strictEdgeCounting) // if we are not counting edges strictly, then add all paths using this edge
+				{ 
+					temp_constr[j] = vars[paths_using_edge[j] - 1];
+					number_of_paths++;
+				}
+				else
+				{
+					if (pathSlack[paths_using_edge[j]]<=iter->second) // only add paths if they are using the edge through worst slack
+					{
+						temp_constr[j] = vars[paths_using_edge[j] - 1];
+						number_of_paths++;
+			//			if (counter == 24 || counter == 241)
+			//				std::cout << "edge " << counter << " path " << paths_using_edge[j] << std::endl;
+					}
+				}
 		//		std::cout << "path " << paths_using_edge[j] << std::endl;
 			}
-			std::cout << counter << std::endl;
-			std::cout << paths_using_edge.size() << std::endl;
-			model.addGenConstrOr(vars_edges[counter], temp_constr, paths_using_edge.size());
+		//	std::cout << counter << std::endl;
+		//	std::cout << paths_using_edge.size() << std::endl;
+			
+			assert(number_of_paths > 0);
+		//	if (counter == 24 || counter == 241)
+		//		std::cout << "edge " << counter << "number of paths " << number_of_paths << " path " << paths_using_edge[0] << std::endl;
+			model.addGenConstrOr(vars_edges[counter], temp_constr, number_of_paths); // paths_using_edge.size());
 			delete[] temp_constr;
 			
 			counter++;
@@ -1149,29 +1257,55 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 		////////////////////////////////
 		GRBLinExpr obj = 0.0;
 
+		int remaining_deges = timingEdgesMapComplete.size() - total_tested_timing_edges;
+		std::cout << " remaining_edges " << remaining_deges << " cascaeded deges " << number_of_edges_cacsaded_paths(timingEdgeToPaths,  strictEdgeCounting, timingEdgesMapComplete) << std::endl;
+		
+	//	bool more_Edges_to_test;
+	//	if (!strictEdgeCounting)
+	//		more_Edges_to_test = total_tested_timing_edges < timingEdgesMapComplete.size();
+	//	else
 
-		counter = 0;
-		for (auto iter = timingEdgesMapComplete.begin(); iter != timingEdgesMapComplete.end(); iter++) // loop across all edges
-		{
-			// check if this edge is tested
-			auto iter_temp = testedTimingEdgesMap.find(iter->first); // get the equivalent edge from the complete timing net list
-
-			if (iter_temp != testedTimingEdgesMap.end()) // then this edge exists in the testedTimingEdgesMap, thus it is tested alread so thet it to zero
+		std::cout << "total tested timing edges = " << total_tested_timing_edges << std::endl;
+		if (total_tested_timing_edges<timingEdgesMapComplete.size()&&(remaining_deges>number_of_edges_cacsaded_paths(  timingEdgeToPaths, strictEdgeCounting, timingEdgesMapComplete))) // if we still ahve timing edges to test, then our objective function is to maximize number of edges, other wise maximze number of paths
+		{ 
+			counter = 0;
+			for (auto iter = timingEdgesMapComplete.begin(); iter != timingEdgesMapComplete.end(); iter++) // loop across all edges
 			{
+				// check if this edge is tested
+				auto iter_temp = testedTimingEdgesMap.find(iter->first); // get the equivalent edge from the complete timing net list
+	
+				if (iter_temp != testedTimingEdgesMap.end()) // then this edge exists in the testedTimingEdgesMap, thus it is tested alread so thet it to zero
+				{
+					if (!strictEdgeCounting)
+					{ 
+						counter++;
+						continue;
+					}
+					else
+					{
+						if (iter_temp->second <= iter->second)
+						{
+							counter++;
+							continue;
+						}
+					}
+				}
+				obj += vars_edges[counter];
 				counter++;
-				continue;
-			}
-			obj += vars_edges[counter];
-			counter++;
 
+			}
+		}
+		else
+		{
+			for (int i = 0; i < num_of_paths; i++)
+			{
+				if (paths[i + 1][0].deleted)
+					continue;
+				obj += vars[i];
+			}
 		}
 
-	/*	for (int i = 0; i < num_of_paths; i++)
-		{
-			if (paths[i + 1][0].deleted)
-				continue;
-			obj += vars[i];
-		}*/
+
 
 		model.setObjective(obj, GRB_MAXIMIZE);
 
@@ -1199,9 +1333,13 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 					std::cout << i << " " << vars[i].get(GRB_DoubleAttr_X) << std::endl;
 				assert(vars[i].get(GRB_DoubleAttr_X) > 0.9999);
 			}
-			//		std::cout << vars[i].get(GRB_StringAttr_VarName) << " "
-			//			<< vars[i].get(GRB_DoubleAttr_X) << std::endl;
+		//			std::cout << vars[i].get(GRB_StringAttr_VarName) << " "
+		///				<< vars[i].get(GRB_DoubleAttr_X) << std::endl;
 		}
+
+	///	for (int i = 0; i < timingEdgesMapComplete.size();i++)
+	//		std::cout << vars_edges[i].get(GRB_StringAttr_VarName) << " "	<< vars_edges[i].get(GRB_DoubleAttr_X) << std::endl;
+
 		std::cout << "**********Number of deleted paths from ILP solver : " << total << " **********" << std::endl;
 		IgnoredPathStats << total << "\t";
 
