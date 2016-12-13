@@ -21,6 +21,7 @@
 #ifdef CycloneIV
 Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
 														  //std::vector < std::vector <bool>> testingPhases;
+
 #endif
 #ifdef StratixV
 ALUT fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ];
@@ -31,6 +32,8 @@ int numberOfTestPhases;
 std::vector <double> pathSlack;
 std::vector< std::vector<Path_node> > paths; // model the paths
 std::ofstream IgnoredPathStats; // delete after obtaining stats
+
+
 
 
 void set_testing_phase(int fixed, int change)
@@ -185,17 +188,21 @@ void cycloneIV_stuff(int feedbackPaths, int remainingPaths, std::map<std::string
 {
 	int i;
 	calc_stats();
+	bool casacadedRegion = false;
 	if (remainingPaths > feedbackPaths)
 		remove_feedback_paths();
 	else
 	{
 		std::cout << "starting risky region" << std::endl;
+		casacadedRegion = true;
 	}
 	// try ibrahim
-//	delete_especial_reconvergent_fanout();
+	//delete_especial_reconvergent_fanout();
 	//ILP_solve();
-//	ILP_solve_2();
-	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, false);
+	//ILP_solve_2();
+	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, true, casacadedRegion);
+//	ILP_solve_3();
+
 	remove_fanin_higher_than_three();
 	std::cout << "after removing fanin higher than three  number of Luts is ,";
 	int totalTimingEdges = check_number_of_timing_edges_more();
@@ -385,6 +392,9 @@ int main(int argc, char* argv[])
 
 	// structure to store tested timing edges
 	std::map<std::string, double>  testedTimingEdgesMap;
+
+
+
 		
 	while (true)
 	{

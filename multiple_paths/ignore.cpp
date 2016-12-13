@@ -773,7 +773,7 @@ void assign_test_phases_ib()
 {
 	std::vector < std::vector <int> > pathRelationGraph;
 	// create the graph representing the connections between paths
-	//delete_especial_reconvergent_fanout();
+	delete_especial_reconvergent_fanout();
 	generate_pathRelationGraph(pathRelationGraph); //creates the PRG and add edges to ensure that all off path inputs of every tested path is fixed (cannot test 2 oaths with fan-in overlap)
 
 	add_cascaded_edges_to_pathRelationGraph(pathRelationGraph);

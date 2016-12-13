@@ -526,8 +526,8 @@ void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdge
 			dZ = paths[i][j + 1].z;
 			dP = paths[i][j + 1].portIn;
 
-			if (i == 1793)
-				std::cout << "ualla" << std::endl;
+//			if (i == 1793)
+//				std::cout << "ualla" << std::endl;
 			// check if this edge is already considered 
 			tempKey = "ICsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dX" + std::to_string(dX) + "dY" + std::to_string(dY) + "dZ" + std::to_string(dZ) + "dP" + std::to_string(dP);
 			auto iter = timingEdgeSlack.find(tempKey);
