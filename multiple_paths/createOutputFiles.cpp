@@ -2127,6 +2127,21 @@ void create_RCF_file()
 					// write source signal
 					for (l = 0; l < (int)fpgaLogic[i][j][k].connections.size(); l++) // loop across all routes in the cell i,j,k
 					{
+						if (fpgaLogic[i][j][k].connections[l].usedRoutingResources.size() == 0) // so there is a connection but without any used resources, this must be a connection betwee a LUT and a FF that are in the same LE. So I am gonna check that
+						{
+							int destinX = fpgaLogic[i][j][k].connections[l].destinationX;
+							int destinY = fpgaLogic[i][j][k].connections[l].destinationY;
+							int destinZ = fpgaLogic[i][j][k].connections[l].destinationZ;
+
+							// deleted
+							if (destinX == -1)
+								continue;
+							// must be areg
+							assert(destinZ%LUTFreq != 0);
+							assert(fpgaLogic[destinX][destinY][destinZ].FFMode == dInput);
+
+							continue;
+						}
 						if (fpgaLogic[i][j][k].connections[l].destinationX == -1)
 						{ 
 							if (l == fpgaLogic[i][j][k].connections.size() - 1 && first_route_found) 

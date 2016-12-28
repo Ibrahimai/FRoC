@@ -358,10 +358,10 @@ void ILP_solve_2()
 		//////////////////////////////////////////////////////////////////////
 		////// constraints over auxilliary variables//////////////////////////
 		/////// special re-convergent fan-out/////////////////////////////////
-		////// X_i_j_k_P1 + X_i_j_k_P2 <= LUTinputs - controlSignals//////////
+		////// //////////
 		//////////////////////////////////////////////////////////////////////
 
-
+		int totala = 0;
 		
 		// /*
 		for (int i = 0; i < FPGAsizeX; i++)
@@ -373,7 +373,7 @@ void ILP_solve_2()
 					if (fpgaLogic[i][j][k].utilization < 1) // if le not used, go to the next one
 						continue;
 
-					if (k%LUTFreq != 0) // if its a lut skip it
+					if (k%LUTFreq != 0) // if its a reg skip it
 						continue;
 
 
@@ -387,6 +387,7 @@ void ILP_solve_2()
 							continue;
 						paths_sets[paths[temp_node.path][temp_node.node].portIn].push_back(temp_node.path); // add this node to the list of paths using paths[temp_node.path][temp_node.node].portIn
 					}
+
 					for (int l = 0; l < InputPortSize; l++) // loop across all inputs using this LE, I am checkin if I can fix input L and test LUT using other inputs
 					{
 						if (fpgaLogic[i][j][k].inputPorts[l])
@@ -399,6 +400,9 @@ void ILP_solve_2()
 							int feeederZ = paths[pathFeeder][nodeFeeder].z;
 							
 							std::vector<int> feeder_paths; // paths using the feeder of LUT i,j,k port l
+
+							feeder_paths.resize(0);
+
 
 							for (int m = 0; m < fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
 							{
@@ -418,10 +422,14 @@ void ILP_solve_2()
 							// loopo across paths_sets and make sure there is no common path between feeder_paths and other paths using 
 							bool extra_check = false;
 
+							std::vector<int> intersectionPaths; // set of paths that is common betwwen feeder_paths & paths_sets[m]
+
 							for (int m = 0; m < paths_sets.size(); m++)
 							{
 								if (m == l) // current port, that we are checking if it can be fixed
 									continue;
+								intersectionPaths.resize(0);
+								intersectionPaths.clear();
 
 								conflict_ports.resize(0);
 								for (int mm = 0; mm < paths_sets[m].size();mm++)
@@ -431,12 +439,19 @@ void ILP_solve_2()
 										if (feeder_paths[counter] == paths_sets[m][mm]) // then port l and port m can not be tested together, because the feeder of port l also connected to another port
 										{ 
 											conflict_ports.push_back(m);
+											// add path to the intersection vector
+											intersectionPaths.push_back(feeder_paths[counter]);
+
 										}
 									}
 
 								}
-								if (conflict_ports.size() > 0)
+
+								if (intersectionPaths.size()>0) //conflict_ports.size() > 0)
 								{
+
+									/* ib 16/12/2016
+
 			//						assert(!extra_check); // check that this happens only once for each port
 									extra_check = true;
 									/// port l
@@ -452,6 +467,35 @@ void ILP_solve_2()
 									// add contraint
 									model.addConstr(vars_aux[iter1->second] + vars_aux[iter2->second] <= 1);
 
+									*/ // ib 16 / 12 / 2016
+
+
+
+
+									//// atthis point we have two sets of paths 1st intersectionPaths, 2nd paths_sets[l] ; these 2 paths can't be tested together so lets create constraints accordigly
+
+									// ib 16/12/2016
+
+									// create two variables to represent each set
+
+									GRBVar intersectionSetILP;
+									GRBVar pinSetILP;
+
+									intersectionSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); 
+									pinSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+
+									for (int setCounter = 0; setCounter < intersectionPaths.size(); setCounter++)
+									{
+										model.addConstr(intersectionSetILP, GRB_GREATER_EQUAL, vars[intersectionPaths[setCounter] -1]); // model as ILP => Pi
+									}
+
+									for (int setCounter = 0; setCounter < paths_sets[l].size(); setCounter++)
+									{
+										model.addConstr(pinSetILP, GRB_GREATER_EQUAL, vars[paths_sets[l][setCounter ] - 1]); // model as ILP => Pi
+									}
+
+									// now add constraint that the sume of these two variables must be less than or equal one
+									model.addConstr(pinSetILP + intersectionSetILP <= 1);
 								}
 
 							}
@@ -595,6 +639,7 @@ void ILP_solve_2()
 					if (k%LUTFreq != 0) // if its a lut skip it
 						continue;
 
+					bool adder = false;
 					int control_signals = 1;
 					if (check_control_signal_required(i, j, k))
 						control_signals++;
@@ -603,16 +648,115 @@ void ILP_solve_2()
 						if (fpgaLogic[i][j][k].outputPorts[Cout - 5]) // this ensures that the LUT is i arith mode, we can only test paths using maximum 2 input ports, I think this could be relaxed a bit
 						{
 							control_signals++; // todo:deal with this
+							//adder = true;
 						}
 					}
 
+					//ib 17/12/2016 to deal with adders my man
+					if (fpgaLogic[i][j][k].outputPorts[Cout - 5]) // this ensures that the LUT is i arith mode, we can only test paths using maximum 2 input ports, I think this could be relaxed a bit
+					{
+						
+						adder = true;
+					}
 
 					if (fpgaLogic[i][j][k].usedInputPorts + control_signals <= LUTinputSize) // if inputs are enough and no need to delete then continue;
 						continue;
 
+					if (i == 101 && j == 31 && k == 4)
+						std::cout << "debugging " << std::endl;
+
 					assert(k%LUTFreq == 0); // check that it's a LUT
 
 					GRBLinExpr temp_constraint = 0.0;
+
+					/// ibrahim 14/12/16 begin
+					GRBVar tempControl;
+
+					tempControl = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); // create temp variable to represent one if control signal is needed and zero other wise
+
+					for (int fanout = 0; fanout < fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
+					{
+						// get destination port
+						int fanoutDestX = fpgaLogic[i][j][k].connections[fanout].destinationX;
+						int fanoutDestY = fpgaLogic[i][j][k].connections[fanout].destinationY;
+						int fanoutDestZ = fpgaLogic[i][j][k].connections[fanout].destinationZ;
+
+						int fanoutDestInPort = fpgaLogic[i][j][k].connections[fanout].destinationPort;
+
+						if (fanoutDestX == -1) // this connection is deleted so dont check it
+							continue;
+
+
+						if (fanoutDestZ%LUTFreq != 0) // reg
+						{
+							if (fpgaLogic[i][j][k].cascadedPaths.size() == 0) // no cascaded paths
+								continue;
+
+						//	if (!is_cascaded_reg(fanoutDestX, fanoutDestY, fanoutDestZ))
+						//		std::cout << "debug" << std::endl;
+
+							assert(is_cascaded_reg(fanoutDestX, fanoutDestY, fanoutDestZ) || fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size()==0); // reg is either a cascaded reg or has no fan our connections
+
+							/// else we this LUT is connected to a cascaded reg so control signal might be required depending on the cascaded paths
+							// so we will check the connections of this LUT and see 
+
+							
+							for (int cascadedFanout = 0; cascadedFanout < fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
+							{
+								int cascadedFanoutDestX = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationX;
+								int cascadedFanoutDestY = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationY;
+								int cascadedFanoutDestZ = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationZ;
+
+								if (cascadedFanoutDestX == -1) // means its deleted
+									continue;
+
+								int cascadedFanoutDestInPort = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationPort;
+								
+								assert(fpgaLogic[cascadedFanoutDestX][cascadedFanoutDestY][cascadedFanoutDestZ].inputPorts[cascadedFanoutDestInPort]);
+
+								std::string temp_key = std::to_string(cascadedFanoutDestX) + "_" + std::to_string(cascadedFanoutDestY) + "_" + std::to_string(cascadedFanoutDestZ) + "__" + std::to_string(cascadedFanoutDestInPort);
+								std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+								assert(iter1 != hashTable.end());
+								model.addConstr(tempControl, GRB_GREATER_EQUAL, vars_aux[iter1->second]); // C_0 >= X11
+								if (control_signals < 2)
+								{
+									std::cout << "x " << i << " y " << j << " z " << k << " fanoutx " << fanoutDestX << " fanouty " << fanoutDestY << " fanout Z " << fanoutDestZ << " cascadedX " << cascadedFanoutDestX << " cascadedY " << cascadedFanoutDestY << " cascadedZ " << cascadedFanoutDestZ << std::endl;
+								}
+								assert(control_signals > 1);
+
+							}
+
+						}
+						else // LUT
+						{
+							for (int inports = 0; inports < InputPortSize; inports++) // loop across all input ports of this LUT (one of the fnaouts of LUT i,j,k)
+							{
+								if (inports == fanoutDestInPort) // if this is th input port that is part of the fanout connection then continue
+									continue;
+								if (fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].inputPorts[inports]) // if this othe inport is used then we have to add constraint, to make sure thatwe will add a control signal if required
+								{
+									std::string temp_key = std::to_string(fanoutDestX) + "_" + std::to_string(fanoutDestY) + "_" + std::to_string(fanoutDestZ) + "__" + std::to_string(inports);
+									std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+									if (iter1 == hashTable.end())
+									{
+										std::cout << "destX " << fanoutDestX << " destY " << fanoutDestY << " destZ " << fanoutDestZ << " inports " << inports << std::endl;
+									}
+									assert(iter1 != hashTable.end());
+									model.addConstr(tempControl, GRB_GREATER_EQUAL, vars_aux[iter1->second]); // C_0 >= X11
+									if (control_signals < 2)
+									{
+										std::cout << "x " << i << " y " << j << " z " << k << " fanoutx " << fanoutDestX << " fanouty " << fanoutDestY << " fanout Z " << fanoutDestZ <<  std::endl;
+									}
+									assert(control_signals > 1);
+								}
+
+							}
+						}
+
+						// loop across 
+					}
+
+					/// ibrahim 14/12/16 end
 
 					for (int l = 0; l < InputPortSize ; l++) // loop across all inputs using this LE
 					{
@@ -626,11 +770,390 @@ void ILP_solve_2()
 						}
 					}
 					
-					model.addConstr(temp_constraint, GRB_LESS_EQUAL, LUTinputSize - control_signals); // todo make sure u are not messing this up for adders
+					assert(!adder);
+
+					if(adder)
+						model.addConstr(temp_constraint, GRB_LESS_EQUAL, LUTinputSize - 2);
+					else
+						model.addConstr(temp_constraint, GRB_LESS_EQUAL, LUTinputSize - 1 - tempControl);
+
+					//model.addConstr(temp_constraint, GRB_LESS_EQUAL, LUTinputSize - 1 - 1);// tempControl);//control_signals); // ib 14/12/2016// todo make sure u are not messing this up for adders
 
 				}
 			}
 		}
+
+
+		////////////////////////////////////////////////////////////////////////////////////
+		//////////// Constaints to fix offpath inputs when they are connected to LUTs///////
+		////////////////////////////////////////////////////////////////////////////////////
+
+		for (int i = 0; i < FPGAsizeX; i++)
+		{
+			for (int j = 0; j < FPGAsizeY; j++)
+			{
+				for (int k = 0; k < FPGAsizeZ; k++)
+				{
+					if (k%LUTFreq != 0) // if it's a reg then skip
+						continue;
+
+					// LUTs only
+					if (fpgaLogic[i][j][k].utilization < 2) // if one or less (zero) paths are using this LUT then skip we will never need to fix an off-path input coz there aint
+						continue;
+					if (fpgaLogic[i][j][k].usedInputPorts < 2) // no off path inputs since only one port is used
+						continue;
+
+					// LUT used with more than one input port used
+					for (int z = 0; z < InputPortSize; z++)
+					{
+						if (fpgaLogic[i][j][k].inputPorts[z]) // check if this port is used
+						{
+							int pathFeeder, nodeFeeder;
+							assert(get_feeder(i, j, k, z, pathFeeder, nodeFeeder)); // get the feeder for this LUT using the z port
+
+							int feeederX = paths[pathFeeder][nodeFeeder].x;
+							int feeederY = paths[pathFeeder][nodeFeeder].y;
+							int feeederZ = paths[pathFeeder][nodeFeeder].z;
+
+							if (feeederZ%LUTFreq == 0) // if the feeder is a lut then skip this port as we can fix this input port using the fix signal of the feeder LUT
+								continue;
+
+							// feeder is a reg
+							///	if (!is_cascaded_reg(i, j, k)) // if its not a cascaded reg, then we can control it 
+							//		continue;
+
+
+							if (reg_free_input(feeederX, feeederY, feeederZ)) // if its input is free we can control this reg, so thats fine
+								continue;
+
+							// could be cascaded or a feed-back path
+
+							int regFeederPath, regFeederNode;
+							assert(get_feeder(feeederX, feeederY, feeederZ, regFeederPath, regFeederNode)); // get the feeder for this reg 
+
+							int regFeederX = paths[regFeederPath][regFeederNode].x;
+							int regFeederY = paths[regFeederPath][regFeederNode].y;
+							int regFeederZ = paths[regFeederPath][regFeederNode].z;
+
+							bool shouldDelete = false;
+
+							std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
+							pathsToReg.resize(0);
+							std::vector<int> pathsIJKandRegFeeder; // paths using lut i,j,k and using an input other than z and going through the lut feeding the reg
+							pathsIJKandRegFeeder.resize(0);
+
+							std::vector<int> pathsIJKZ; // paths using lut i,j,k and using an input Z
+							pathsIJKZ.resize(0);
+
+							for (int ii = 0; ii < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
+							{
+								Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[ii];
+								if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
+									continue;
+
+								// check if this path feeds the reg
+								if (paths[tempNode.path][tempNode.node + 1].x == feeederX && paths[tempNode.path][tempNode.node + 1].y == feeederY && paths[tempNode.path][tempNode.node + 1].z == feeederZ)
+								{
+									pathsToReg.push_back(tempNode.path);
+								}
+
+
+								// loop across nodes using LUT i,j,k to see all paths using lut i,j,k from an input other than port z
+								for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+								{
+									if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted)
+										continue;
+
+
+									if (ii == 0 && paths[fpgaLogic[i][j][k].nodes[l].path][fpgaLogic[i][j][k].nodes[l].node].portIn == z)
+									{
+										pathsIJKZ.push_back(fpgaLogic[i][j][k].nodes[l].path);
+									}
+
+									if (paths[fpgaLogic[i][j][k].nodes[l].path][fpgaLogic[i][j][k].nodes[l].node].portIn != z) // found a path using lut i,j,k from a node other than Z
+									{
+										if (fpgaLogic[i][j][k].nodes[l].path == tempNode.path) // one of the found paths also use the LUt feeding the reg
+										{
+											pathsIJKandRegFeeder.push_back(fpgaLogic[i][j][k].nodes[l].path);
+											shouldDelete = true;
+										}
+
+
+									}
+
+								}
+
+							}
+
+							if (shouldDelete) // we should delte some stuff coz we cant fix all off-path inputs
+							{
+							/*	std::vector<int> deletedPaths;
+								if (pathsIJKandRegFeeder.size() > pathsToReg.size())
+									deletedPaths = pathsToReg;
+								else
+									deletedPaths = pathsIJKandRegFeeder;
+
+								for (int pop = 0; pop < deletedPaths.size(); pop++)
+								{
+									if (delete_path(deletedPaths[pop]))
+									{
+										total++;
+										std::cout << "fix off path " << deletedPaths[pop] << std::endl;
+									}
+								}*/
+
+
+								// create constraints betweentwo sets. this is different than the re-convergent fanout as these two paths may have commpn paths in them.
+
+								// variable representing set IJKZ
+												GRBVar pathsIJKZSetILP;
+								pathsIJKZSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+
+								for (int setCounter = 0; setCounter < pathsIJKZ.size(); setCounter++)
+								{
+									model.addConstr(pathsIJKZSetILP, GRB_GREATER_EQUAL, vars[pathsIJKZ[setCounter] - 1]); // model as ILP => Pi
+								}
+
+								/*	for (int set1Counter = 0; set1Counter < pathsToReg.size(); set1Counter++)
+								{
+									for (int set2Counter = 0; set2Counter < pathsIJKandRegFeeder.size(); set2Counter++)
+									{
+
+										model.addConstr(vars[pathsToReg[set1Counter] - 1] + vars[pathsIJKandRegFeeder[set2Counter]-1] <= 2 - pathsIJKZSetILP);
+									}
+								}*/
+
+								// create two variables to represent each set
+
+								GRBVar pathsToRegSetILP;
+								GRBVar pathsIJKandRegFeederSetILP;
+
+								pathsToRegSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+								pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+
+								for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+								{
+									model.addConstr(pathsToRegSetILP, GRB_GREATER_EQUAL, vars[pathsToReg[setCounter] - 1]); // model as ILP => Pi
+								}
+
+								for (int setCounter = 0; setCounter <pathsIJKandRegFeeder.size(); setCounter++)
+								{
+									model.addConstr(pathsIJKandRegFeederSetILP, GRB_GREATER_EQUAL, vars[pathsIJKandRegFeeder[setCounter] - 1]); // model as ILP => Pi
+								}
+
+
+								std::string temp_key = std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k) + "__" + std::to_string(z);
+								//	std::cout << temp_key << std::endl;
+								std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+								assert(iter1 != hashTable.end());
+								// ib14/12/16		temp_constr[j-1] = vars_aux[iter1->second];
+
+								
+
+								// now add constraint that the sume of these two variables must be less than or equal one
+								model.addConstr(pathsIJKandRegFeederSetILP + pathsToRegSetILP <= 2 - vars_aux[iter1->second]);
+
+							}
+
+
+						}
+					}
+
+				}
+			}
+		}
+
+
+		/////////////////////////////////////////////////////////////////////////////
+		////////////////// Constraints to check that the source reg. can toggle /////
+		/////////////////////////////////////////////////////////////////////////////
+		int pol = 0;
+
+		for (int i = 1; i < paths.size(); i++)
+		{
+			if (paths[i].size() < 1)
+				continue;
+
+			if (paths[i][0].deleted) // if its deleted
+				continue;
+
+			int sourceRegX = paths[i][0].x;
+			int sourceRegY = paths[i][0].y;
+			int sourceRegZ = paths[i][0].z;
+
+			assert(sourceRegZ%LUTFreq != 0);// muts be reg
+
+			if (paths[i][paths[i].size() - 1].x == sourceRegX && paths[i][paths[i].size() - 1].y == sourceRegY && paths[i][paths[i].size() - 1].z == sourceRegZ) // feedback path so ignore it for now
+				continue;
+
+			if (reg_free_input(sourceRegX, sourceRegY, sourceRegZ)) // if its input is free we can control this reg, so thats fine
+				continue;
+
+			// could be cascaded 
+
+			int regFeederPath, regFeederNode;
+			assert(get_feeder(sourceRegX, sourceRegY, sourceRegZ, regFeederPath, regFeederNode)); // get the feeder for this reg 
+
+			int regFeederX = paths[regFeederPath][regFeederNode].x;
+			int regFeederY = paths[regFeederPath][regFeederNode].y;
+			int regFeederZ = paths[regFeederPath][regFeederNode].z;
+
+			bool shouldDelete = false;
+			std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
+			pathsToReg.resize(0);
+
+			for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
+			{
+
+
+				Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[j];
+				if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
+					continue;
+
+				// check if this path feeds the reg
+				if (paths[tempNode.path][tempNode.node + 1].x == sourceRegX && paths[tempNode.path][tempNode.node + 1].y == sourceRegY && paths[tempNode.path][tempNode.node + 1].z == sourceRegZ)
+				{
+					pathsToReg.push_back(tempNode.path);
+				}
+
+
+
+				if (fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[j].path == i)
+				{
+					//if (delete_path(i))
+					//{
+						//total++;
+						shouldDelete = true;
+						//break;
+					//}
+				}
+			}
+
+			if (shouldDelete) // path i uses the LUT feeding its source reg
+			{
+				GRBVar pathsToRegSetILP;
+			//	GRBVar pathsIJKandRegFeederSetILP;
+
+				pathsToRegSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+			//	pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+
+				for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+				{
+					model.addConstr(pathsToRegSetILP, GRB_GREATER_EQUAL, vars[pathsToReg[setCounter] - 1]); // model as ILP => Pi
+				}
+
+				model.addConstr(pathsToRegSetILP + vars[i - 1] <= 1);
+			}
+			else
+			{
+				 // path i was not deleted as we can toggle the source reg. But now we will check can we toggle the source reg and at the same time keep all off path-inputs of path i fixed ?
+				
+
+
+				GRBVar pathsRegFeederSetILP;
+				
+				// ILp var representing all paths using reg feeder and connected to reg
+				pathsRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+				
+
+				for (int setCounter = 0; setCounter < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
+				{
+					if (paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node+1].x == sourceRegX && paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].y == sourceRegY && paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].z == sourceRegZ)
+						model.addConstr(pathsRegFeederSetILP, GRB_GREATER_EQUAL, vars[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path - 1]); // model as ILP => Pi
+				}
+
+				int destinationX, destinationY, destinationZ, destinationPortIn;
+
+				for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
+				{
+						// get destination j
+					destinationX = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationX;
+					destinationY = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationY;
+					destinationZ = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationZ;
+					destinationPortIn = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationPort;
+
+					if (destinationX == -1) // deleted connection
+						continue;
+
+					if (destinationZ%LUTFreq != 0) // it's a reg then continue. I think.
+						continue;
+
+					for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
+					{
+						if (fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].path == i) // then this destination is a lut that is also used by path i, we can not toggle the source of path i while keeping the off-path inputs at this LUT fixed.
+						{
+
+							assert(destinationPortIn != paths[i][fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].node].portIn);
+
+							std::string temp_key = std::to_string(destinationX) + "_" + std::to_string(destinationY) + "_" + std::to_string(destinationZ) + "__" + std::to_string(destinationPortIn);
+							//	std::cout << temp_key << std::endl;
+							std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+							assert(iter1 != hashTable.end());
+							// ib14/12/16		temp_constr[j-1] = vars_aux[iter1->second];
+
+		//					pol++;
+
+							// now add constraint that the says either P1 can be tested or we can use Xij
+						//	model.addConstr(vars[i - 1] + vars_aux[iter1->second] <= 1.7);
+							model.addConstr(vars[i - 1] + pathsRegFeederSetILP <= 2 - vars_aux[iter1->second] );
+
+						//	if (delete_path(i))
+						//	{
+						//		total++;
+						////		std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+						//		std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+						//		std::cout << "Hit the extreme corner case" << std::endl;
+						//		break;
+						//	}
+						}
+					}
+			//		if (pol > 0)
+			//			std::cout << "5ara 3ala " << pol << " *********************************************" << std::endl;
+
+				//	pol = 0;
+				}
+
+				
+			}
+
+		/*	if (!shouldDelete) // path i was not deleted as we can toggle the source reg. But now we will check can we toggle the source reg and at the same time keep all off path-inputs of path i fixed ?
+			{
+
+				int destinationX, destinationY, destinationZ;
+
+				for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
+				{
+					// get destination j
+					destinationX = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationX;
+					destinationY = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationY;
+					destinationZ = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationZ;
+
+					if (destinationX == -1) // deleted connection
+						continue;
+
+					if (destinationZ%LUTFreq != 0) // it's a reg then continue. I think.
+						continue;
+
+					for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
+					{
+						if (fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].path == i) // then this destination is a lut that is also used by path i, we can not toggle the source of path i while keeping the off-path inputs at this LUT fixed.
+						{
+							if (delete_path(i))
+							{
+								total++;
+								std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+								std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" << std::endl;
+								std::cout << "Hit the extreme corner case" << std::endl;
+								break;
+							}
+						}
+					}
+
+				}*/
+
+			}
+
+
 
 
 		/////////////////////////////////////////////////////////////////////////
@@ -644,18 +1167,20 @@ void ILP_solve_2()
 				continue;
 			if (paths[i][0].deleted)
 				continue;
-			GRBVar* temp_constr = new GRBVar[paths[i].size()-2];
+			// ib14/12/16 GRBVar* temp_constr = new GRBVar[paths[i].size()-2];
 			for (int j = 1; j < paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
 			{
 				std::string temp_key = std::to_string(paths[i][j].x) + "_" + std::to_string(paths[i][j].y) + "_" + std::to_string(paths[i][j].z) + "__" + std::to_string(paths[i][j].portIn);
 			//	std::cout << temp_key << std::endl;
 				std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
 				assert(iter1 != hashTable.end());
-				temp_constr[j-1] = vars_aux[iter1->second];
+				// ib14/12/16		temp_constr[j-1] = vars_aux[iter1->second];
+
+				model.addConstr(vars[i - 1], GRB_LESS_EQUAL, vars_aux[iter1->second]); // model as Pi<=Xij
 
 			}
-			model.addGenConstrAnd(vars[i-1], temp_constr, paths[i].size() - 2);
-			delete [] temp_constr;
+			// ib14/12/16 model.addGenConstrAnd(vars[i-1], temp_constr, paths[i].size() - 2);
+			// ib14/12/16 delete [] temp_constr;
 		}
 
 		////////////////////////////////
@@ -1387,7 +1912,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 		GRBEnv env = GRBEnv();
 
 		GRBModel model = GRBModel(env);
-		model.getEnv().set("TimeLimit", "1000.0");
+		model.getEnv().set("TimeLimit", "4000.0");
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1395,6 +1920,9 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+		std::cout << "Number of bit streams " << bitStreams << std::endl;
 
 		/////////////////////////////////////////
 		////// Path variables////////////////////
@@ -1419,7 +1947,15 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 			//std::cout << temp << std::endl;
 		}
 
-		GRBVar* vars = model.addVars(lb_vars, up_vars, NULL, type_vars, names_vars, num_of_paths);
+		std::vector <GRBVar*> vars;
+		vars.resize(bitStreams);
+
+		for (int i = 0; i < bitStreams; i++)
+		{
+			vars[i] = model.addVars(lb_vars, up_vars, NULL, type_vars, names_vars, num_of_paths);
+		}
+
+		//GRBVar* vars = model.addVars(lb_vars, up_vars, NULL, type_vars, names_vars, num_of_paths);
 
 		/////////////////////////////////////////////////////////////////////
 		//////// auxilliary variables input ports of LUTs //////////////////
@@ -1490,7 +2026,15 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 			//std::cout << temp << std::endl;
 		}
 
-		GRBVar* vars_aux = model.addVars(lb_vars_aux, up_vars_aux, NULL, type_vars_aux, names_vars_aux, num_of_auxiliary_variables);
+		std::vector <GRBVar*> vars_aux;
+		vars_aux.resize(bitStreams);
+
+		for (int i = 0; i < bitStreams; i++)
+		{
+			vars_aux[i] = model.addVars(lb_vars_aux, up_vars_aux, NULL, type_vars_aux, names_vars_aux, num_of_auxiliary_variables);
+		}
+
+		//GRBVar* vars_aux = model.addVars(lb_vars_aux, up_vars_aux, NULL, type_vars_aux, names_vars_aux, num_of_auxiliary_variables);
 
 
 
@@ -1510,7 +2054,11 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 		{
 			if (paths[i][0].deleted) // path is deleted
 			{
-				model.addConstr(vars[i - 1], GRB_EQUAL, 0.0);
+				for (int j = 0; j < bitStreams; j++)
+				{
+					model.addConstr((vars[j])[i - 1], GRB_EQUAL, 0.0);
+				}
+				
 
 			}
 
@@ -1521,10 +2069,10 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 		//////////////////////////////////////////////////////////////////////
 		////// constraints over auxilliary variables//////////////////////////
 		/////// special re-convergent fan-out/////////////////////////////////
-		////// X_i_j_k_P1 + X_i_j_k_P2 <= LUTinputs - controlSignals//////////
+		////// //////////
 		//////////////////////////////////////////////////////////////////////
 
-
+		int totala = 0;
 
 		// /*
 		for (int i = 0; i < FPGAsizeX; i++)
@@ -1536,7 +2084,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 					if (fpgaLogic[i][j][k].utilization < 1) // if le not used, go to the next one
 						continue;
 
-					if (k%LUTFreq != 0) // if its a lut skip it
+					if (k%LUTFreq != 0) // if its a reg skip it
 						continue;
 
 
@@ -1550,6 +2098,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 							continue;
 						paths_sets[paths[temp_node.path][temp_node.node].portIn].push_back(temp_node.path); // add this node to the list of paths using paths[temp_node.path][temp_node.node].portIn
 					}
+
 					for (int l = 0; l < InputPortSize; l++) // loop across all inputs using this LE, I am checkin if I can fix input L and test LUT using other inputs
 					{
 						if (fpgaLogic[i][j][k].inputPorts[l])
@@ -1562,6 +2111,9 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 							int feeederZ = paths[pathFeeder][nodeFeeder].z;
 
 							std::vector<int> feeder_paths; // paths using the feeder of LUT i,j,k port l
+
+							feeder_paths.resize(0);
+
 
 							for (int m = 0; m < fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
 							{
@@ -1581,10 +2133,14 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 							// loopo across paths_sets and make sure there is no common path between feeder_paths and other paths using 
 							bool extra_check = false;
 
+							std::vector<int> intersectionPaths; // set of paths that is common betwwen feeder_paths & paths_sets[m]
+
 							for (int m = 0; m < paths_sets.size(); m++)
 							{
 								if (m == l) // current port, that we are checking if it can be fixed
 									continue;
+								intersectionPaths.resize(0);
+								intersectionPaths.clear();
 
 								conflict_ports.resize(0);
 								for (int mm = 0; mm < paths_sets[m].size(); mm++)
@@ -1594,27 +2150,62 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 										if (feeder_paths[counter] == paths_sets[m][mm]) // then port l and port m can not be tested together, because the feeder of port l also connected to another port
 										{
 											conflict_ports.push_back(m);
+											// add path to the intersection vector
+											intersectionPaths.push_back(feeder_paths[counter]);
+
 										}
 									}
 
 								}
-								if (conflict_ports.size() > 0)
+
+								if (intersectionPaths.size()>0) //conflict_ports.size() > 0)
 								{
-									//						assert(!extra_check); // check that this happens only once for each port
-									extra_check = true;
-									/// port l
-								add_constraint_recon: std::string temp_key = std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k) + "__" + std::to_string(l);
-									std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
-									assert(iter1 != hashTable.end());
 
-									/// port conflict_ports[0]
-									temp_key = std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k) + "__" + std::to_string(conflict_ports[0]);
-									std::unordered_map <std::string, int>::iterator iter2 = hashTable.find(temp_key);
-									assert(iter2 != hashTable.end());
+									//// atthis point we have two sets of paths 1st intersectionPaths, 2nd paths_sets[l] ; these 2 paths can't be tested together so lets create constraints accordigly
 
-									// add contraint
-									model.addConstr(vars_aux[iter1->second] + vars_aux[iter2->second] <= 1);
+									// ib 16/12/2016
 
+									// create two variables to represent each set
+
+									//GRBVar intersectionSetILP;
+									std::vector <GRBVar> intersectionSetILP;
+									intersectionSetILP.resize(bitStreams);
+									
+									std::vector <GRBVar> pinSetILP;
+									pinSetILP.resize(bitStreams);
+
+
+									//GRBVar pinSetILP;
+
+									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+									{
+										intersectionSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+										pinSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+									}
+									
+
+									for (int setCounter = 0; setCounter < intersectionPaths.size(); setCounter++)
+									{
+										for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+										{
+											model.addConstr(intersectionSetILP[bitStreamCounter], GRB_GREATER_EQUAL, vars[bitStreamCounter][intersectionPaths[setCounter] - 1]); // model as ILP => Pi
+										}
+									//	model.addConstr(intersectionSetILP, GRB_GREATER_EQUAL, vars[intersectionPaths[setCounter] - 1]); // model as ILP => Pi
+									}
+
+									for (int setCounter = 0; setCounter < paths_sets[l].size(); setCounter++)
+									{
+										for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+										{
+											model.addConstr(pinSetILP[bitStreamCounter], GRB_GREATER_EQUAL, vars[bitStreamCounter][paths_sets[l][setCounter] - 1]); // model as ILP => Pi
+										}
+									}
+
+									// now add constraint that the sume of these two variables must be less than or equal one
+									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+									{
+										model.addConstr(pinSetILP[bitStreamCounter] + intersectionSetILP[bitStreamCounter] <= 1);
+									}
 								}
 
 							}
@@ -1647,6 +2238,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 					if (k%LUTFreq != 0) // if its a lut skip it
 						continue;
 
+					bool adder = false;
 					int control_signals = 1;
 					if (check_control_signal_required(i, j, k))
 						control_signals++;
@@ -1655,16 +2247,132 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 						if (fpgaLogic[i][j][k].outputPorts[Cout - 5]) // this ensures that the LUT is i arith mode, we can only test paths using maximum 2 input ports, I think this could be relaxed a bit
 						{
 							control_signals++; // todo:deal with this
+											   //adder = true;
 						}
 					}
 
+					//ib 17/12/2016 to deal with adders my man
+					if (fpgaLogic[i][j][k].outputPorts[Cout - 5]) // this ensures that the LUT is i arith mode, we can only test paths using maximum 2 input ports, I think this could be relaxed a bit
+					{
+
+						adder = true;
+					}
 
 					if (fpgaLogic[i][j][k].usedInputPorts + control_signals <= LUTinputSize) // if inputs are enough and no need to delete then continue;
 						continue;
 
+
 					assert(k%LUTFreq == 0); // check that it's a LUT
 
-					GRBLinExpr temp_constraint = 0.0;
+					//GRBLinExpr temp_constraint = 0.0;
+
+					std::vector <GRBLinExpr> temp_constraint;
+					temp_constraint.resize(bitStreams);
+
+					std::vector <GRBVar> tempControl;
+					tempControl.resize(bitStreams);
+					/// ibrahim 14/12/16 begin
+				//	GRBVar tempControl;
+
+					for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+					{
+						tempControl[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); // create temp variable to represent one if control signal is needed and zero other wise
+						temp_constraint[bitStreamCounter] = 0.0;
+					}
+					//tempControl = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); // create temp variable to represent one if control signal is needed and zero other wise
+
+					for (int fanout = 0; fanout < fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
+					{
+						// get destination port
+						int fanoutDestX = fpgaLogic[i][j][k].connections[fanout].destinationX;
+						int fanoutDestY = fpgaLogic[i][j][k].connections[fanout].destinationY;
+						int fanoutDestZ = fpgaLogic[i][j][k].connections[fanout].destinationZ;
+
+						int fanoutDestInPort = fpgaLogic[i][j][k].connections[fanout].destinationPort;
+
+						if (fanoutDestX == -1) // this connection is deleted so dont check it
+							continue;
+
+
+						if (fanoutDestZ%LUTFreq != 0) // reg
+						{
+							if (fpgaLogic[i][j][k].cascadedPaths.size() == 0) // no cascaded paths
+								continue;
+
+							if (!(is_cascaded_reg(fanoutDestX, fanoutDestY, fanoutDestZ) || fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size() == 0))
+							{
+								std::cout << "debug" << std::endl;
+								std::cout << "fanout size " << fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size() << std::endl;
+								std::cout << "cascadede paths " << fpgaLogic[i][j][k].cascadedPaths.size() << std::endl;
+								std::cout << "fanoutdestx " << fanoutDestX << "fanoutdesty " << fanoutDestY << "fanoutdestz " << fanoutDestZ << std::endl;
+								std::cout << "sourcetx " << i << "sourcety " << j << "sourcestz " << k << std::endl;
+							}
+							assert(is_cascaded_reg(fanoutDestX, fanoutDestY, fanoutDestZ) || fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size() == 0); // reg is either a cascaded reg or has no fan our connections
+
+																																										/// else we this LUT is connected to a cascaded reg so control signal might be required depending on the cascaded paths
+																																										// so we will check the connections of this LUT and see 
+							for (int cascadedFanout = 0; cascadedFanout < fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
+							{
+								int cascadedFanoutDestX = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationX;
+								int cascadedFanoutDestY = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationY;
+								int cascadedFanoutDestZ = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationZ;
+
+								if (cascadedFanoutDestX == -1) // means its deleted
+									continue;
+
+								int cascadedFanoutDestInPort = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationPort;
+
+								assert(fpgaLogic[cascadedFanoutDestX][cascadedFanoutDestY][cascadedFanoutDestZ].inputPorts[cascadedFanoutDestInPort]);
+
+								std::string temp_key = std::to_string(cascadedFanoutDestX) + "_" + std::to_string(cascadedFanoutDestY) + "_" + std::to_string(cascadedFanoutDestZ) + "__" + std::to_string(cascadedFanoutDestInPort);
+								std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+								assert(iter1 != hashTable.end());
+								for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+								{
+									model.addConstr(tempControl[bitStreamCounter], GRB_GREATER_EQUAL, vars_aux[bitStreamCounter][iter1->second]); // C_0 >= X11
+								}
+								if (control_signals < 2)
+								{
+									std::cout << "x " << i << " y " << j << " z " << k << " fanoutx " << fanoutDestX << " fanouty " << fanoutDestY << " fanout Z " << fanoutDestZ << " cascadedX " << cascadedFanoutDestX << " cascadedY " << cascadedFanoutDestY << " cascadedZ " << cascadedFanoutDestZ << std::endl;
+								}
+								assert(control_signals > 1);
+
+							}
+
+						}
+						else // LUT
+						{
+							for (int inports = 0; inports < InputPortSize; inports++) // loop across all input ports of this LUT (one of the fnaouts of LUT i,j,k)
+							{
+								if (inports == fanoutDestInPort) // if this is th input port that is part of the fanout connection then continue
+									continue;
+								if (fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].inputPorts[inports]) // if this othe inport is used then we have to add constraint, to make sure thatwe will add a control signal if required
+								{
+									std::string temp_key = std::to_string(fanoutDestX) + "_" + std::to_string(fanoutDestY) + "_" + std::to_string(fanoutDestZ) + "__" + std::to_string(inports);
+									std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+									if (iter1 == hashTable.end())
+									{
+										std::cout << "destX " << fanoutDestX << " destY " << fanoutDestY << " destZ " << fanoutDestZ << " inports " << inports << std::endl;
+									}
+									assert(iter1 != hashTable.end());
+									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+									{
+										model.addConstr(tempControl[bitStreamCounter], GRB_GREATER_EQUAL, vars_aux[bitStreamCounter][iter1->second]); // C_0 >= X11
+									}
+									if (control_signals < 2)
+									{
+										std::cout << "x " << i << " y " << j << " z " << k << " fanoutx " << fanoutDestX << " fanouty " << fanoutDestY << " fanout Z " << fanoutDestZ << std::endl;
+									}
+									assert(control_signals > 1);
+								}
+
+							}
+						}
+
+						// loop across 
+					}
+
+					/// ibrahim 14/12/16 end
 
 					for (int l = 0; l < InputPortSize; l++) // loop across all inputs using this LE
 					{
@@ -1674,15 +2382,388 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 							std::string temp_key = std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k) + "__" + std::to_string(l);
 							std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
 							assert(iter1 != hashTable.end());
-							temp_constraint += vars_aux[iter1->second];
+							for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+							{
+								temp_constraint[bitStreamCounter] += vars_aux[bitStreamCounter][iter1->second];
+							}
 						}
 					}
 
-					model.addConstr(temp_constraint, GRB_LESS_EQUAL, LUTinputSize - control_signals); // todo make sure u are not messing this up for adders
+					assert(!adder);
+
+					if (adder)
+					{
+						for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+						{
+							model.addConstr(temp_constraint[bitStreamCounter], GRB_LESS_EQUAL, LUTinputSize - 2);
+						}
+					}
+						
+					else
+					{ 
+						for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+						{
+							model.addConstr(temp_constraint[bitStreamCounter], GRB_LESS_EQUAL, LUTinputSize - 1 - tempControl[bitStreamCounter]);
+						}
+					}
+
+					//model.addConstr(temp_constraint, GRB_LESS_EQUAL, LUTinputSize - 1 - 1);// tempControl);//control_signals); // ib 14/12/2016// todo make sure u are not messing this up for adders
 
 				}
 			}
 		}
+
+
+		////////////////////////////////////////////////////////////////////////////////////
+		//////////// Constaints to fix offpath inputs when they are connected to LUTs///////
+		////////////////////////////////////////////////////////////////////////////////////
+
+		for (int i = 0; i < FPGAsizeX; i++)
+		{
+			for (int j = 0; j < FPGAsizeY; j++)
+			{
+				for (int k = 0; k < FPGAsizeZ; k++)
+				{
+					if (k%LUTFreq != 0) // if it's a reg then skip
+						continue;
+
+					// LUTs only
+					if (fpgaLogic[i][j][k].utilization < 2) // if one or less (zero) paths are using this LUT then skip we will never need to fix an off-path input coz there aint
+						continue;
+					if (fpgaLogic[i][j][k].usedInputPorts < 2) // no off path inputs since only one port is used
+						continue;
+
+					// LUT used with more than one input port used
+					for (int z = 0; z < InputPortSize; z++)
+					{
+						if (fpgaLogic[i][j][k].inputPorts[z]) // check if this port is used
+						{
+							int pathFeeder, nodeFeeder;
+							assert(get_feeder(i, j, k, z, pathFeeder, nodeFeeder)); // get the feeder for this LUT using the z port
+
+							int feeederX = paths[pathFeeder][nodeFeeder].x;
+							int feeederY = paths[pathFeeder][nodeFeeder].y;
+							int feeederZ = paths[pathFeeder][nodeFeeder].z;
+
+							if (feeederZ%LUTFreq == 0) // if the feeder is a lut then skip this port as we can fix this input port using the fix signal of the feeder LUT
+								continue;
+
+							// feeder is a reg
+							///	if (!is_cascaded_reg(i, j, k)) // if its not a cascaded reg, then we can control it 
+							//		continue;
+
+
+							if (reg_free_input(feeederX, feeederY, feeederZ)) // if its input is free we can control this reg, so thats fine
+								continue;
+
+							// could be cascaded or a feed-back path
+
+							int regFeederPath, regFeederNode;
+							assert(get_feeder(feeederX, feeederY, feeederZ, regFeederPath, regFeederNode)); // get the feeder for this reg 
+
+							int regFeederX = paths[regFeederPath][regFeederNode].x;
+							int regFeederY = paths[regFeederPath][regFeederNode].y;
+							int regFeederZ = paths[regFeederPath][regFeederNode].z;
+
+							bool shouldDelete = false;
+
+							std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
+							pathsToReg.resize(0);
+							std::vector<int> pathsIJKandRegFeeder; // paths using lut i,j,k and using an input other than z and going through the lut feeding the reg
+							pathsIJKandRegFeeder.resize(0);
+
+							std::vector<int> pathsIJKZ; // paths using lut i,j,k and using an input Z
+							pathsIJKZ.resize(0);
+
+							for (int ii = 0; ii < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
+							{
+								Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[ii];
+								if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
+									continue;
+
+								// check if this path feeds the reg
+								if (paths[tempNode.path][tempNode.node + 1].x == feeederX && paths[tempNode.path][tempNode.node + 1].y == feeederY && paths[tempNode.path][tempNode.node + 1].z == feeederZ)
+								{
+									pathsToReg.push_back(tempNode.path);
+								}
+
+
+								// loop across nodes using LUT i,j,k to see all paths using lut i,j,k from an input other than port z
+								for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+								{
+									if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted)
+										continue;
+
+
+									if (ii == 0 && paths[fpgaLogic[i][j][k].nodes[l].path][fpgaLogic[i][j][k].nodes[l].node].portIn == z)
+									{
+										pathsIJKZ.push_back(fpgaLogic[i][j][k].nodes[l].path);
+									}
+
+									if (paths[fpgaLogic[i][j][k].nodes[l].path][fpgaLogic[i][j][k].nodes[l].node].portIn != z) // found a path using lut i,j,k from a node other than Z
+									{
+										if (fpgaLogic[i][j][k].nodes[l].path == tempNode.path) // one of the found paths also use the LUt feeding the reg
+										{
+											pathsIJKandRegFeeder.push_back(fpgaLogic[i][j][k].nodes[l].path);
+											shouldDelete = true;
+										}
+
+
+									}
+
+								}
+
+							}
+
+							if (shouldDelete) // we should delte some stuff coz we cant fix all off-path inputs
+							{
+
+
+
+								// create constraints betweentwo sets. this is different than the re-convergent fanout as these two paths may have commpn paths in them.
+
+								// variable representing set IJKZ
+								std::vector< GRBVar> pathsIJKZSetILP;
+								pathsIJKZSetILP.resize(bitStreams);
+								for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+								{
+									pathsIJKZSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+								}
+
+								for (int setCounter = 0; setCounter < pathsIJKZ.size(); setCounter++)
+								{
+									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+									{
+										model.addConstr(pathsIJKZSetILP[bitStreamCounter], GRB_GREATER_EQUAL, vars[bitStreamCounter][pathsIJKZ[setCounter] - 1]); // model as ILP => Pi
+									}
+								}
+
+							
+
+								// create two variables to represent each set
+
+								std::vector <GRBVar> pathsToRegSetILP;
+								std::vector <GRBVar>  pathsIJKandRegFeederSetILP;
+								pathsToRegSetILP.resize(bitStreams);
+								pathsIJKandRegFeederSetILP.resize(bitStreams);
+
+								for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+								{
+									pathsToRegSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+									pathsIJKandRegFeederSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+								}
+
+								for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+								{
+									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+									{
+										model.addConstr(pathsToRegSetILP[bitStreamCounter], GRB_GREATER_EQUAL, vars[bitStreamCounter][pathsToReg[setCounter] - 1]); // model as ILP => Pi
+									}
+								}
+
+								for (int setCounter = 0; setCounter <pathsIJKandRegFeeder.size(); setCounter++)
+								{
+									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+									{
+										model.addConstr(pathsIJKandRegFeederSetILP[bitStreamCounter], GRB_GREATER_EQUAL, vars[bitStreamCounter][pathsIJKandRegFeeder[setCounter] - 1]); // model as ILP => Pi
+									}
+								}
+
+
+								std::string temp_key = std::to_string(i) + "_" + std::to_string(j) + "_" + std::to_string(k) + "__" + std::to_string(z);
+								//	std::cout << temp_key << std::endl;
+								std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+								assert(iter1 != hashTable.end());
+								// ib14/12/16		temp_constr[j-1] = vars_aux[iter1->second];
+
+
+
+								// now add constraint that the sume of these two variables must be less than or equal one
+								for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+								{
+									model.addConstr(pathsIJKandRegFeederSetILP[bitStreamCounter] + pathsToRegSetILP[bitStreamCounter] <= 2 - vars_aux[bitStreamCounter][iter1->second]);
+								}
+
+							}
+
+
+						}
+					}
+
+				}
+			}
+		}
+
+
+		/////////////////////////////////////////////////////////////////////////////
+		////////////////// Constraints to check that the source reg. can toggle /////
+		/////////////////////////////////////////////////////////////////////////////
+		int pol = 0;
+
+		for (int i = 1; i < paths.size(); i++)
+		{
+			if (paths[i].size() < 1)
+				continue;
+
+			if (paths[i][0].deleted) // if its deleted
+				continue;
+
+			int sourceRegX = paths[i][0].x;
+			int sourceRegY = paths[i][0].y;
+			int sourceRegZ = paths[i][0].z;
+
+			assert(sourceRegZ%LUTFreq != 0);// muts be reg
+
+			if (paths[i][paths[i].size() - 1].x == sourceRegX && paths[i][paths[i].size() - 1].y == sourceRegY && paths[i][paths[i].size() - 1].z == sourceRegZ) // feedback path so ignore it for now
+				continue;
+
+			if (reg_free_input(sourceRegX, sourceRegY, sourceRegZ)) // if its input is free we can control this reg, so thats fine
+				continue;
+
+			// could be cascaded 
+
+			int regFeederPath, regFeederNode;
+			assert(get_feeder(sourceRegX, sourceRegY, sourceRegZ, regFeederPath, regFeederNode)); // get the feeder for this reg 
+
+			int regFeederX = paths[regFeederPath][regFeederNode].x;
+			int regFeederY = paths[regFeederPath][regFeederNode].y;
+			int regFeederZ = paths[regFeederPath][regFeederNode].z;
+
+			bool shouldDelete = false;
+			std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
+			pathsToReg.resize(0);
+
+			for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
+			{
+
+
+				Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[j];
+				if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
+					continue;
+
+				// check if this path feeds the reg
+				if (paths[tempNode.path][tempNode.node + 1].x == sourceRegX && paths[tempNode.path][tempNode.node + 1].y == sourceRegY && paths[tempNode.path][tempNode.node + 1].z == sourceRegZ)
+				{
+					pathsToReg.push_back(tempNode.path);
+				}
+
+
+
+				if (fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[j].path == i)
+				{
+					//if (delete_path(i))
+					//{
+					//total++;
+					shouldDelete = true;
+					//break;
+					//}
+				}
+			}
+
+			if (shouldDelete) // path i uses the LUT feeding its source reg
+			{
+				std::vector< GRBVar > pathsToRegSetILP;
+				pathsToRegSetILP.resize(bitStreams);
+				//	GRBVar pathsIJKandRegFeederSetILP;
+
+				for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+				{
+					pathsToRegSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+				}
+				
+				//	pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+
+				for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+				{
+					for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+					{
+						model.addConstr(pathsToRegSetILP[bitStreamCounter], GRB_GREATER_EQUAL, vars[bitStreamCounter][pathsToReg[setCounter] - 1]); // model as ILP => Pi
+					}
+				}
+				for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+				{
+					model.addConstr(pathsToRegSetILP[bitStreamCounter] + vars[bitStreamCounter][i - 1] <= 1);
+				}
+			}
+			else
+			{
+				// path i was not deleted as we can toggle the source reg. But now we will check can we toggle the source reg and at the same time keep all off path-inputs of path i fixed ?
+
+
+
+				std::vector<GRBVar> pathsRegFeederSetILP;
+				pathsRegFeederSetILP.resize(bitStreams);
+
+				// ILp var representing all paths using reg feeder and connected to reg
+				for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+				{
+					pathsRegFeederSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
+				}
+
+
+				for (int setCounter = 0; setCounter < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
+				{
+					if (paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].x == sourceRegX && paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].y == sourceRegY && paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].z == sourceRegZ)
+					{
+						for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+						{
+							model.addConstr(pathsRegFeederSetILP[bitStreamCounter], GRB_GREATER_EQUAL, vars[bitStreamCounter][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path - 1]); // model as ILP => Pi
+						}
+					}
+				}
+
+				int destinationX, destinationY, destinationZ, destinationPortIn;
+
+				for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
+				{
+					// get destination j
+					destinationX = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationX;
+					destinationY = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationY;
+					destinationZ = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationZ;
+					destinationPortIn = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationPort;
+
+					if (destinationX == -1) // deleted connection
+						continue;
+
+					if (destinationZ%LUTFreq != 0) // it's a reg then continue. I think.
+						continue;
+
+					for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
+					{
+						if (fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].path == i) // then this destination is a lut that is also used by path i, we can not toggle the source of path i while keeping the off-path inputs at this LUT fixed.
+						{
+
+							assert(destinationPortIn != paths[i][fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].node].portIn);
+
+							std::string temp_key = std::to_string(destinationX) + "_" + std::to_string(destinationY) + "_" + std::to_string(destinationZ) + "__" + std::to_string(destinationPortIn);
+							//	std::cout << temp_key << std::endl;
+							std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
+							assert(iter1 != hashTable.end());
+							// ib14/12/16		temp_constr[j-1] = vars_aux[iter1->second];
+
+							//					pol++;
+
+							// now add constraint that the says either P1 can be tested or we can use Xij
+							//	model.addConstr(vars[i - 1] + vars_aux[iter1->second] <= 1.7);
+							for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+							{
+								model.addConstr(vars[bitStreamCounter][i - 1] + pathsRegFeederSetILP[bitStreamCounter] <= 2 - vars_aux[bitStreamCounter][iter1->second]);
+							}
+
+						
+						}
+					}
+				
+				}
+
+
+			}
+
+		
+
+		}
+		
+
 
 
 		/////////////////////////////////////////////////////////////////////////
@@ -1696,30 +2777,59 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 				continue;
 			if (paths[i][0].deleted)
 				continue;
-			GRBVar* temp_constr = new GRBVar[paths[i].size() - 2];
+			// ib14/12/16 GRBVar* temp_constr = new GRBVar[paths[i].size()-2];
 			for (int j = 1; j < paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
 			{
 				std::string temp_key = std::to_string(paths[i][j].x) + "_" + std::to_string(paths[i][j].y) + "_" + std::to_string(paths[i][j].z) + "__" + std::to_string(paths[i][j].portIn);
 				//	std::cout << temp_key << std::endl;
 				std::unordered_map <std::string, int>::iterator iter1 = hashTable.find(temp_key);
 				assert(iter1 != hashTable.end());
-				temp_constr[j - 1] = vars_aux[iter1->second];
+				// ib14/12/16		temp_constr[j-1] = vars_aux[iter1->second];
+				for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+				{
+					model.addConstr(vars[bitStreamCounter][i - 1], GRB_LESS_EQUAL, vars_aux[bitStreamCounter][iter1->second]); // model as Pi<=Xij
+				}
 
 			}
-			model.addGenConstrAnd(vars[i - 1], temp_constr, paths[i].size() - 2);
-			delete[] temp_constr;
+			// ib14/12/16 model.addGenConstrAnd(vars[i-1], temp_constr, paths[i].size() - 2);
+			// ib14/12/16 delete [] temp_constr;
 		}
+
+		
+
+		///////////////////////////////////////////////////////////////////
+		////////// B0Pi + B1Pi <=1
+		///////////////////////////////////////////////////////
+		GRBLinExpr temp_constraint = 0.0;
+		for (int i = 0; i < num_of_paths; i++)
+		{
+			if (paths[i + 1][0].deleted)
+				continue;
+			temp_constraint = 0.0;
+			for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+			{
+				temp_constraint += vars[bitStreamCounter][i];
+			//	model.addConstr(vars_1[i] + vars_2[i] + vars_3[i] <= 1);
+			}
+			model.addConstr(temp_constraint, GRB_LESS_EQUAL, 1.5);
+		}
+
+		
+
 
 		////////////////////////////////
 		/// set objective function /////
 		////////////////////////////////
 		GRBLinExpr obj = 0.0;
-
+		std::cout << "number of bit streams " << bitStreams << std::endl;
 		for (int i = 0; i < num_of_paths; i++)
 		{
 			if (paths[i + 1][0].deleted)
 				continue;
-			obj += vars[i];
+			for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+			{
+				obj += vars[bitStreamCounter][i];
+			}
 		}
 
 		model.setObjective(obj, GRB_MAXIMIZE);
@@ -1729,24 +2839,24 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 
 		for (int i = 0; i < num_of_paths; i++)
 		{
-			if (vars[i].get(GRB_DoubleAttr_X) < 0.99999)
+			if (vars[0][i].get(GRB_DoubleAttr_X) < 0.99999)
 			{
 				if (delete_path(i + 1))
 					total++;
 
-				if (vars[i].get(GRB_DoubleAttr_X) != 0.0)
+				if (vars[0][i].get(GRB_DoubleAttr_X) != 0.0)
 				{
-					if (abs(vars[i].get(GRB_DoubleAttr_X)) >= 0.00000000001)
-						std::cout << i << " " << vars[i].get(GRB_DoubleAttr_X) << std::endl;
-					assert(abs(vars[i].get(GRB_DoubleAttr_X)) < 0.00000000001);
+					if (abs(vars[0][i].get(GRB_DoubleAttr_X)) >= 0.00000000001)
+						std::cout << i << " " << vars[0][i].get(GRB_DoubleAttr_X) << std::endl;
+					assert(abs(vars[0][i].get(GRB_DoubleAttr_X)) < 0.00000000001);
 
 				}
 			}
 			else
 			{
-				if (vars[i].get(GRB_DoubleAttr_X) <= 0.9999)
-					std::cout << i << " " << vars[i].get(GRB_DoubleAttr_X) << std::endl;
-				assert(vars[i].get(GRB_DoubleAttr_X) > 0.9999);
+				if (vars[0][i].get(GRB_DoubleAttr_X) <= 0.9999)
+					std::cout << i << " " << vars[0][i].get(GRB_DoubleAttr_X) << std::endl;
+				assert(vars[0][i].get(GRB_DoubleAttr_X) > 0.9999);
 			}
 			//		std::cout << vars[i].get(GRB_StringAttr_VarName) << " "
 			//			<< vars[i].get(GRB_DoubleAttr_X) << std::endl;
@@ -1780,7 +2890,6 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 	catch (...) {
 		std::cout << "Exception during optimization" << std::endl;
 	}
-
 
 
 

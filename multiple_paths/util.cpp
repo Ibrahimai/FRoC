@@ -60,11 +60,21 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 		}
 		else
 		{
+			if (x == 65 && y == 21 && z == 29)
+			{
+				std::cout << "sinks size " << sinks.size() << std::endl;
+				std::cout << "sources size " << sources.size() << std::endl;
+			}
 			return false;
 		}
 	}
 	else
 	{
+		if (x == 65 && y == 21 && z == 29)
+		{
+			std::cout << "sinks size " << sinks.size() << std::endl;
+			std::cout << "sources size " << sources.size() << std::endl;
+		}
 		return false;
 	}
 	
@@ -135,6 +145,7 @@ bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, 
 			// check if this node feeds a cascaded register
 			if (is_cascaded_reg(paths[currentPath][nextNode].x, paths[currentPath][nextNode].y, paths[currentPath][nextNode].z)) // if it feeds a cascaded register, then return true as we do need the control signal.
 			{
+				assert(fpgaLogic[x][y][z].cascadedPaths.size()>0);
 				return true;
 			}
 		}
@@ -169,7 +180,10 @@ bool check_control_signal_required_second(int x, int y, int z) // checks if cell
 		}
 	}
 	return false; */
-	return check_control_signal_required(x, y, z);
+	return check_control_signal_required(x, y, z); // ib 12/14/2016
+
+
+	//return false;
 }
 
 

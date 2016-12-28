@@ -531,8 +531,8 @@ void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdge
 			// check if this edge is already considered 
 			tempKey = "ICsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dX" + std::to_string(dX) + "dY" + std::to_string(dY) + "dZ" + std::to_string(dZ) + "dP" + std::to_string(dP);
 			auto iter = timingEdgeSlack.find(tempKey);
-			if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
-				std::cout << tempKey << std::endl;
+		//	if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
+		//		std::cout << tempKey << std::endl;
 		
 			// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
 			pIn = paths[i][j + 1].portIn;
@@ -548,12 +548,12 @@ void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdge
 
 				if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
 				{
-					std::cout << tempPath;
-					if (tempPath == 1793)
-						if (paths[tempPath][0].deleted)
-							std::cout << "deleted";
-						else
-							std::cout << "not deleted";
+				//	std::cout << tempPath;
+				//	if (tempPath == 1793)
+				//		if (paths[tempPath][0].deleted)
+				//			std::cout << "deleted";
+				//		else
+				//			std::cout << "not deleted";
 				}
 				// if path is deleted ignore it man
 				if (paths[tempPath][0].deleted)
@@ -571,8 +571,8 @@ void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdge
 			else if ((pathSlack[bestPath] < iter->second)) // was found but we are now testing it with a more critical path, so update the map maan.
 			{
 				iter->second = pathSlack[bestPath];
-				if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
-					std::cout << bestPath << std::endl;
+			//	if (tempKey == "ICsX57sY25sZ8sP6dX57dY25dZ17dP7")
+			//		std::cout << bestPath << std::endl;
 			}
 		}
 	}

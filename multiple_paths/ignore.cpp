@@ -28,6 +28,9 @@ void remove_fanin_higher_than_three() // esnures that he number of inputs + the 
 				port2 = -1;
 				requiredControlSignals = 1;// by default we need at least one control signal to control the edge transition (edge)
 
+
+				bool adder = false;
+
 				if (fpgaLogic[i][j][k].usedInputPorts < 2) // either a FF or a LUT with only one input so we dont have to do anything
 					continue;
 				if (check_control_signal_required(i, j, k)) // if fix signal is required then add one to the number of required control signals
@@ -39,16 +42,32 @@ void remove_fanin_higher_than_three() // esnures that he number of inputs + the 
 					if (fpgaLogic[i][j][k].outputPorts[Cout - 5]) // this ensures that the LUT is i arith mode, we can only test paths using maximum 2 input ports, I think this could be relaxed a bit
 					{
 						requiredControlSignals++;
+						adder = true;
 					}
 				}
-
+				
 				int excessInputs = fpgaLogic[i][j][k].usedInputPorts + requiredControlSignals - LUTinputSize;
+
+				int inputs_before_deleteing = fpgaLogic[i][j][k].usedInputPorts;
+				int reqControl_befor_deletion = requiredControlSignals;
 
 				if (excessInputs > 0)
 					total++;
 
+				/// debugging begin
+				int oldTotal = totalIn;
+
 				totalIn +=  reduce_number_of_LUT_inputs(i, j, k, excessInputs); //reduce_number_of_LUT_inputs_maximize_tested_paths(i, j, k, excessInputs);//
 
+				if (oldTotal != totalIn)
+				{
+					// we deleted stuff
+					std::cout << " deleted " << totalIn - oldTotal << " at LUT " << i << " " << j << " " << k << std::endl;
+					std::cout << "adder value is " << adder << " inputs used " << inputs_before_deleteing << "required control" << reqControl_befor_deletion <<std::endl << std::endl;
+
+					check_control_signal_required_second(i, j, k);
+				}
+				/// debugging end
 
 			/*			if (fpgaLogic[i][j][k].usedInputPorts>2) // inputs are more than 2. we will delete some paths
 				{
@@ -93,7 +112,7 @@ void remove_fanin_higher_than_three() // esnures that he number of inputs + the 
 			}
 		}
 	}
-	std::cout << "total number of LE requirng to delete inputs to satusfy number of inputs constraint: " << total << std::endl;
+	std::cout << "total number of LEs requirng to delete inputs to satusfy number of inputs constraint: " << total << std::endl;
 	std::cout << "**********Number of deleted paths due to number of inputs contraint is : " << totalIn << " **********" << std::endl;
 	std::cout << "Number of deleted paths that could be avoided considering that they dont require a control signal : " << avoidable <<  std::endl;
 	IgnoredPathStats << totalIn << "\t";
@@ -542,7 +561,7 @@ void remove_to_fix_off_path_inputs() // off path inputs can be fixed using the f
 							}
 
 
-							// loop across nodes using LUT i,j,k to see all paths using lut i,k,k from an input other than port z
+							// loop across nodes using LUT i,j,k to see all paths using lut i,j,k from an input other than port z
 							for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
 							{
 								if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted)
@@ -616,13 +635,13 @@ void  remove_to_toggle_source()
 
 		assert(sourceRegZ%LUTFreq != 0);// muts be reg
 
-		if (paths[i][paths[i].size() - 1].x == sourceRegX && paths[i][paths[i].size() - 1].y == sourceRegY && paths[i][paths[i].size() - 1].z == sourceRegZ) // cascaded path so ignore it for now
+		if (paths[i][paths[i].size() - 1].x == sourceRegX && paths[i][paths[i].size() - 1].y == sourceRegY && paths[i][paths[i].size() - 1].z == sourceRegZ) // feedback path so ignore it for now
 			continue;
 
 		if (reg_free_input(sourceRegX, sourceRegY, sourceRegZ)) // if its input is free we can control this reg, so thats fine
 			continue;
 
-		// could be cascaded or a feed-back path
+		// could be cascaded 
 
 		int regFeederPath, regFeederNode;
 		assert(get_feeder(sourceRegX, sourceRegY, sourceRegZ, regFeederPath, regFeederNode)); // get the feeder for this reg 
@@ -641,6 +660,9 @@ void  remove_to_toggle_source()
 				{
 					total++;
 					shouldDelete = true;
+
+					std::cout << "Deleted path " << i << " at " << paths[i][0].x << " " << paths[i][0].y << " " << paths[i][0].z << std::endl;
+					std::cout << "leeeh kerrrraa " << std::endl;
 					break;
 				}
 			}
@@ -659,6 +681,9 @@ void  remove_to_toggle_source()
 				destinationZ = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationZ;
 
 				if (destinationX == -1) // deleted connection
+					continue;
+
+				if (destinationZ%LUTFreq != 0) // it's a reg then continue. I think.
 					continue;
 
 				for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
@@ -699,8 +724,8 @@ void delete_especial_reconvergent_fanout()
 	{
 		for (j = 0; j < paths[i].size(); j++) // loop across nodes in that path
 		{
-			if (i == 61 && j == 0)
-				std::cout << "debug reconvergent fanout" << std::endl;
+		//	if (i == 61 && j == 0)
+		//		std::cout << "debug reconvergent fanout" << std::endl;
 			if (paths[i][0].deleted) // this path is deleted then continue to the next path
 				break;
 			tempComponentX = paths[i][j].x;
@@ -732,8 +757,8 @@ void delete_especial_reconvergent_fanout()
 				tempComponentX = paths[tempNode.path][tempNode.node - 1].x; // get the location of the LE feeding the node in rootNodes
 				tempComponentY = paths[tempNode.path][tempNode.node - 1].y;
 				tempComponentZ = paths[tempNode.path][tempNode.node - 1].z;
-				if (j == 0)
-					std::cout << i << " " << j << std::endl;
+			//	if (j == 0)
+			//		std::cout << i << " " << j << std::endl;
 				//// trial studd
 				for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this
 				{

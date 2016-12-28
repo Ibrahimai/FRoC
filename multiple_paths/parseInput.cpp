@@ -554,7 +554,7 @@ void check_shared_inputs() {
 	}
 }
 #endif 
-int read_routing(char* routingFile) // read routing files and model routing structure. Must be called after paths are deleted.
+int read_routing(char* routingFile) // read routing files and model routing structure.[old]  Must be called after paths are deleted.
 {
 	int i, path, node;
 	std::ifstream metaData(routingFile);
@@ -680,6 +680,61 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 		}
 
 	}
+
+
+
+	////// add connections between the last lut in a path and the reg its feeding because up till this point we didnt add this if the reg is fed using port D. We have added it if the reg is feeded using asdata
+
+	for (int i = 1; i < paths.size(); i++) // loop across all paths
+	{
+
+		// empty path, just checking
+		if (paths[i].size() < 2)
+			continue;
+		int lastNode = paths[i].size() - 1;
+
+
+		int FFx = paths[i][lastNode].x;
+		int FFy = paths[i][lastNode].y;
+		int FFz = paths[i][lastNode].z;
+
+		if (fpgaLogic[FFx][FFy][FFz].FFMode == sData) // coz we have added the connection to this guy
+			continue;
+
+		int lastLUTx = paths[i][lastNode - 1].x;
+		int lastLUTy = paths[i][lastNode - 1].y;
+		int lastLUTz = paths[i][lastNode - 1].z;
+
+		bool existAlready = false;
+
+		// check if this connection has already been added
+		for (int count = 0; count < fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections.size(); count++)
+		{
+			if (fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections[count].destinationX == FFx && fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections[count].destinationY == FFy && fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections[count].destinationZ == FFz)
+			{
+				existAlready = true;
+				break;
+			}
+		}
+
+		if (!existAlready) // this connection was not added yet
+		{
+			Routing_connection tempConnectionExtra;
+
+			tempConnectionExtra.destinationX = FFx;
+			tempConnectionExtra.destinationY = FFy;
+			tempConnectionExtra.destinationZ = FFz;
+
+			tempConnectionExtra.destinationPort = paths[i][lastNode].portIn;
+
+			fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections.push_back(tempConnectionExtra);
+
+
+		}
+
+	}
+
+
 	return 1;
 
 }

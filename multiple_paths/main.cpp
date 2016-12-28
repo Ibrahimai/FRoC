@@ -184,7 +184,7 @@ void delete_all()
 }
 
 
-void cycloneIV_stuff(int feedbackPaths, int remainingPaths, std::map<std::string, double>  & testedTimingEdgesMap, std::map<std::string, std::vector<int> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete)
+void cycloneIV_stuff(int bitStreams,  int feedbackPaths, int remainingPaths, std::map<std::string, double>  & testedTimingEdgesMap, std::map<std::string, std::vector<int> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete)
 {
 	int i;
 	calc_stats();
@@ -199,11 +199,11 @@ void cycloneIV_stuff(int feedbackPaths, int remainingPaths, std::map<std::string
 	// try ibrahim
 	//delete_especial_reconvergent_fanout();
 	//ILP_solve();
-	//ILP_solve_2();
-	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, true, casacadedRegion);
+/////	ILP_solve_2();
+//	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, true, casacadedRegion);
 //	ILP_solve_3();
-
-	remove_fanin_higher_than_three();
+	ILP_solve_max_paths_per_x_bit_stream(bitStreams);
+	remove_fanin_higher_than_three(); // added to ILP
 	std::cout << "after removing fanin higher than three  number of Luts is ,";
 	int totalTimingEdges = check_number_of_timing_edges_more();
 	std::cout << "total number of edges " << totalTimingEdges << std::endl;
@@ -214,8 +214,8 @@ void cycloneIV_stuff(int feedbackPaths, int remainingPaths, std::map<std::string
 	remove_to_match_routing_constraint();
 	std::cout << "after removing routing congestion number of LUTs is  ,";
 	check_LE_outputs();
-	remove_to_fix_off_path_inputs();
-	remove_to_toggle_source();
+	remove_to_fix_off_path_inputs(); // added to ILP
+	remove_to_toggle_source(); // added to ILP
 
 
 	numberOfTestPhases = 1;
@@ -234,9 +234,14 @@ void cycloneIV_stuff(int feedbackPaths, int remainingPaths, std::map<std::string
 
 
 	create_location_contraint_file();
+	std::cout << "location file created " << std::endl;
 	create_WYSIWYGs_file(); // also creates auxillary 
+	std::cout << "wysiwyg create " << std::endl;
 							//create_controller_module();
 	create_RCF_file();
+
+	std::cout << "rcf created " << std::endl;
+
 	for (i = 1; i < (int)paths.size(); i++)
 	{
 		if (!paths[i][0].deleted)
@@ -394,14 +399,14 @@ int main(int argc, char* argv[])
 	std::map<std::string, double>  testedTimingEdgesMap;
 
 
-
+	int x = 10;
 		
 	while (true)
 	{
-		cycloneIV_stuff(feedbackPaths, remainingPaths, testedTimingEdgesMap, timingEdgeToPaths, timingEdgesMapComplete);
+		cycloneIV_stuff(x,feedbackPaths, remainingPaths, testedTimingEdgesMap, timingEdgeToPaths, timingEdgesMapComplete);
 		IgnoredPathStats << testedTimingEdgesMap.size() << "\t";
 		IgnoredPathStats << count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete) << "\t" << std::endl;
-
+		x--;
 		if (get_allPathsTested(remainingPaths))
 		{
 			print_stats(argv);
