@@ -60,21 +60,21 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 		}
 		else
 		{
-			if (x == 65 && y == 21 && z == 29)
+			/*	if (x == 65 && y == 21 && z == 29)
 			{
 				std::cout << "sinks size " << sinks.size() << std::endl;
 				std::cout << "sources size " << sources.size() << std::endl;
-			}
+			}*/
 			return false;
 		}
 	}
 	else
 	{
-		if (x == 65 && y == 21 && z == 29)
+		/* if (x == 65 && y == 21 && z == 29)
 		{
 			std::cout << "sinks size " << sinks.size() << std::endl;
 			std::cout << "sources size " << sources.size() << std::endl;
-		}
+		} */
 		return false;
 	}
 	

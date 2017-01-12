@@ -149,6 +149,10 @@ int parseIn(int argc, char* argv[])
 			}
 			else
 			{
+				if (tempFFMode != fpgaLogic[x][y][z].FFMode)
+				{
+					std::cout << x << " " << y << " " << z;
+				}
 				assert(tempFFMode == fpgaLogic[x][y][z].FFMode); // we only support one mode of FF, either input through d or through sdata, but not both.
 			}
 		}

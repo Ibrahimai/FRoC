@@ -199,10 +199,10 @@ void cycloneIV_stuff(int bitStreams,  int feedbackPaths, int remainingPaths, std
 	// try ibrahim
 	//delete_especial_reconvergent_fanout();
 	//ILP_solve();
-/////	ILP_solve_2();
-//	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, true, casacadedRegion);
+//ib	ILP_solve_2();
+	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, false, casacadedRegion);
 //	ILP_solve_3();
-	ILP_solve_max_paths_per_x_bit_stream(bitStreams);
+//	ILP_solve_max_paths_per_x_bit_stream(bitStreams);
 	remove_fanin_higher_than_three(); // added to ILP
 	std::cout << "after removing fanin higher than three  number of Luts is ,";
 	int totalTimingEdges = check_number_of_timing_edges_more();
@@ -399,8 +399,7 @@ int main(int argc, char* argv[])
 	std::map<std::string, double>  testedTimingEdgesMap;
 
 
-	int x = 10;
-		
+	int x = 2;
 	while (true)
 	{
 		cycloneIV_stuff(x,feedbackPaths, remainingPaths, testedTimingEdgesMap, timingEdgeToPaths, timingEdgesMapComplete);
