@@ -33,7 +33,7 @@ std::vector <double> pathSlack;
 std::vector< std::vector<Path_node> > paths; // model the paths
 std::ofstream IgnoredPathStats; // delete after obtaining stats
 
-
+std::map<std::string, std::vector < Edge_Delay > >  timingEdgeToPaths;
 
 
 void set_testing_phase(int fixed, int change)
@@ -199,8 +199,8 @@ void cycloneIV_stuff(int bitStreams,  int feedbackPaths, int remainingPaths, std
 	// try ibrahim
 	//delete_especial_reconvergent_fanout();
 	//ILP_solve();
-//ib	ILP_solve_2();
-	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, false, casacadedRegion);
+	ILP_solve_2();
+//	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, false, casacadedRegion);
 //	ILP_solve_3();
 //	ILP_solve_max_paths_per_x_bit_stream(bitStreams);
 	remove_fanin_higher_than_three(); // added to ILP
@@ -380,7 +380,7 @@ int main(int argc, char* argv[])
 
 	std::string temp =  argv[4];
 	std::string stats_file_name = temp + "_stats.txt";
-
+	std::cout << timingEdgeToPaths.size() << std::endl;
 	IgnoredPathStats.open(stats_file_name);
 	IgnoredPathStats << "ILP" << "\t" << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << "\t" << "tested timing edges relaxed" << "\t" << "testing timing edges strict" <<std::endl;
 	set_netlist(); // set original copy of netlist (without deleting anything)
@@ -399,7 +399,7 @@ int main(int argc, char* argv[])
 	std::map<std::string, double>  testedTimingEdgesMap;
 
 
-	int x = 2;
+	int x = 3;
 	while (true)
 	{
 		cycloneIV_stuff(x,feedbackPaths, remainingPaths, testedTimingEdgesMap, timingEdgeToPaths, timingEdgesMapComplete);

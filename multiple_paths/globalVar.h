@@ -26,3 +26,5 @@ extern std::vector< std::vector<Path_node> > paths; // model the paths
 
 extern std::ofstream IgnoredPathStats; // dleete after obtaining stats
 
+extern std::map<std::string, std::vector < Edge_Delay > >  timingEdgeToPaths;
+

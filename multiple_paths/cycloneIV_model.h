@@ -70,7 +70,24 @@ public:
 	};
 };
 
+class Edge_Delay
+{
+public:
+	int type;
+	double delay;
+	Edge_Delay()
+	{
+		type = -1;
+		delay = -1.0;
+	}
 
+	Edge_Delay(int ed, double del)
+	{
+		type = ed;
+		delay = del;
+	}
+
+};
 
 class Routing_connection
 {

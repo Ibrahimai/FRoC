@@ -7,3 +7,4 @@ void check_shared_inputs();
 bool compare_routing();
 void update_cascaded_list(); // adds cascaded paths to the list of cascadedPaths at every LUT.
 void print_path(int path);
+int read_timing_edges(char* edgesFile);

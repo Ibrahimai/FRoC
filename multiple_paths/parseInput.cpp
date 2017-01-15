@@ -187,9 +187,17 @@ int parseIn(int argc, char* argv[])
 	update_cascaded_list();
 
 	if (read_routing(argv[2]) == 1)
-		return 1;
+	{
+		if (read_timing_edges(argv[5]) == 1)
+			return 1;
+		else
+			return 0;
+	}
+		
 	else
+	{
 		return 0;
+	}
 
 	
 
@@ -743,6 +751,367 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 
 }
 
+
+
+
+
+
+void insert_to_timingEdgeToPaths(std::string tempKey, double delay, int edgeType)
+{
+	auto iter = timingEdgeToPaths.find(tempKey);
+
+	if (iter == timingEdgeToPaths.end()) // edge not found
+	{
+		// since its not found we will insert it 
+		// first create a vector with one elemtn, this element
+		std::vector<Edge_Delay > tempVector;
+
+		Edge_Delay temp = Edge_Delay(edgeType, delay);
+
+		tempVector.push_back(temp);
+
+		// insert this to the map
+		timingEdgeToPaths.insert(std::pair<std::string, std::vector<Edge_Delay > >(tempKey, tempVector));
+
+	}
+	else // edge found
+	{
+		//edge was found we will loop throuh the vector of delays to check if its already there or not
+
+		bool found = false;
+
+		for (int i = 0; i < iter->second.size(); i++)
+		{
+			if ((iter->second)[i].type == edgeType)
+			{
+				found = true;
+				assert((iter->second)[i].delay == delay);
+				break;
+			}
+
+		}
+
+		// if we didnt find it then we should add it to the vector
+		if (!found)
+		{
+			Edge_Delay temp = Edge_Delay(edgeType, delay);
+			(iter->second).push_back(temp);
+		}
+
+	}
+
+}
+
+int read_timing_edges(char* edgesFile)
+{
+	//std::map<std::string, Edge_Delay >  timingEdgeToPaths;
+
+	timingEdgeToPaths.clear();
+	std::string tempKey;
+
+
+	std::ifstream edgeData(edgesFile);
+	if (!edgeData)
+	{
+		std::cout << "Can not find file" << edgesFile << "  Terminating.... " << std::endl;
+		return 0;
+	}
+
+	std::string line;
+
+
+
+	int i, counter, index1;
+
+
+
+
+	int currX, currY, currZ, currPin, currPout, prevX, prevY, prevZ, prevPin, prevPout = -1;
+
+	char currI, currO, prevI, prevO = 'l'; // the edge typ of the input and output from the prev and current node
+
+	int edgeType = -1;
+
+	double cellDel = -1.0;
+	double ICDel = -1.0;
+	while (std::getline(edgeData, line))
+	{
+		if (line[0] == '_') // new path
+		{
+			// structure is as follows
+			// Tco // I will use this as CELL delay from the input of hte FF to its output
+			// Flip flop location
+			// edge type (FF, FR, RF, RR)
+			// IC to next atom
+
+			// read Tco
+			assert(getline(edgeData, line));
+
+			cellDel = std::stod(line);
+
+			// read FF location man
+			assert(getline(edgeData, line));
+			assert(line[0] == '*' && line[1] == 'F');
+
+			// set x, y, z
+			counter = 0;
+			for (i = 0; i < (int)line.size(); i++)
+			{
+				if (line[i] == '_')
+					counter++;
+				if (counter == 1)
+				{
+					index1 = i + 2;
+					break;
+				}
+			}
+
+			for (i = index1; i <(int)line.size(); i++)
+			{
+				if (!isdigit(line[i]))
+					break;
+			}
+			currX = stoi(line.substr(index1, i - index1));
+			index1 = i + 2;
+			for (i = index1; i <(int)line.size(); i++)
+			{
+				if (!isdigit(line[i]))
+					break;
+			}
+			currY = stoi(line.substr(index1, i - index1));
+
+			index1 = i + 2;
+			for (i = index1; i <(int)line.size(); i++)
+			{
+				if (!isdigit(line[i]))
+					break;
+			}
+			currZ = stoi(line.substr(index1, i - index1));
+
+			//// read edge type
+			assert(getline(edgeData, line));
+
+			currI = line[0];
+			currO = line[1];
+
+			edgeType = 0;
+
+			if (currI == 'R')
+				edgeType++;
+
+			if (currO == 'R')
+				edgeType++;
+
+			// read IC delay
+			assert(getline(edgeData, line));
+			ICDel = std::stod(line);
+
+			currPin = FFd;
+			currPout = FFq;
+
+			// insert the CELL delay of this FF to edgesDelay
+			tempKey = tempKey = "CELLsX" + std::to_string(currX) + "sY" + std::to_string(currY) + "sZ" + std::to_string(currZ) + "sP" + std::to_string(FFd) + "dP" + std::to_string(FFq);
+
+			insert_to_timingEdgeToPaths(tempKey, cellDel, edgeType);
+
+		}
+		else
+		{
+			if (line[0] == '*' && line[1] == 'L')
+			{
+				///*LCCOMB_X47_Y5_N2
+				///LUT 1 6
+				///RR // dege type
+				///0.361 cell delay
+				///0.788 IC delay
+
+				prevX = currX;
+				prevY = currY;
+				prevZ = currZ;
+				prevPin = currPin;
+				prevPout = currPout;
+				prevI = currI;
+				prevO = currO;
+
+				///////////////////////////////////// read x, y, z /////////////////////////////////////////////////////////
+				// set x, y, z
+				counter = 0;
+				for (i = 0; i < (int)line.size(); i++)
+				{
+					if (line[i] == '_')
+						counter++;
+					if (counter == 1)
+					{
+						index1 = i + 2;
+						break;
+					}
+				}
+
+				for (i = index1; i <(int)line.size(); i++)
+				{
+					if (!isdigit(line[i]))
+						break;
+				}
+				currX = stoi(line.substr(index1, i - index1));
+				index1 = i + 2;
+				for (i = index1; i <(int)line.size(); i++)
+				{
+					if (!isdigit(line[i]))
+						break;
+				}
+				currY = stoi(line.substr(index1, i - index1));
+
+				index1 = i + 2;
+				for (i = index1; i <(int)line.size(); i++)
+				{
+					if (!isdigit(line[i]))
+						break;
+				}
+				currZ = stoi(line.substr(index1, i - index1));
+
+				// ///////////////////////////////////read port in and pirt out/////////////////////////////////////////////////////////////////
+
+				assert(getline(edgeData, line));
+
+				currPin = line[4] - '0';
+				currPout = line[6] - '0';
+
+				// add IC delay from previous node to current node
+
+				tempKey = "ICsX" + std::to_string(prevX) + "sY" + std::to_string(prevY) + "sZ" + std::to_string(prevZ) + "sP" + std::to_string(prevPout) + "dX" + std::to_string(currX) + "dY" + std::to_string(currY) + "dZ" + std::to_string(currZ) + "dP" + std::to_string(currPin);
+				
+				edgeType = 0;
+				if (prevO == 'R')
+					edgeType = 2;
+
+
+				insert_to_timingEdgeToPaths(tempKey, ICDel, edgeType);
+
+				////////////////////////////////// read edge type of current node /////////////////////////////////////////
+				assert(getline(edgeData, line));
+
+				currI = line[0];
+				currO = line[1];
+
+				edgeType = 0;
+
+				if (currI == 'R')
+					edgeType++;
+
+				if (currO == 'R')
+					edgeType++;
+
+				//////////////////// read cell delay of current node ////////////////////////////////////////////////////////
+				assert(getline(edgeData, line));
+
+				cellDel = std::stod(line);
+
+				// insert the CELL delay of this FF to edgesDelay
+				tempKey = tempKey = "CELLsX" + std::to_string(currX) + "sY" + std::to_string(currY) + "sZ" + std::to_string(currZ) + "sP" + std::to_string(currPin) + "dP" + std::to_string(currPout);
+
+				insert_to_timingEdgeToPaths(tempKey, cellDel, edgeType);
+
+				///////////////////////// read IC delay ////////////////////////////////////////////////////////////
+				assert(getline(edgeData, line));
+				ICDel = std::stod(line);
+
+
+			}
+			else
+			{
+				// its the last register in the path
+
+				assert(line[0] == '*'&&line[1] == 'F');
+
+				///////////////////////////////////// read x, y, z /////////////////////////////////////////////////////////
+				// set x, y, z
+				counter = 0;
+				for (i = 0; i < (int)line.size(); i++)
+				{
+					if (line[i] == '_')
+						counter++;
+					if (counter == 1)
+					{
+						index1 = i + 2;
+						break;
+					}
+				}
+
+				for (i = index1; i <(int)line.size(); i++)
+				{
+					if (!isdigit(line[i]))
+						break;
+				}
+				currX = stoi(line.substr(index1, i - index1));
+				index1 = i + 2;
+				for (i = index1; i <(int)line.size(); i++)
+				{
+					if (!isdigit(line[i]))
+						break;
+				}
+				currY = stoi(line.substr(index1, i - index1));
+
+				index1 = i + 2;
+				for (i = index1; i <(int)line.size(); i++)
+				{
+					if (!isdigit(line[i]))
+						break;
+				}
+				currZ = stoi(line.substr(index1, i - index1));
+
+				////////////// read port In and out nor important
+				//////////////////////////////////////////////////////////////////////////////////////
+				assert(getline(edgeData, line));
+				currPin = FFd;
+				currPout = FFq;
+
+
+				// add IC delay from previous node to current node
+
+				tempKey = "ICsX" + std::to_string(prevX) + "sY" + std::to_string(prevY) + "sZ" + std::to_string(prevZ) + "sP" + std::to_string(prevPout) + "dX" + std::to_string(currX) + "dY" + std::to_string(currY) + "dZ" + std::to_string(currZ) + "dP" + std::to_string(currPin);
+
+				edgeType = 0;
+				if (prevO == 'R')
+					edgeType = 2;
+
+
+				insert_to_timingEdgeToPaths(tempKey, ICDel, edgeType);
+
+				////////////////////////////////// read edge type of current node /////////////////////////////////////////
+				assert(getline(edgeData, line));
+
+				currI = line[0];
+				currO = line[1];
+
+				edgeType = 0;
+
+				if (currI == 'R')
+					edgeType++;
+
+				if (currO == 'R')
+					edgeType++;
+
+				assert(edgeType % 2 == 0);// its a FF s it cant be inverting
+
+				//////////////////// read cell delay of current node ////////////////////////////////////////////////////////
+				assert(getline(edgeData, line));
+
+				cellDel = std::stod(line);
+
+				// insert the CELL delay of this FF to edgesDelay
+				tempKey = tempKey = "CELLsX" + std::to_string(currX) + "sY" + std::to_string(currY) + "sZ" + std::to_string(currZ) + "sP" + std::to_string(currPin) + "dP" + std::to_string(currPout);
+
+				insert_to_timingEdgeToPaths(tempKey, cellDel, edgeType);
+
+
+			}
+		}
+	}
+
+
+	return 1;
+
+}
 
 #ifdef StratixV // check routing is correct, currently only compatable with Stratix V arch
 void check_routing(char* routingFilePost) // this function read the rcf file created by quartus for the calibration bit-stream. We used it to check that quartus followed all our routing constraints and that every thing is routed as we want.
