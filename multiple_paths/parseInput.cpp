@@ -758,9 +758,9 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 
 void insert_to_timingEdgeToPaths(std::string tempKey, double delay, int edgeType)
 {
-	auto iter = timingEdgeToPaths.find(tempKey);
+	auto iter = timingEdgesDelay.find(tempKey);
 
-	if (iter == timingEdgeToPaths.end()) // edge not found
+	if (iter == timingEdgesDelay.end()) // edge not found
 	{
 		// since its not found we will insert it 
 		// first create a vector with one elemtn, this element
@@ -771,7 +771,7 @@ void insert_to_timingEdgeToPaths(std::string tempKey, double delay, int edgeType
 		tempVector.push_back(temp);
 
 		// insert this to the map
-		timingEdgeToPaths.insert(std::pair<std::string, std::vector<Edge_Delay > >(tempKey, tempVector));
+		timingEdgesDelay.insert(std::pair<std::string, std::vector<Edge_Delay > >(tempKey, tempVector));
 
 	}
 	else // edge found
@@ -806,7 +806,7 @@ int read_timing_edges(char* edgesFile)
 {
 	//std::map<std::string, Edge_Delay >  timingEdgeToPaths;
 
-	timingEdgeToPaths.clear();
+	timingEdgesDelay.clear();
 	std::string tempKey;
 
 
@@ -1022,6 +1022,14 @@ int read_timing_edges(char* edgesFile)
 				// its the last register in the path
 
 				assert(line[0] == '*'&&line[1] == 'F');
+
+				prevX = currX;
+				prevY = currY;
+				prevZ = currZ;
+				prevPin = currPin;
+				prevPout = currPout;
+				prevI = currI;
+				prevO = currO;
 
 				///////////////////////////////////// read x, y, z /////////////////////////////////////////////////////////
 				// set x, y, z

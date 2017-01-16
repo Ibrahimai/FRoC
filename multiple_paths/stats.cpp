@@ -406,6 +406,10 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 			// check if this edge is already considered 
 			tempKey = "ICsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dX" + std::to_string(dX) + "dY" + std::to_string(dY) + "dZ" + std::to_string(dZ) + "dP" + std::to_string(dP);
 			auto iter = timingEdgeSlack.find(tempKey);
+			auto iter_temp = timingEdgesDelay.find(tempKey);
+
+			assert(iter_temp != timingEdgesDelay.end());
+
 			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
 			{
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
@@ -466,6 +470,12 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 			// check if this edge is already considered 
 			tempKey = "CELLsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dP" + std::to_string(dP);
 			auto iter = timingEdgeSlack.find(tempKey);
+
+			auto iter_temp = timingEdgesDelay.find(tempKey);
+
+			assert(iter_temp != timingEdgesDelay.end());
+
+
 			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
 			{
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out

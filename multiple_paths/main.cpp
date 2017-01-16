@@ -33,7 +33,7 @@ std::vector <double> pathSlack;
 std::vector< std::vector<Path_node> > paths; // model the paths
 std::ofstream IgnoredPathStats; // delete after obtaining stats
 
-std::map<std::string, std::vector < Edge_Delay > >  timingEdgeToPaths;
+std::map<std::string, std::vector < Edge_Delay > >  timingEdgesDelay;
 
 
 void set_testing_phase(int fixed, int change)
@@ -380,7 +380,7 @@ int main(int argc, char* argv[])
 
 	std::string temp =  argv[4];
 	std::string stats_file_name = temp + "_stats.txt";
-	std::cout << timingEdgeToPaths.size() << std::endl;
+	std::cout << timingEdgesDelay.size() << std::endl;
 	IgnoredPathStats.open(stats_file_name);
 	IgnoredPathStats << "ILP" << "\t" << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << "\t" << "tested timing edges relaxed" << "\t" << "testing timing edges strict" <<std::endl;
 	set_netlist(); // set original copy of netlist (without deleting anything)
@@ -392,6 +392,8 @@ int main(int argc, char* argv[])
 	std::map<std::string, double>  timingEdgesMapComplete;
 	std::map<std::string, std::vector<int> >  timingEdgeToPaths;
 	generate_timing_edges_of_all_paths(timingEdgesMapComplete, timingEdgeToPaths);
+
+	assert(timingEdgesDelay.size() == timingEdgesMapComplete.size());
 
 	std::cout << "True number of timing edges including IC & Cell delays : " << timingEdgesMapComplete.size() << std::endl;
 
