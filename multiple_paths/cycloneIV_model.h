@@ -73,7 +73,7 @@ public:
 class Edge_Delay
 {
 public:
-	int type;
+	int type; // 0 = FF, 1 = FR, 2 = RF, 3 = RR. For Tco of first FF add 4 to the previous values.
 	double delay;
 	Edge_Delay()
 	{

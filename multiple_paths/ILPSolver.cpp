@@ -1,6 +1,9 @@
 
 #define checksetr 
 
+
+
+
 #ifdef checksetr
 #include "globalVar.h"
 //#include "completeNetlist.h"
@@ -1329,7 +1332,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 		GRBEnv env = GRBEnv();
 
 		GRBModel model = GRBModel(env);
-		model.getEnv().set("TimeLimit", "25000.0");
+		model.getEnv().set("TimeLimit", "1000.0");
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2476,6 +2479,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 		////////////////////////////////
 		/// set objective function /////
 		////////////////////////////////
+		double* coeff = new double[num_of_paths];
 		GRBLinExpr obj = 0.0;
 
 		int remaining_deges = timingEdgesMapComplete.size() - total_tested_timing_edges;
@@ -2516,6 +2520,18 @@ for (int i = 0; i < FPGAsizeX; i++)
 				counter++;
 
 			}
+
+			
+
+#ifdef MCsim
+			for (int i = 0; i < num_of_paths; i++)
+			{
+				coeff[i] = (1.0 / (num_of_paths*num_of_paths))* (num_of_paths - i); //num_of_paths - 
+			}
+
+			obj.addTerms(coeff, vars, num_of_paths);
+#endif // MCsim
+
 		}
 		else
 		{
@@ -2528,7 +2544,9 @@ for (int i = 0; i < FPGAsizeX; i++)
 			}
 		}
 
-
+		// ib manualOverride
+	//	obj += vars[64];
+	//	obj += vars[66];
 
 		model.setObjective(obj, GRB_MAXIMIZE);
 
@@ -2578,6 +2596,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 		delete[] up_vars_aux;
 		delete[] type_vars_aux;
 		delete[] names_vars_aux;
+		delete[] coeff;
 
 	}
 	catch (GRBException e) {
@@ -2596,13 +2615,17 @@ for (int i = 0; i < FPGAsizeX; i++)
 
 
 
-void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
+void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vector<int> > & pathsSchedule)
 {
 	try {
+		std::cout << "-------MAximizing paths per " << bitStreams << "-----" << std::endl;
 		GRBEnv env = GRBEnv();
 
 		GRBModel model = GRBModel(env);
-		model.getEnv().set("TimeLimit", "100000.0");
+		model.getEnv().set("TimeLimit", "1000.0");
+
+		pathsSchedule.clear();
+		pathsSchedule.resize(bitStreams);
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3087,7 +3110,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 						}
 					}
 
-					assert(!adder);
+					//assert(!adder);
 
 					if (adder)
 					{
@@ -3558,6 +3581,18 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams)
 			}
 			//		std::cout << vars[i].get(GRB_StringAttr_VarName) << " "
 			//			<< vars[i].get(GRB_DoubleAttr_X) << std::endl;
+		}
+
+
+		for (int i = 0; i < bitStreams; i++)
+		{
+			for (int j = 0; j < num_of_paths; j++)
+			{
+				if (vars[i][j].get(GRB_DoubleAttr_X)>0.9) // tested
+				{
+					pathsSchedule[i].push_back(j + 1);
+				}
+			}
 		}
 
 

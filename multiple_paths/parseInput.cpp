@@ -22,8 +22,13 @@ int parseIn(int argc, char* argv[])
 	int path, node;
 	path = 0;
 	node = 0;
+	
 	pathSlack.resize(0);
 	pathSlack.push_back(0);
+
+	pathClockSkew.resize(0);
+	pathClockSkew.push_back(0);
+
 	int i, counter, index1, x, y, z, pIn, pOut;
 	int maxOverlap = 0;
 	double tempSlack;
@@ -59,6 +64,16 @@ int parseIn(int argc, char* argv[])
 
 			tempSlack = stod(line.substr(i, line.size() - i));
 			pathSlack.push_back(tempSlack);
+
+
+			/// I know that htere must be anext line with clock skew info 
+			// so
+			assert(std::getline(metaData, line));
+
+			pathClockSkew.push_back(std::stod(line));
+				
+
+
 			continue;
 		}
 		counter = 0;
@@ -186,16 +201,25 @@ int parseIn(int argc, char* argv[])
 
 	update_cascaded_list();
 
+	
+
 	if (read_routing(argv[2]) == 1)
 	{
+#ifdef MCsim
 		if (read_timing_edges(argv[5]) == 1)
 			return 1;
 		else
 			return 0;
+
+#else
+
+		return 1;
+#endif // MCsim
 	}
 		
 	else
 	{
+		
 		return 0;
 	}
 
@@ -785,6 +809,11 @@ void insert_to_timingEdgeToPaths(std::string tempKey, double delay, int edgeType
 			if ((iter->second)[i].type == edgeType)
 			{
 				found = true;
+				if ((iter->second)[i].delay != delay)
+				{
+					std::cout << delay << std::endl;
+					std::cout << (iter->second)[i].delay << std::endl;
+				}
 				assert((iter->second)[i].delay == delay);
 				break;
 			}
@@ -802,6 +831,7 @@ void insert_to_timingEdgeToPaths(std::string tempKey, double delay, int edgeType
 
 }
 
+// reads the meta edge file that stores IC and Cell delays, used for MCsim when dealing with timing edges as random variables
 int read_timing_edges(char* edgesFile)
 {
 	//std::map<std::string, Edge_Delay >  timingEdgeToPaths;
@@ -894,10 +924,10 @@ int read_timing_edges(char* edgesFile)
 			currI = line[0];
 			currO = line[1];
 
-			edgeType = 0;
+			edgeType = 4; // its the startinf FF so this is actuall Tco so to differentiate from reg delay we do this
 
 			if (currI == 'R')
-				edgeType++;
+				edgeType+=2;
 
 			if (currO == 'R')
 				edgeType++;
@@ -923,7 +953,7 @@ int read_timing_edges(char* edgesFile)
 				///LUT 1 6
 				///RR // dege type
 				///0.361 cell delay
-				///0.788 IC delay
+				///0.788 IC delay to next atom
 
 				prevX = currX;
 				prevY = currY;
@@ -980,9 +1010,10 @@ int read_timing_edges(char* edgesFile)
 
 				tempKey = "ICsX" + std::to_string(prevX) + "sY" + std::to_string(prevY) + "sZ" + std::to_string(prevZ) + "sP" + std::to_string(prevPout) + "dX" + std::to_string(currX) + "dY" + std::to_string(currY) + "dZ" + std::to_string(currZ) + "dP" + std::to_string(currPin);
 				
+				// IC delay can either be FF or RR, nothing else so we just check what was the previous transition and set the edge type accordingle
 				edgeType = 0;
 				if (prevO == 'R')
-					edgeType = 2;
+					edgeType = 3;
 
 
 				insert_to_timingEdgeToPaths(tempKey, ICDel, edgeType);
@@ -996,7 +1027,7 @@ int read_timing_edges(char* edgesFile)
 				edgeType = 0;
 
 				if (currI == 'R')
-					edgeType++;
+					edgeType += 2;
 
 				if (currO == 'R')
 					edgeType++;
@@ -1080,7 +1111,7 @@ int read_timing_edges(char* edgesFile)
 
 				edgeType = 0;
 				if (prevO == 'R')
-					edgeType = 2;
+					edgeType = 3;
 
 
 				insert_to_timingEdgeToPaths(tempKey, ICDel, edgeType);
@@ -1094,12 +1125,12 @@ int read_timing_edges(char* edgesFile)
 				edgeType = 0;
 
 				if (currI == 'R')
-					edgeType++;
+					edgeType += 2;
 
 				if (currO == 'R')
 					edgeType++;
 
-				assert(edgeType % 2 == 0);// its a FF s it cant be inverting
+				assert(edgeType == 0 || edgeType == 3);// its a FF s it cant be inverting
 
 				//////////////////// read cell delay of current node ////////////////////////////////////////////////////////
 				assert(getline(edgeData, line));

@@ -6,7 +6,7 @@
 
 int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs); // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based on the importance of the port (the more critical the port the more important it is)
 int reduce_number_of_LUT_inputs_maximize_tested_paths(int x, int y, int z, int excessInputs); // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based ;
-void remove_fanin_higher_than_three() // esnures that he number of inputs + the number of required control signals is <= LUTs inputs
+int remove_fanin_higher_than_three() // esnures that he number of inputs + the number of required control signals is <= LUTs inputs
 {
 
 	int total = 0;
@@ -116,6 +116,7 @@ void remove_fanin_higher_than_three() // esnures that he number of inputs + the 
 	std::cout << "**********Number of deleted paths due to number of inputs contraint is : " << totalIn << " **********" << std::endl;
 	std::cout << "Number of deleted paths that could be avoided considering that they dont require a control signal : " << avoidable <<  std::endl;
 	IgnoredPathStats << totalIn << "\t";
+	return totalIn;
 
 }
 
@@ -248,7 +249,7 @@ int reduce_number_of_LUT_inputs_maximize_tested_paths(int x, int y, int z, int e
 }
 
 
-void remove_arithLUT_with_two_inputs_and_no_cin()
+int remove_arithLUT_with_two_inputs_and_no_cin()
 {
 	int total = 0;
 	int i, j, k, kk;
@@ -330,6 +331,7 @@ void remove_arithLUT_with_two_inputs_and_no_cin()
 	}
 	std::cout << "**********Number of deleted paths due to adder inputs contraint is : " << total << " **********" << std::endl;
 	IgnoredPathStats << total << "\t";
+	return total;
 }
 
 void remove_feedback_paths()
@@ -421,7 +423,7 @@ std::vector<Path_logic_component> number_of_distinct_inputs_to_lab(int x, int y,
 	return nodesWithExternalInput;
 }
 
-void remove_to_match_routing_constraint()
+int remove_to_match_routing_constraint()
 {
 	int i, j, k;
 	double numberOfDistinctInputs;
@@ -479,10 +481,11 @@ void remove_to_match_routing_constraint()
 
 	std::cout << "**********Number of deleted paths due to routing contraint is : " << total << " **********" << std::endl;
 	IgnoredPathStats << total << "\t";
+	return total;
 }
 
 
-void remove_to_fix_off_path_inputs() // off path inputs can be fixed using the fix signals. However, this is not enough sometimes you can have reconvergent fanout, this is dealt with in the reconvergent fanout function. This function handles the case when the off-path input is fed by a regiser. It checks if this register can have its output fixed while we test the LUT it is feeding.
+int remove_to_fix_off_path_inputs() // off path inputs can be fixed using the fix signals. However, this is not enough sometimes you can have reconvergent fanout, this is dealt with in the reconvergent fanout function. This function handles the case when the off-path input is fed by a regiser. It checks if this register can have its output fixed while we test the LUT it is feeding.
 {
 	int total = 0;
 
@@ -614,10 +617,11 @@ void remove_to_fix_off_path_inputs() // off path inputs can be fixed using the f
 
 	std::cout << "*************************************** deleted paths to fix off path inputs = " << total << "**********************************" << std::endl;
 	IgnoredPathStats << total << "\t";
+	return total;
 }
 
 
-void  remove_to_toggle_source()
+int  remove_to_toggle_source()
 {
 
 	int total = 0;
@@ -708,6 +712,7 @@ void  remove_to_toggle_source()
 	}
 	std::cout << "*************************************** deleted paths to control source reg = " << total << "**********************************" << std::endl;
 	IgnoredPathStats << total << "\t";
+	return total;
 }
 void delete_especial_reconvergent_fanout()
 {
@@ -798,7 +803,9 @@ void assign_test_phases_ib()
 {
 	std::vector < std::vector <int> > pathRelationGraph;
 	// create the graph representing the connections between paths
-	delete_especial_reconvergent_fanout();
+	
+//	delete_especial_reconvergent_fanout();
+	
 	generate_pathRelationGraph(pathRelationGraph); //creates the PRG and add edges to ensure that all off path inputs of every tested path is fixed (cannot test 2 oaths with fan-in overlap)
 
 	add_cascaded_edges_to_pathRelationGraph(pathRelationGraph);
@@ -949,7 +956,7 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 				tempComponentY = paths[tempNode.path][tempNode.node - 1].y;
 				tempComponentZ = paths[tempNode.path][tempNode.node - 1].z;
 				//// trial studd
-				for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this. shouldnt be any since we deleted them earlier
+		/*		for (kk = 0; kk < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this. shouldnt be any since we deleted them earlier
 				{
 					if (i == fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path)
 					{
@@ -961,7 +968,7 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 					}
 
 				}
-
+				*/
 				if (!shouldDelete)
 				{
 					//add edges between path i and all paths using LUT tempComponentX, tempComponentY, tempComponentZ
