@@ -235,7 +235,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 	verilogFile << " PATH" << controlSignals[i].path << "NODE" << controlSignals[i].node << "F}), ";
 	verilogFile << ".sinks({";
 	// paths should be like this as sinks[0] should be sink(0)
-	for (i = sinks.size() - 1; i > 0; i--)
+	for (i = ((int)sinks.size()) - 1; i > 0; i--)
 	{
 		verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << ", ";
 	}
@@ -1125,7 +1125,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 			if (sources.size()>0)
 				controllerFile << "\t\t\tset_source_registers <= " << sources.size() << "'b";
 			//	std::cout << "phase " << i << " :";
-			for (j = sources.size() - 1; j > -1; j--)
+			for (j = ((int)sources.size()) - 1; j > -1; j--)
 			{
 				x = paths[sources[j].path][sources[j].node].x;
 				y = paths[sources[j].path][sources[j].node].y;
@@ -1289,7 +1289,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	for (i = 0; i < (int)errorSignalDivision.size(); i++)
 	{
 		if ((int)errorSignalDivision[i].size()>max)
-			max = errorSignalDivision[i].size();
+			max = ((int)errorSignalDivision[i].size());
 	}
 	// get counter length to flush the or network
 	// network depth

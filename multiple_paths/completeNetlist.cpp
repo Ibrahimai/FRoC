@@ -115,7 +115,7 @@ void update_currentFabric() // resets the current global variables to the origin
 void set_number_of_bitstreams_ohne_feedback()
 {
 
-	bitstreamsOhneFeedback = testedPaths.size();
+	bitstreamsOhneFeedback = (int)testedPaths.size();
 
 }
 

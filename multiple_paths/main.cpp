@@ -31,14 +31,24 @@ ALUT fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ];
 ALM alms[FPGAsizeX][FPGAsizeY][ALMsinLAB];
 #endif
 
+// global varoiables in globalVar.h
+
 int numberOfTestPhases;
 std::vector <double> pathSlack;
 std::vector <double> pathClockSkew;
 std::vector< std::vector<Path_node> > paths; // model the paths
 std::ofstream IgnoredPathStats; // delete after obtaining stats
 
-std::map<std::string, std::vector < Edge_Delay > >  timingEdgesDelay;
 
+std::map<std::string, std::vector < Edge_Delay > >  cellEdgesDelay; // map to stroe all cell edges and their delays (FF, FR, RF, RR) of each one
+
+std::map<std::string, std::vector < Edge_Delay > >  timingEdgesDelay; // map to stroe all timing edges and their delays (FF, FR, RF, RR) of each one
+
+std::unordered_map<std::string, std::vector < Edge_Delay > >  REsDelay; // map to store all REs and the delays (FF, FR, RF, RR) of each one
+
+std::vector <double> pathREsDelta; // store the delta delays of the used REs in each path
+
+std::map<std::string, std::vector<RE_logic_component> >  REToPaths; // map to store all RE and for each RE it stores the paths using it. This is used
 
 void set_testing_phase(int fixed, int change)
 {
@@ -188,7 +198,7 @@ void delete_all()
 }
 
 
-void cycloneIV_stuff(bool & scheduleChanged, std::vector < std::vector<int> > & pathsSchedule, int bitStreams,  int feedbackPaths, int remainingPaths, std::map<std::string, double>  & testedTimingEdgesMap, std::map<std::string, std::vector<int> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete, bool strictCoverage)
+void cycloneIV_stuff(bool & scheduleChanged, std::vector < std::vector<int> > & pathsSchedule, int bitStreams,  int feedbackPaths, int remainingPaths, std::map<std::string, double>  & testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete, bool strictCoverage)
 {
 	int i;
 	calc_stats();
@@ -203,8 +213,8 @@ void cycloneIV_stuff(bool & scheduleChanged, std::vector < std::vector<int> > & 
 	// try ibrahim
 	//delete_especial_reconvergent_fanout();
 	//ILP_solve();
-	ILP_solve_2();
-//	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, strictCoverage, casacadedRegion);
+//	ILP_solve_2();
+	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, strictCoverage, casacadedRegion);
 //	ILP_solve_3();
 
 #ifdef maxPerBitStream
@@ -435,8 +445,13 @@ int main(int argc, char* argv[])
 	get_cascaded_paths_inverting_behaviour();
 
 	// generate timing edges info before deleting any thing
+
+	// store all timing edges and its associated longest delay
 	std::map<std::string, double>  timingEdgesMapComplete;
-	std::map<std::string, std::vector<int> >  timingEdgeToPaths;
+
+	// store all timing edges and all paths using each edge
+	std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths;
+
 	generate_timing_edges_of_all_paths(timingEdgesMapComplete, timingEdgeToPaths);
 
 	bool  scheduleChanged = true;
@@ -451,7 +466,7 @@ int main(int argc, char* argv[])
 	// structure to store tested timing edges
 	std::map<std::string, double>  testedTimingEdgesMap;
 
-	int number_of_samples = 30000;
+	int number_of_samples = 10000000;
 	int x = 6;
 	bool strictCoverage = true;
 	while (true)
@@ -508,8 +523,16 @@ int main(int argc, char* argv[])
 
 			// starting MC simulation
 
-			generate_edges_rand_vars(0.1, 3);
-			double failureProb = MC_sim(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
+			MC_generate_edges_rand_vars(0.05, 3);
+
+			if (MC_validate_RE_delays(timingEdgeToPaths))
+				std::cout << "Alles clar " << std::endl;
+
+			if (MC_validate_edges_delays(timingEdgeToPaths))
+				std::cout << "Alles clar " << std::endl;
+			
+
+			double failureProb = MC_sim_edges(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
 			//		double failureProb = 0.0;
 			std::cout << "failure rate is " << failureProb << std::endl;
 			return 0;

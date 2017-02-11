@@ -1,5 +1,9 @@
 #pragma once
 
+// forward class definition
+class Path_logic_component;
+
+
 int check_number_of_timing_edges_more();
 void check_critical_path_from_Input_toCout();
 void check_LE_outputs();
@@ -12,4 +16,4 @@ void LUT_inputs_stat();
 //void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack);
 void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack);
 int count_timing_edges_realistic(std::map<std::string, double>  testedTimingEdgeSlack, std::map<std::string, double>  completeTimingEdgeSlack);
-void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<int> > & timingEdgeToPaths);
+void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<Path_logic_component> > & timingEdgeToPaths);

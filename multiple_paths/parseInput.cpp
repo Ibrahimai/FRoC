@@ -29,7 +29,7 @@ int parseIn(int argc, char* argv[])
 	pathClockSkew.resize(0);
 	pathClockSkew.push_back(0);
 
-	int i, counter, index1, x, y, z, pIn, pOut;
+	int i, counter, index1, x, y, z, pIn, pOut, edgeType;
 	int maxOverlap = 0;
 	double tempSlack;
 	bool slackReached = false;
@@ -141,6 +141,23 @@ int parseIn(int argc, char* argv[])
 		{
 			invertingSignal = false;
 		}
+
+		// read edge type
+		if (!std::getline(metaData, line))
+		{
+			std::cout << "Incorrect file format. Terminating...." << std::endl;
+			return 0;
+		}
+		edgeType = 0;
+
+		if (line[0] == 'R')
+			edgeType += 2;
+
+		if (line[1] == 'R')
+			edgeType++;
+
+
+
 		// have x and y and z stored
 		fpgaLogic[x][y][z].add_node(path, node, pIn, pOut);
 		// handle FF with sdata or data
@@ -174,7 +191,12 @@ int parseIn(int argc, char* argv[])
 
 
 		assert(x >= 0 && y >= 0 && z >= 0);
-		tempPath.push_back(Path_node(x, y, z, pIn, pOut, invertingSignal));
+
+		// if its the source reg then add 4 to the dedge typ because source reg has the same Tco delay  
+		if (tempPath.size() == 0)
+			edgeType += 4;
+
+		tempPath.push_back(Path_node(x, y, z, pIn, pOut, invertingSignal,edgeType));
 		for (i = 0; i<(int)fpgaLogic[x][y][z].nodes.size(); i++) // pass through all path nodes that uses this logic element
 		{
 			if (fpgaLogic[x][y][z].nodes[i].path != path) // check if it is used by another path through the same portIn and portOut
@@ -590,7 +612,127 @@ void check_shared_inputs() {
 	}
 }
 #endif 
-int read_routing(char* routingFile) // read routing files and model routing structure.[old]  Must be called after paths are deleted.
+
+
+
+
+// insert RE delay to REsDelay map
+void insert_to_REsDelay(std::string tempKey, double delay, int edgeType)
+{
+	auto iter = REsDelay.find(tempKey);
+
+	// 
+	if (iter == REsDelay.end()) // RE not found
+	{
+
+		std::vector<Edge_Delay > tempVector;
+
+		Edge_Delay temp = Edge_Delay(edgeType, delay);
+		tempVector.push_back(temp);
+
+		// insert this to the map
+		REsDelay.insert(std::pair<std::string, std::vector<Edge_Delay > >(tempKey, tempVector));
+	}
+	else // RE found
+	{
+		bool found = false;
+		for (int i = 0; i < iter->second.size(); i++)
+		{
+			if ((iter->second)[i].delay == delay)
+			{
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) // if the delay was not found then it's a new delay
+		{
+			// if we found the RE but not the corresponding delay, then at there must be exactly one delay in the vecotr. The reason for that is that RE can only has 2 delays ff or rr
+		//should be there	assert((iter->second).size() == 1);
+			Edge_Delay temp = Edge_Delay(edgeType, delay);
+			(iter->second).push_back(temp);
+
+		}
+	}
+
+}
+
+
+
+void adjust_REsDelay()
+{
+	pathREsDelta.resize(paths.size());
+	// insert all zeros to the delta associated with each path
+	std::fill(pathREsDelta.begin(), pathREsDelta.end(), 0.0);
+
+	// loop over the global variable REsDelay to get average of each RE delay
+	for (auto iter = REsDelay.begin(); iter != REsDelay.end(); iter++)
+	{
+		double avgFallDelay = 0.0;
+		int fallCount = 0;
+		double avgRiseDelay = 0.0;
+		int riseCount = 0;
+
+		// loop over all edge delays in this RE to get an average for fall and rise delay for each RE
+		for (int i = 0; i < (iter->second).size(); i++)
+		{
+			if ((iter->second)[i].type==0) // fall
+			{
+				fallCount++;
+				avgFallDelay += (iter->second)[i].delay;
+			}
+			else
+			{
+				assert((iter->second)[i].type == 3); // rise
+				riseCount++;
+				avgRiseDelay += (iter->second)[i].delay;
+			}
+		}
+
+		avgFallDelay = avgFallDelay / fallCount;
+		avgRiseDelay = avgRiseDelay / riseCount;
+
+		//  now clear this vector and only add the average delay
+		// clear vec
+		(iter->second).clear();
+		// add fall average if exists
+		if (avgFallDelay > 0)
+		{
+			Edge_Delay temp = Edge_Delay(0, avgFallDelay);
+			(iter->second).push_back(temp);
+		}
+		// add rise average if exists
+		if (avgRiseDelay > 0)
+		{
+			Edge_Delay temp = Edge_Delay(3, avgRiseDelay);
+			(iter->second).push_back(temp);
+		}
+
+		// now loop over all paths using this RE to add the delta delay associated with this RE
+
+		// get the vector of paths using this RE
+		auto iter_path = REToPaths.find((iter->first));
+		assert(iter_path != REToPaths.end());
+
+		for (int i = 0; i < (iter_path->second).size(); i++)
+		{
+			if (paths[(iter_path->second)[i].path][(iter_path->second)[i].node].edgeType < 2)// then fall edge along this RE
+			{
+				pathREsDelta[(iter_path->second)[i].path] += (iter_path->second)[i].delay - avgFallDelay;
+			}
+			else
+			{
+				pathREsDelta[(iter_path->second)[i].path] += (iter_path->second)[i].delay - avgRiseDelay;
+			}
+		}
+	}
+
+}
+
+
+
+// read routing files, model routing structures and create REstoDelay and REstoPaths.
+int read_routing(char* routingFile)
 {
 	int i, path, node;
 	std::ifstream metaData(routingFile);
@@ -606,6 +748,7 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 	bool connExists;
 	int count = 0;
 	int sourceX, sourceY, sourceZ;
+	double cellREDelay = 0.0;
 	while (std::getline(metaData, line))
 	{
 		count++;
@@ -656,6 +799,14 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 		//			std::cout << "debug" << std::endl;
 
 				tempConnection.sourcePort = paths[path][node].portOut; // assign the source of this connection to the output port of the node in question
+
+				// read the RE delay of this cell, we will store it int the first RE used by this connection
+				// read delay
+				assert(getline(metaData, line));
+				cellREDelay = std::stod(line);
+
+				// read type of edge but we ignore this as we add this RE delay  to the first real RE element
+				assert(getline(metaData, line));
 			}
 			else // destination
 			{
@@ -706,10 +857,51 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 		// if it is not a source nor destiantion
 		else
 		{
+			// no paths should be deleted  while parsing routing information.
+			assert(!deletedPath);
 			if (!deletedPath)
 			{
 				// push to the used connection to the array of strings
 				tempConnection.usedRoutingResources.push_back(line);
+				std::string tempKeyRE = "RE" + line;
+
+				// read the RE delay 
+				// read delay
+				assert(getline(metaData, line));
+				double REDelay = std::stod(line);
+
+				// read delay edge type
+				assert(getline(metaData, line));
+				int edgeType = 0;
+				if (line[0] == 'R')
+					edgeType = 3;
+				else
+					assert(line[0] == 'F');
+
+				// enter the delay into the REsDelay map in addition to the cell re delay this is only inserted in the first routing element (RE)
+				insert_to_REsDelay(tempKeyRE, cellREDelay + REDelay, edgeType);
+				// set cell re delay to 0. It is only set to a value at the beginning of a routing connections based on the cell re delay.
+				
+
+				// enter the path using this RE to the REstopaths
+				auto iter_REtoPaths = REToPaths.find(tempKeyRE);
+				if (iter_REtoPaths == REToPaths.end()) // RE was not inserted before
+				{
+					std::vector <RE_logic_component> tempPaths;
+					// store the path using RE, for node we choose the sink node as the node owning this RE
+					tempPaths.push_back(RE_logic_component(path,node+1, cellREDelay + REDelay));
+					assert(paths[path].size() > node + 1);
+					REToPaths.insert(std::pair<std::string, std::vector<RE_logic_component> >(tempKeyRE, tempPaths));
+				}
+				else // this RE has been inserted then add the current path to the list of paths using it
+				{
+					// the current path can not be added to this RE, so check that (should be removed later as it takes time to do this check)
+					
+		//			assert((std::find((iter_REtoPaths->second).begin(), (iter_REtoPaths->second).end(), path)) == (iter_REtoPaths->second).end());
+					// store the path using RE, for node we choose the sink node as the node owning this RE
+					(iter_REtoPaths->second).push_back(RE_logic_component(path,node+1, cellREDelay + REDelay));
+				}
+				cellREDelay = 0.0;
 			}
 			else
 				continue;
@@ -770,7 +962,7 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 
 	}
 
-
+	adjust_REsDelay();
 	return 1;
 
 }
@@ -779,8 +971,7 @@ int read_routing(char* routingFile) // read routing files and model routing stru
 
 
 
-
-void insert_to_timingEdgeToPaths(std::string tempKey, double delay, int edgeType)
+void insert_to_timingEdgesDelay(std::string tempKey, double delay, int edgeType)
 {
 	auto iter = timingEdgesDelay.find(tempKey);
 
@@ -942,7 +1133,7 @@ int read_timing_edges(char* edgesFile)
 			// insert the CELL delay of this FF to edgesDelay
 			tempKey = tempKey = "CELLsX" + std::to_string(currX) + "sY" + std::to_string(currY) + "sZ" + std::to_string(currZ) + "sP" + std::to_string(FFd) + "dP" + std::to_string(FFq);
 
-			insert_to_timingEdgeToPaths(tempKey, cellDel, edgeType);
+			insert_to_timingEdgesDelay(tempKey, cellDel, edgeType);
 
 		}
 		else
@@ -1016,7 +1207,7 @@ int read_timing_edges(char* edgesFile)
 					edgeType = 3;
 
 
-				insert_to_timingEdgeToPaths(tempKey, ICDel, edgeType);
+				insert_to_timingEdgesDelay(tempKey, ICDel, edgeType);
 
 				////////////////////////////////// read edge type of current node /////////////////////////////////////////
 				assert(getline(edgeData, line));
@@ -1040,7 +1231,7 @@ int read_timing_edges(char* edgesFile)
 				// insert the CELL delay of this FF to edgesDelay
 				tempKey = tempKey = "CELLsX" + std::to_string(currX) + "sY" + std::to_string(currY) + "sZ" + std::to_string(currZ) + "sP" + std::to_string(currPin) + "dP" + std::to_string(currPout);
 
-				insert_to_timingEdgeToPaths(tempKey, cellDel, edgeType);
+				insert_to_timingEdgesDelay(tempKey, cellDel, edgeType);
 
 				///////////////////////// read IC delay ////////////////////////////////////////////////////////////
 				assert(getline(edgeData, line));
@@ -1114,7 +1305,7 @@ int read_timing_edges(char* edgesFile)
 					edgeType = 3;
 
 
-				insert_to_timingEdgeToPaths(tempKey, ICDel, edgeType);
+				insert_to_timingEdgesDelay(tempKey, ICDel, edgeType);
 
 				////////////////////////////////// read edge type of current node /////////////////////////////////////////
 				assert(getline(edgeData, line));
@@ -1140,7 +1331,7 @@ int read_timing_edges(char* edgesFile)
 				// insert the CELL delay of this FF to edgesDelay
 				tempKey = tempKey = "CELLsX" + std::to_string(currX) + "sY" + std::to_string(currY) + "sZ" + std::to_string(currZ) + "sP" + std::to_string(currPin) + "dP" + std::to_string(currPout);
 
-				insert_to_timingEdgeToPaths(tempKey, cellDel, edgeType);
+				insert_to_timingEdgesDelay(tempKey, cellDel, edgeType);
 
 
 			}

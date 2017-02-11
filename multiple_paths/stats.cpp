@@ -368,7 +368,7 @@ void print_path_coverage_to_file()
 
 // generate a map of timing edges counting ic and cell delay different timing edges (timingEdgeSlack), this should be called before deleting any path to create the total timing edges map
 // also create sthe timing edges to paths map, which stores all paths using each timing edge.
-void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<int> > & timingEdgeToPaths)
+void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<Path_logic_component> > & timingEdgeToPaths)
 {
 	int i, j, k;
 	int sX, sY, sZ, sP, dX, dY, dZ, dP; // source port is the output port of a node, destination port is the output port of the destination
@@ -376,7 +376,7 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 	std::string tempKey;
 	timingEdgeSlack.clear();
 	timingEdgeToPaths.clear();
-	std::vector<int> tempPaths;
+	std::vector<Path_logic_component> tempPaths;
 	//std::map<std::string, double> timingEdgeSlack;
 	int bestPath, tempPath, tempNode;
 	for (i = 1; i < (int)paths.size(); i++) // loop across all paths
@@ -436,13 +436,13 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 					{
 						if (tempPath<=bestPath)
 							bestPath = tempPath;
-						tempPaths.push_back(tempPath); // push all paths using this edge
+						tempPaths.push_back(Path_logic_component(tempPath,tempNode)); // push all paths using this edge
 					//	break;    ibrahim_11/11/2016, removed break so that we can get all paths using this edge
 					}
 				}
 
 				timingEdgeSlack.insert(std::pair<std::string, double>(tempKey, pathSlack[bestPath]));
-				timingEdgeToPaths.insert(std::pair<std::string, std::vector<int> >(tempKey, tempPaths));
+				timingEdgeToPaths.insert(std::pair<std::string, std::vector<Path_logic_component> >(tempKey, tempPaths));
 			}
 		}
 	}
@@ -493,13 +493,13 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 					{
 						if (tempPath <= bestPath)
 							bestPath = tempPath;
-						tempPaths.push_back(tempPath); // push all paths using this edge
+						tempPaths.push_back(Path_logic_component(tempPath,tempNode)); // push all paths using this edge
 					 //	break;    ibrahim_11/11/2016, removed break so that we can get all paths using this edge
 					}
 				}
 
 				timingEdgeSlack.insert(std::pair<std::string, double>(tempKey, pathSlack[bestPath]));
-				timingEdgeToPaths.insert(std::pair<std::string, std::vector<int> >(tempKey, tempPaths));
+				timingEdgeToPaths.insert(std::pair<std::string, std::vector<Path_logic_component> >(tempKey, tempPaths));
 			}
 		}
 	}

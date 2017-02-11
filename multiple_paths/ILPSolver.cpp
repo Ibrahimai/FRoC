@@ -1270,7 +1270,7 @@ void ILP_solve_2()
 
 
 
-int number_of_edges_cacsaded_paths(std::map<std::string, std::vector<int> >  timingEdgeToPaths, bool strictEdgeCounting , std::map<std::string, double>  timingEdgesMapComplete) // strictEdgeCounting means we only count this edge if it is tested through the longest critical path
+int number_of_edges_cacsaded_paths(std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, bool strictEdgeCounting , std::map<std::string, double>  timingEdgesMapComplete) // strictEdgeCounting means we only count this edge if it is tested through the longest critical path
 {
 	int total = 0;
 	bool flag = true;
@@ -1278,7 +1278,10 @@ int number_of_edges_cacsaded_paths(std::map<std::string, std::vector<int> >  tim
 	{
 		// check if this edge is tested
 		flag = true;
-		std::vector <int> tempPaths = iter->second; // get the equivalent edge from the complete timing net list
+		std::vector <int> tempPaths;// = iter->second; // get the equivalent edge from the complete timing net list
+		for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+			tempPaths.push_back((iter->second)[counter_vector].path);
+
 		assert(tempPaths.size() > 0);
 		if (!strictEdgeCounting)
 		{
@@ -1326,7 +1329,7 @@ int number_of_edges_cacsaded_paths(std::map<std::string, std::vector<int> >  tim
 
 
 // maximize number of timing edges teted/ bitstream , uses auxiliary variables tor epresent LUT inputs and timing edges.
-void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdgesMap , std::map<std::string, std::vector<int> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete , bool strictEdgeCounting, bool cascadedRegion)
+void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdgesMap , std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete , bool strictEdgeCounting, bool cascadedRegion)
 {
 	try {
 		GRBEnv env = GRBEnv();
@@ -1544,7 +1547,11 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 			auto iter_edge_paths = timingEdgeToPaths.find(iter->first);
 
 			assert(iter_edge_paths != timingEdgeToPaths.end());
-			std::vector<int> paths_using_edge = iter_edge_paths->second;
+			std::vector<int> paths_using_edge;// = iter_edge_paths->second;
+
+			for (int counter_vector = 0; counter_vector < (iter_edge_paths->second).size(); counter_vector++)
+				paths_using_edge.push_back((iter_edge_paths->second)[counter_vector].path);
+
 
 			// add all paths variable to be ored later
 			GRBVar* temp_constr = new GRBVar[paths_using_edge.size()];

@@ -1,5 +1,6 @@
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <assert.h>
 #include <fstream>
 #include <iostream>
@@ -56,6 +57,21 @@
 // FF modes
 #define dInput 0
 #define sData 1
+// this class is used to store the corresponding path, node,delay for all paths using a certain RE
+class RE_logic_component
+{
+public:
+	int path;
+	int node;
+	double delay;
+	RE_logic_component() {};
+	RE_logic_component(int p, int n, double d)
+	{
+		path = p;
+		node = n;
+		delay = d;
+	};
+};
 
 class Path_logic_component
 {
@@ -133,11 +149,12 @@ public:
 	bool redun; // is true if there is at least one path that use the same node with same input and output
 	bool deleted;
 	bool inverting; // determine the behaviour of the edge across this node (ff,rr->noninverting, or fr,rf->inverting)
+	int edgeType; // determines edge type at this node of this path where (ff->0, fr->1,rf->2,rr->3)
 	int eqPath; // if redun is true, eqPath stores the most critical path that uses the same node with the same input and output
 	int eqNode; // if redun is true, ewNode stores the node of the eqPath that uses this node equivalently.
 	bool tested; // true when this path si tested, this is only used in the complete netlist
 	Path_node() {};
-	Path_node(int xx, int yy, int zz, int in, int out, bool invert) 
+	Path_node(int xx, int yy, int zz, int in, int out, bool invert, int edge) 
 	{
 		x = xx;
 		y = yy;
@@ -151,6 +168,7 @@ public:
 		tested = false;
 		testPhase = -1; // -1
 		inverting = invert;
+		edgeType = edge;
 	};
 
 
