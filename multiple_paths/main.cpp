@@ -11,8 +11,8 @@
 
 #include "globalVar.h"
 #include "parseInput.h"
-#include "stats.h"
-#include "util.h"
+#include "stats.h" 
+//#include "util.h" // included in ignore.h
 #include "ignore.h"
 #include "createOutputFiles.h"
 #include "dummyExtras.h"
@@ -440,7 +440,7 @@ int main(int argc, char* argv[])
 	IgnoredPathStats.open(stats_file_name);
 	IgnoredPathStats << "ILP" << "\t" << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << "\t" << "tested timing edges relaxed" << "\t" << "testing timing edges strict" <<std::endl;
 	set_netlist(); // set original copy of netlist (without deleting anything)
-	int remainingPaths = paths.size();
+	int remainingPaths = paths.size() - 1; // paths[0] is not really a path
 	int feedbackPaths = count_cascaded_paths();
 	get_cascaded_paths_inverting_behaviour();
 
@@ -466,9 +466,11 @@ int main(int argc, char* argv[])
 	// structure to store tested timing edges
 	std::map<std::string, double>  testedTimingEdgesMap;
 
-	int number_of_samples = 10000000;
+	int number_of_samples = 5000;
 	int x = 6;
 	bool strictCoverage = true;
+	run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths);
+	return 0;
 	while (true)
 	{
 	//	scheduleChanged = true;
@@ -495,7 +497,9 @@ int main(int argc, char* argv[])
 
 		if (testedEdges == timingEdgesMapComplete.size()) // then all edges has been tested
 		{
-			get_allPathsTested(remainingPaths);
+			run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths);
+
+	/*		get_allPathsTested(remainingPaths);
 
 			std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << "untested " << std::endl;
 			std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;
@@ -524,17 +528,25 @@ int main(int argc, char* argv[])
 			// starting MC simulation
 
 			MC_generate_edges_rand_vars(0.05, 3);
+			MC_generate_REs_rand_vars(0.05, 3);
 
 			if (MC_validate_RE_delays(timingEdgeToPaths))
 				std::cout << "Alles clar " << std::endl;
+			else
+				assert(false);
 
 			if (MC_validate_edges_delays(timingEdgeToPaths))
 				std::cout << "Alles clar " << std::endl;
-			
+			else
+				assert(false);
 
 			double failureProb = MC_sim_edges(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
 			//		double failureProb = 0.0;
-			std::cout << "failure rate is " << failureProb << std::endl;
+			std::cout << "failure rate with timing edges is " << failureProb << std::endl;
+
+			failureProb = MC_sim_RE(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
+			//		double failureProb = 0.0;
+			std::cout << "failure rate with timing edges is " << failureProb << std::endl;*/
 			return 0;
 		}
 #endif // MCsim

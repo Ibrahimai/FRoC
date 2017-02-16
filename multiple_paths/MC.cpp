@@ -81,6 +81,8 @@ void MC_generate_REs_rand_vars(double dev_per_to_mean, int quartus_delay)
 			// u + quartus_delay*sigma = delay_reported_by_quartus (quartus_delay [0-3])
 			// sigma/mean = dev_per_to_mean
 
+			// edge of a RE can only be RR or FF
+			assert(currentEdge[i].type == 0 || currentEdge[i].type == 3);
 
 			double mean = currentEdge[i].delay / (1 + quartus_delay*dev_per_to_mean);	// -quartus_delay*dev_per_to_mean;
 			double dev = dev_per_to_mean*mean;
@@ -186,6 +188,8 @@ void get_location_from_key(std::string tempKey, int & x, int & y, int & z)
 double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std::vector<int> testedPaths, std::map<std::string, std::vector<Path_logic_component> > timingEdgeToPaths)
 {
 	int num_of_failures = 0;
+	std::cout << "*******************************************************************" << std::endl;
+	std::cout << "MC simulation with timing edges : " << std::endl;
 
 	// generate a new random seed for each MC simulation
 	std::random_device seed;
@@ -207,13 +211,20 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 
 	//pathsDelay.resize(paths.size());
 
+	std::pair<int, double> shortestCriticalPath_delay;
+	std::pair<int, double> longestCriticalPath_delay;
+	longestCriticalPath_delay.second = 0.0;
+	longestCriticalPath_delay.first = -1;
 
+	shortestCriticalPath_delay.second = 0.0;
+	shortestCriticalPath_delay.first = -1;
 
 	for (int sampleCounter = 0; sampleCounter < num_of_simulations; sampleCounter++) // creates number of simulations
 	{
 		// vector to store all paths sizes
 		std::vector<double> pathsDelay(paths.size(), 0.0); // stores paths delay with clock skew into account, it assumes the same transition type reported by Quartus
 		std::vector<double> pathsDelayOpTransition(paths.size(), 0.0); // stores it with clock skew into account, it assumes the opposite transition than the quartus reported one
+
 
 		// taking clock skew into account
 		for (int i = 1; i < paths.size(); i++)
@@ -403,6 +414,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 				{
 					maxPathDelay = pathsDelayOpTransition[currentPaths[i]];
 					longestPath = currentPaths[i];
+
 				}
 				// oppo end
 
@@ -500,7 +512,19 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 			}
 		}
 
+		// get the critical path and its delay
+		if ((sampleCounter == 0) || (shortestCriticalPath_delay.second > maxPathDelay))
+		{
+			shortestCriticalPath_delay.first = longestPath;
+			shortestCriticalPath_delay.second = maxPathDelay;
+		}
 
+		// get the critical path and its delay
+		if ((sampleCounter == 0) || (longestCriticalPath_delay.second < maxPathDelay))
+		{
+			longestCriticalPath_delay.first = longestPath;
+			longestCriticalPath_delay.second = maxPathDelay;
+		}
 
 
 		// now I just wanted to check if the longest delay is also the same as a tested path
@@ -544,7 +568,9 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 	}
 	std::cout << "Number of paths that were the longest " << longestPaths.size() << std::endl;
 	std::cout << "Fastest slowest path was " << slowestPath << std::endl;
-
+	
+	std::cout << "Out of all the MC samples, the shortest delay was for path " << shortestCriticalPath_delay.first << " delay was " << shortestCriticalPath_delay.second << std::endl;
+	std::cout << "Out of all the MC samples, the longest delay was for path " << longestCriticalPath_delay.first << " delay was " << longestCriticalPath_delay.second << std::endl;
 
 	return (num_of_failures*1.0) / num_of_simulations;
 }
@@ -552,9 +578,12 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 
 // MC sim with individual elements delay
 
-double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::vector<int> testedPaths, std::map<std::string, std::vector<int> > timingEdgeToPaths)
+double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::vector<int> testedPaths, std::map<std::string, std::vector<Path_logic_component> > timingEdgeToPaths)
 {
 	int num_of_failures = 0;
+
+	std::cout << "*******************************************************************" << std::endl;
+	std::cout << "MC simulation with REs : " << std::endl;
 
 	// generate a new random seed for each MC simulation
 	std::random_device seed;
@@ -576,17 +605,24 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 
 	//pathsDelay.resize(paths.size());
 
+	// stpore information of the shortest CP reported over all the simulation
+	std::pair<int, double> shortestCriticalPath_delay;
+	std::pair<int, double> longestCriticalPath_delay;
+	shortestCriticalPath_delay.second = 0.0;
+	shortestCriticalPath_delay.first = -1;
 
-
+	longestCriticalPath_delay.second = 0.0;
+	longestCriticalPath_delay.first = -1;
 	for (int sampleCounter = 0; sampleCounter < num_of_simulations; sampleCounter++) // creates number of simulations
 	{
 		// vector to store all paths sizes
 		std::vector<double> pathsDelay(paths.size(), 0.0); // stores it with clock skew into account
 
-														   // taking clock skew into account
+		// taking clock skew and total delta RE into account
 		for (int i = 1; i < paths.size(); i++)
 		{
 			pathsDelay[i] -= pathClockSkew[i];
+			pathsDelay[i] += pathREsDelta[i];
 		}
 
 		std::vector<double> testedPathsDelay;
@@ -605,7 +641,7 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 
 
 		int longestPath = -1;
-
+		int edgetype = -1;
 		// loop over all RE timing edges to get the delay of each edge and add it to the paths using it
 
 		for (auto iter = REToPaths.begin(); iter != REToPaths.end(); iter++)
@@ -630,19 +666,35 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 			assert(iter_delay != Cells_REsRandVars.end());
 
 			// at most the number of delays of an RE can be 2, FF and RR
-			assert((iter_delay->second).size() < 2);
+			assert((iter_delay->second).size() < 3);
+
+			edgetype = -1;
+
+			std::vector<double> transitionDelay(4, -1); // RE edge transition can either be 0 or 3
 
 			// loop across different transistions at this edge to get the max delay
 			for (int i = 0; i < (iter_delay->second).size(); i++)
 			{
 				double currDelay = ((iter_delay->second)[i].randVars)(gen);
+
+				assert((iter_delay->second)[i].type == 0 || (iter_delay->second)[i].type == 3); // either ff or rr
+
+				transitionDelay[(iter_delay->second)[i].type] = currDelay;
+
 				if (currDelay > maxDelay)
 					maxDelay = currDelay;			
 			}
 
 			for (int i = 0; i < currentPaths.size(); i++)
 			{
-				pathsDelay[currentPaths[i]] += maxDelay;	
+				int currentEdgeType = paths[currentPaths[i]][currentNodes[i]].edgeType; // get the corresponding cell delay
+				assert(currentEdgeType > -1 && currentEdgeType < 4);
+				// this is a RE delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
+				currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+				assert(transitionDelay[currentEdgeType] > -1);
+				pathsDelay[currentPaths[i]] += transitionDelay[currentEdgeType];
+
+		//		pathsDelay[currentPaths[i]] += maxDelay;	
 
 				if (pathsDelay[currentPaths[i]]>maxPathDelay)
 				{
@@ -666,19 +718,30 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 
 		}
 		
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		/////////////////////// copied this from the mc_sim_edges and only changed if its IC delay then ignore it //////////////
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		/////////////////////// copied this from the mc_sim_edges and only changed if its IC delay then ignore it, should eb refactored //////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 		for (auto iter = timingEdgeToPaths.begin(); iter != timingEdgeToPaths.end(); iter++)
 		{
 			std::string tempKey = iter->first;
-			std::vector<int> currentPaths = iter->second;
+		//	std::vector<int> currentPaths = iter->second;
 
 			int x, y, z = -1;
 			if (tempKey[0] == 'C') // if its a cell get the location of it please
 				get_location_from_key(tempKey, x, y, z);
 			else
 				continue;
+
+
+			std::vector<int> currentPaths;// = iter->second; // store paths of the current edge
+			std::vector<int> currentNodes;// = iter->second; // store the corresponding node of each  path used by this edge
+
+			for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+			{
+				currentPaths.push_back((iter->second)[counter_vector].path);
+				currentNodes.push_back((iter->second)[counter_vector].node);
+			}
 
 			// initially I will just use the max delay of all transisiotnas as the delay of this edge
 
@@ -690,18 +753,33 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 
 			auto iter_delay = timingEdgesRandVars.find(tempKey);
 
+
 			// the timing edge must exist in the timingedge delay vars map
 			assert(iter_delay != timingEdgesRandVars.end());
+
+			edgetype = -1;
+
+			std::vector<double> transitionDelay(8, -1);
 
 			// loop across different transistions at this edge
 			for (int i = 0; i < (iter_delay->second).size(); i++)
 			{
 				double currDelay = ((iter_delay->second)[i].randVars)(gen);
+
+				transitionDelay[(iter_delay->second)[i].type] = currDelay;
+
 				if (currDelay > maxDelay)
+				{
 					maxDelay = currDelay;
+					edgetype = (iter_delay->second)[i].type;
+				}
+
+				//	maxDelay = currDelay;
 
 				if ((iter_delay->second)[i].type > 3)
 					assert(z%LUTFreq != 0);
+
+
 
 				if (z > -1 && z%LUTFreq != 0) // this is a source
 				{
@@ -731,9 +809,23 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 				//		std::cout << "path number 1 currentDelay is" << pathsDelay[currentPaths[i]] << " + " << maxDelay << std::endl;
 				//	}
 
-				if (z<0 || z%LUTFreq == 0) // LUT
-					pathsDelay[currentPaths[i]] += maxDelay;
-				else
+				if (z < 0 || z%LUTFreq == 0) // LUT
+				{
+					int currentEdgeType = paths[currentPaths[i]][currentNodes[i]].edgeType; // get the corresponding cell delay
+					assert(currentEdgeType > -1 && currentEdgeType < 4);
+
+					if (z < 0) // then its an IC delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
+					{
+						currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+					}
+
+					assert(transitionDelay[currentEdgeType] > -1);
+					pathsDelay[currentPaths[i]] += transitionDelay[currentEdgeType];
+
+					//pathsDelay[currentPaths[i]] += maxDelay;
+				}
+					
+				else // a cell register delay
 				{
 					if (paths[currentPaths[i]][0].x == x && paths[currentPaths[i]][0].y == y && paths[currentPaths[i]][0].z == z) // this timing edge is part of the source of the path
 					{
@@ -742,8 +834,12 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 					}
 					else // then it's a destination
 					{
+						int currentEdgeType = paths[currentPaths[i]][currentNodes[i]].edgeType; // get the corresponding cell delay
+						assert(currentEdgeType > -1 && currentEdgeType < 4);
 						assert(maxDelayDestReg > -0.00000000000000001);
-						pathsDelay[currentPaths[i]] += maxDelayDestReg;
+						assert(transitionDelay[currentEdgeType] > -1);
+						pathsDelay[currentPaths[i]] += transitionDelay[currentEdgeType];
+						//		pathsDelay[currentPaths[i]] += maxDelayDestReg;
 					}
 				}
 
@@ -844,7 +940,19 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 		}
 
 
+		// get the critical path and its delay, we want to get the shortest CP delay
+		if ((sampleCounter == 0) || (shortestCriticalPath_delay.second > maxPathDelay))
+		{
+			shortestCriticalPath_delay.first = longestPath;
+			shortestCriticalPath_delay.second = maxPathDelay;
+		}
 
+		//get the critical path and its delay, we want to get the longest CP delay
+		if ((sampleCounter == 0) || (longestCriticalPath_delay.second < maxPathDelay))
+		{
+			longestCriticalPath_delay.first = longestPath;
+			longestCriticalPath_delay.second = maxPathDelay;
+		}
 
 		// now I just wanted to check if the longest delay is also the same as a tested path
 
@@ -865,7 +973,7 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 		{
 			num_of_failures++;
 			assert(maxUntestedPathDelay > maxTestedPathDelay);
-			std::cout << "Maximum untested path " << longestUntestedPath << " delay is " << maxUntestedPathDelay << " maximum tested path " << longestTestedPath << " delay is " << maxTestedPathDelay << std::endl;
+	//		std::cout << "Maximum untested path " << longestUntestedPath << " delay is " << maxUntestedPathDelay << " maximum tested path " << longestTestedPath << " delay is " << maxTestedPathDelay << std::endl;
 
 		}
 
@@ -877,10 +985,18 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 		std::cout << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
 	}
 	std::cout << "=----=-=-09-09=-=-09-0=-0==-0-9=-=0- " << std::endl;
+	int slowestPath = longestPaths[0].first;
 	for (int k = 0; k < longestPaths.size(); k++)
 	{
+		if (longestPaths[k].first > slowestPath)
+			slowestPath = longestPaths[k].first;
 		std::cout << "Path " << longestPaths[k].first << " is the longest in " << longestPaths[k].second << " samples." << std::endl;
 	}
+	std::cout << "Number of paths that were the longest " << longestPaths.size() << std::endl;
+	std::cout << "Fastest slowest path was " << slowestPath << std::endl;
+
+	std::cout << "Out of all the MC samples, the shortest delay was for path " << shortestCriticalPath_delay.first << " delay was " << shortestCriticalPath_delay.second << std::endl;
+	std::cout << "Out of all the MC samples, the longest delay was for path " << longestCriticalPath_delay.first << " delay was " << longestCriticalPath_delay.second << std::endl;
 
 
 	return (num_of_failures*1.0) / num_of_simulations;
@@ -1082,15 +1198,17 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 			}
 			assert(false);
 		}
-		std::cout << "Good work man Stored slack for path " << i << " is " << storedSlack << " calculated slack is " << calcSlack << std::endl;
+//		std::cout << "Good work man Stored slack for path " << i << " is " << storedSlack << " calculated slack is " << calcSlack << std::endl;
 	}
 
 	return succ;
 }
 
 
+//////////////////////////////////////////
+// validate MC with RE delays ////////////
+///////////////////////////////////////////
 
-// validate MC with RE delays
 bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_component> > timingEdgeToPaths)
 {
 	std::vector<double> pathsDelay(paths.size(), 0.0); // stores it with clock skew into account
@@ -1364,7 +1482,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			}
 			assert(false);
 		}
-			std::cout << "Good work man Stored slack for path " << i << " is " << storedSlack << " calculated slack is " << calcSlack << std::endl;
+	//		std::cout << "Good work man Stored slack for path " << i << " is " << storedSlack << " calculated slack is " << calcSlack << std::endl;
 	}
 
 	return succ;
@@ -1372,3 +1490,74 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 }
 
 
+////////////////////////////////////////////////////////
+/////////////// RUn MC simulation //////////////////////
+////////////////////////////////////////////////////////
+
+void run_MC(int number_of_samples, bool strictCoverage, std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, int remainingPaths)
+{
+
+
+	int testedEdges;
+//	if (strictCoverage)
+//		testedEdges = count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete);
+//	else
+//		testedEdges = testedTimingEdgesMap.size();
+
+//	if (testedEdges == timingEdgesMapComplete.size()) // then all edges has been tested
+//	{
+	//	get_allPathsTested(remainingPaths);
+
+		std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << "untested " << std::endl;
+		std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;
+
+		std::vector<int> testedPaths;
+		testedPaths.resize(0);
+		std::vector<int> unTestedPaths;
+		unTestedPaths.resize(0);
+
+		for (int j = 0; j < paths.size(); j++)
+		{
+			if (paths[j].size() < 1)
+				continue;
+			if (paths[j][0].tested)
+			{
+				testedPaths.push_back(j);
+			}
+			else
+			{
+				unTestedPaths.push_back(j);
+			}
+		}
+
+//		std::cout << "untested " << unTestedPaths.size() << std::endl;
+
+//		std::cout << "uremaining  " << remainingPaths << std::endl;
+
+		assert(remainingPaths == unTestedPaths.size());
+
+		// starting MC simulation
+
+		MC_generate_edges_rand_vars(0.05, 3);
+		MC_generate_REs_rand_vars(0.05, 3);
+
+		if (MC_validate_RE_delays(timingEdgeToPaths))
+			std::cout << "Alles clar " << std::endl;
+		else
+			assert(false);
+
+		if (MC_validate_edges_delays(timingEdgeToPaths))
+			std::cout << "Alles clar " << std::endl;
+		else
+			assert(false);
+
+		double failureProb = MC_sim_edges(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
+		//		double failureProb = 0.0;
+		std::cout << "failure rate with timing edges is " << failureProb << std::endl;
+
+		failureProb = MC_sim_RE(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
+		//		double failureProb = 0.0;
+		std::cout << "failure rate with timing edges is " << failureProb << std::endl;
+		
+//	}
+}

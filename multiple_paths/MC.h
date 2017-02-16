@@ -32,5 +32,10 @@ public:
 void MC_generate_edges_rand_vars(double dev_per_to_mean, int quartus_delay);
 void MC_generate_REs_rand_vars(double dev_per_to_mean, int quartus_delay);
 double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std::vector<int> testedPaths, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths);
+double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::vector<int> testedPaths, std::map<std::string, std::vector<Path_logic_component> > timingEdgeToPaths);
+
+void run_MC(int number_of_samples, bool strictCoverage, std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, int remainingPaths);
+
+
 bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_component> > timingEdgeToPaths);
 bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_component> > timingEdgeToPaths);
