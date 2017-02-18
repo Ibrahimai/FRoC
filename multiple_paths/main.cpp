@@ -36,8 +36,12 @@ ALM alms[FPGAsizeX][FPGAsizeY][ALMsinLAB];
 int numberOfTestPhases;
 std::vector <double> pathSlack;
 std::vector <double> pathClockSkew;
+std::vector <double> pathClockRelation;
 std::vector< std::vector<Path_node> > paths; // model the paths
 std::ofstream IgnoredPathStats; // delete after obtaining stats
+std::ofstream RE_MCSim; // store MC results
+
+std::ofstream TE_MCSim; // store MC results
 
 
 std::map<std::string, std::vector < Edge_Delay > >  cellEdgesDelay; // map to stroe all cell edges and their delays (FF, FR, RF, RR) of each one
@@ -456,10 +460,10 @@ int main(int argc, char* argv[])
 
 	bool  scheduleChanged = true;
 	std::vector < std::vector<int> > pathsSchedule;
-
+	int x = 6;
 #ifdef MCsim
 	assert(timingEdgesDelay.size() == timingEdgesMapComplete.size());
-#endif
+
 
 	std::cout << "True number of timing edges including IC & Cell delays : " << timingEdgesMapComplete.size() << std::endl;
 
@@ -467,10 +471,27 @@ int main(int argc, char* argv[])
 	std::map<std::string, double>  testedTimingEdgesMap;
 
 	int number_of_samples = 5000;
-	int x = 6;
+	
 	bool strictCoverage = true;
-	run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths);
+	double sigma;
+	double qDelayInter;
+
+	std::string REMC_file_name = temp + "_RE_MCsim.txt";
+	std::string TEMC_file_name = temp + "_TE_MCsim.txt";
+	RE_MCSim.open(REMC_file_name);
+	TE_MCSim.open(TEMC_file_name);
+
+	if (argc > 6)
+	{
+		number_of_samples = atoi(argv[6]);
+		sigma = atof(argv[7]);
+		qDelayInter = atof(argv[8]);
+	}
+
+	print_paths_delays(temp);
+	run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter);
 	return 0;
+#endif
 	while (true)
 	{
 	//	scheduleChanged = true;
@@ -495,11 +516,11 @@ int main(int argc, char* argv[])
 		else
 			testedEdges = testedTimingEdgesMap.size();
 
-		if (testedEdges == timingEdgesMapComplete.size()) // then all edges has been tested
+			if (testedEdges == timingEdgesMapComplete.size()) // then all edges has been tested
 		{
-			run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths);
+			/*	run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths);
 
-	/*		get_allPathsTested(remainingPaths);
+			get_allPathsTested(remainingPaths);
 
 			std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << "untested " << std::endl;
 			std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;

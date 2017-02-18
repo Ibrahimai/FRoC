@@ -29,6 +29,9 @@ int parseIn(int argc, char* argv[])
 	pathClockSkew.resize(0);
 	pathClockSkew.push_back(0);
 
+	pathClockRelation.resize(0);
+	pathClockRelation.push_back(0);
+
 	int i, counter, index1, x, y, z, pIn, pOut, edgeType;
 	int maxOverlap = 0;
 	double tempSlack;
@@ -65,6 +68,11 @@ int parseIn(int argc, char* argv[])
 			tempSlack = stod(line.substr(i, line.size() - i));
 			pathSlack.push_back(tempSlack);
 
+			/// I know that there must be a next line with clock relation ship 
+			// so
+			assert(std::getline(metaData, line));
+			pathClockRelation.push_back(std::stod(line));
+				
 
 			/// I know that htere must be anext line with clock skew info 
 			// so
@@ -155,6 +163,7 @@ int parseIn(int argc, char* argv[])
 
 		if (line[1] == 'R')
 			edgeType++;
+
 
 
 
@@ -638,7 +647,7 @@ void insert_to_REsDelay(std::string tempKey, double delay, int edgeType)
 		bool found = false;
 		for (int i = 0; i < iter->second.size(); i++)
 		{
-			if ((iter->second)[i].delay == delay)
+			if ((iter->second)[i].delay == delay && (iter->second)[i].type == edgeType)
 			{
 				found = true;
 				break;
@@ -877,6 +886,9 @@ int read_routing(char* routingFile)
 					edgeType = 3;
 				else
 					assert(line[0] == 'F');
+
+				if (tempKeyRE == "REC4:X49Y15S0I14")
+					std::cout << "lala land" << std::endl;
 
 				// enter the delay into the REsDelay map in addition to the cell re delay this is only inserted in the first routing element (RE)
 				insert_to_REsDelay(tempKeyRE, cellREDelay + REDelay, edgeType);

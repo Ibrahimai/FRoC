@@ -22,15 +22,23 @@ extern ALM alms[FPGAsizeX][FPGAsizeY][ALMsinLAB];
 //extern Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
 																 //std::vector < std::vector <bool>> testingPhases;
 extern int numberOfTestPhases;
+
+////todo: group all these paths* vectors into one data structure
 extern std::vector <double> pathSlack; // stores paths alck used to determine wether an edge is tested through it most critical path or not
 
 extern std::vector <double> pathClockSkew; // stores clock skew of each path, which we use in calculating the slack 
 
 extern std::vector <double> pathREsDelta; // store the delta delays of the used REs in each path
 
+extern std::vector <double> pathClockRelation; // store the clock setup relation ship of  each path
+
 extern std::vector< std::vector<Path_node> > paths; // model the paths
 
 extern std::ofstream IgnoredPathStats; // dleete after obtaining stats
+
+extern std::ofstream RE_MCSim; // store MC results
+
+extern std::ofstream TE_MCSim; // store MC results
 
 // monteCarlo stuff
 

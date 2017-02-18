@@ -191,6 +191,9 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 	std::cout << "*******************************************************************" << std::endl;
 	std::cout << "MC simulation with timing edges : " << std::endl;
 
+	TE_MCSim << "*******************************************************************" << std::endl;
+	TE_MCSim << "MC simulation with timing edges : " << std::endl;
+
 	// generate a new random seed for each MC simulation
 	std::random_device seed;
 	std::mt19937 gen{ seed() };
@@ -555,22 +558,22 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 	// print problematic paths
 	for (int k = 0; k < problematicPaths.size(); k++)
 	{
-		std::cout << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
+		TE_MCSim << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
 	}
-	std::cout << "=----=-=-09-09=-=-09-0=-0==-0-9=-=0- " << std::endl;
+	TE_MCSim << "=----=-=-09-09=-=-09-0=-0==-0-9=-=0- " << std::endl;
 
 	int slowestPath = longestPaths[0].first;
 	for (int k = 0; k < longestPaths.size(); k++)
 	{
 		if (longestPaths[k].first > slowestPath)
 			slowestPath = longestPaths[k].first;
-		std::cout << "Path " << longestPaths[k].first << " is the longest in " << longestPaths[k].second << " samples." << std::endl;
+		TE_MCSim << "Path " << longestPaths[k].first << " is the longest in " << longestPaths[k].second << " samples." << std::endl;
 	}
-	std::cout << "Number of paths that were the longest " << longestPaths.size() << std::endl;
-	std::cout << "Fastest slowest path was " << slowestPath << std::endl;
+	TE_MCSim << "Number of paths that were the longest " << longestPaths.size() << std::endl;
+	TE_MCSim << "Fastest slowest path was " << slowestPath << std::endl;
 	
-	std::cout << "Out of all the MC samples, the shortest delay was for path " << shortestCriticalPath_delay.first << " delay was " << shortestCriticalPath_delay.second << std::endl;
-	std::cout << "Out of all the MC samples, the longest delay was for path " << longestCriticalPath_delay.first << " delay was " << longestCriticalPath_delay.second << std::endl;
+	TE_MCSim << "Out of all the MC samples, the shortest delay was for path " << shortestCriticalPath_delay.first << " delay was " << shortestCriticalPath_delay.second << std::endl;
+	TE_MCSim << "Out of all the MC samples, the longest delay was for path " << longestCriticalPath_delay.first << " delay was " << longestCriticalPath_delay.second << std::endl;
 
 	return (num_of_failures*1.0) / num_of_simulations;
 }
@@ -584,6 +587,9 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 
 	std::cout << "*******************************************************************" << std::endl;
 	std::cout << "MC simulation with REs : " << std::endl;
+
+	RE_MCSim << "*******************************************************************" << std::endl;
+	RE_MCSim << "MC simulation with REs : " << std::endl;
 
 	// generate a new random seed for each MC simulation
 	std::random_device seed;
@@ -982,21 +988,21 @@ double MC_sim_RE(int num_of_simulations, std::vector<int> untestedPaths, std::ve
 	// print problematic paths
 	for (int k = 0; k < problematicPaths.size(); k++)
 	{
-		std::cout << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
+		RE_MCSim << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
 	}
-	std::cout << "=----=-=-09-09=-=-09-0=-0==-0-9=-=0- " << std::endl;
+	RE_MCSim << "=----=-=-09-09=-=-09-0=-0==-0-9=-=0- " << std::endl;
 	int slowestPath = longestPaths[0].first;
 	for (int k = 0; k < longestPaths.size(); k++)
 	{
 		if (longestPaths[k].first > slowestPath)
 			slowestPath = longestPaths[k].first;
-		std::cout << "Path " << longestPaths[k].first << " is the longest in " << longestPaths[k].second << " samples." << std::endl;
+		RE_MCSim << "Path " << longestPaths[k].first << " is the longest in " << longestPaths[k].second << " samples." << std::endl;
 	}
-	std::cout << "Number of paths that were the longest " << longestPaths.size() << std::endl;
-	std::cout << "Fastest slowest path was " << slowestPath << std::endl;
+	RE_MCSim << "Number of paths that were the longest " << longestPaths.size() << std::endl;
+	RE_MCSim << "Fastest slowest path was " << slowestPath << std::endl;
 
-	std::cout << "Out of all the MC samples, the shortest delay was for path " << shortestCriticalPath_delay.first << " delay was " << shortestCriticalPath_delay.second << std::endl;
-	std::cout << "Out of all the MC samples, the longest delay was for path " << longestCriticalPath_delay.first << " delay was " << longestCriticalPath_delay.second << std::endl;
+	RE_MCSim << "Out of all the MC samples, the shortest delay was for path " << shortestCriticalPath_delay.first << " delay was " << shortestCriticalPath_delay.second << std::endl;
+	RE_MCSim << "Out of all the MC samples, the longest delay was for path " << longestCriticalPath_delay.first << " delay was " << longestCriticalPath_delay.second << std::endl;
 
 
 	return (num_of_failures*1.0) / num_of_simulations;
@@ -1186,7 +1192,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 	std::cout << "using Edges " << std::endl;
 	for (int i = 1; i < pathsDelay.size(); i++)
 	{
-		double calcSlack = relationship - pathsDelay[i] - 0.002; // the 0.002 is the clock uncertaininty used by quartus
+		double calcSlack = pathClockRelation[i] - pathsDelay[i] - 0.002; // the 0.002 is the clock uncertaininty used by quartus
 		double storedSlack = pathSlack[i];
 		if (abs(calcSlack - storedSlack)>0.009)
 		{
@@ -1470,7 +1476,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 
 	for (int i = 1; i < pathsDelay.size(); i++)
 	{
-		double calcSlack = relationship - pathsDelay[i] - 0.002; // the 0.002 is the clock uncertaininty used by quartus
+		double calcSlack = pathClockRelation[i] - pathsDelay[i] - 0.002; // the 0.002 is the clock uncertaininty used by quartus
 		double storedSlack = pathSlack[i];
 		if (abs(calcSlack - storedSlack)>0.009)
 		{
@@ -1494,9 +1500,9 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 /////////////// RUn MC simulation //////////////////////
 ////////////////////////////////////////////////////////
 
-void run_MC(int number_of_samples, bool strictCoverage, std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, int remainingPaths)
+void run_MC(int number_of_samples, bool strictCoverage, std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, int remainingPaths, double sigma, double qDelayInter )
 {
-
+	std::cout << "**************************** Running MC simulation for " << number_of_samples << " samples with sigma of " << sigma << " and qdelay as mean plus " << qDelayInter << " sigma " << std::endl;
 
 	int testedEdges;
 //	if (strictCoverage)
@@ -1508,7 +1514,7 @@ void run_MC(int number_of_samples, bool strictCoverage, std::map<std::string, do
 //	{
 	//	get_allPathsTested(remainingPaths);
 
-		std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << "untested " << std::endl;
+		std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << " untested " << std::endl;
 		std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;
 
 		std::vector<int> testedPaths;
@@ -1538,8 +1544,8 @@ void run_MC(int number_of_samples, bool strictCoverage, std::map<std::string, do
 
 		// starting MC simulation
 
-		MC_generate_edges_rand_vars(0.05, 3);
-		MC_generate_REs_rand_vars(0.05, 3);
+		MC_generate_edges_rand_vars(sigma, qDelayInter);
+		MC_generate_REs_rand_vars(sigma, qDelayInter);
 
 		if (MC_validate_RE_delays(timingEdgeToPaths))
 			std::cout << "Alles clar " << std::endl;
@@ -1554,10 +1560,12 @@ void run_MC(int number_of_samples, bool strictCoverage, std::map<std::string, do
 		double failureProb = MC_sim_edges(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
 		//		double failureProb = 0.0;
 		std::cout << "failure rate with timing edges is " << failureProb << std::endl;
+		TE_MCSim << "failure rate with timing edges is " << failureProb << std::endl;
 
 		failureProb = MC_sim_RE(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
 		//		double failureProb = 0.0;
-		std::cout << "failure rate with timing edges is " << failureProb << std::endl;
+		std::cout << "failure rate with RE is " << failureProb << std::endl;
+		RE_MCSim << "failure rate with RE is " << failureProb << std::endl;
 		
 //	}
 }

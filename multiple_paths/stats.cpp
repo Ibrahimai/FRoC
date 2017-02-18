@@ -665,6 +665,27 @@ int count_timing_edges_realistic(std::map<std::string, double>  testedTimingEdge
 	return total;
 }
 
+
+
+
+// prints the relationship - slack for each path and the normalized values to a text file this is used to plot graphs and results
+void print_paths_delays(std::string name_prefix)
+{
+	std::string delay_file_name = name_prefix + "_delayInfo.txt";
+//	std::cout << timingEdgesDelay.size() << std::endl;
+	std::ofstream delayTextFile;
+	delayTextFile.open(delay_file_name);
+
+	delayTextFile << "Path\tDelay\tNorm" << std::endl;
+	for (int i = 1; i < paths.size(); i++)
+	{
+		delayTextFile << i << "\t" << pathClockRelation[i] - pathSlack[i] << "\t" << (pathClockRelation[i] - pathSlack[i]) / (pathClockRelation[1] - pathSlack[1]) << std::endl;
+
+	}
+
+	delayTextFile.close();
+}
+
 #ifdef StratixV
 void LUT_inputs_stat()
 {
