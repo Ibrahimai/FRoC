@@ -221,7 +221,7 @@ void ILP_solve()
 
 
 // maximize number of paths/ bitstream, using auxilliary variables to represent LUT inputs and use these variables to create constraints for LUT inputs and re-convergent fanout
-void ILP_solve_2()
+void ILP_solve_2(std::vector<double> pathsImport, bool use_MC, int bitstreams) // bitstreams just for debugging purposes
 {
 	try {
 		GRBEnv env = GRBEnv();
@@ -351,7 +351,8 @@ void ILP_solve_2()
 			if (paths[i][0].deleted) // path is deleted
 			{
 				model.addConstr(vars[i - 1], GRB_EQUAL, 0.0);
-
+				
+				
 			}
 
 		}
@@ -1195,14 +1196,43 @@ void ILP_solve_2()
 		/// set objective function /////
 		////////////////////////////////
 		GRBLinExpr obj = 0.0;
-
-		for (int i = 0; i < num_of_paths; i++)
+		double* coeff = new double[num_of_paths];
+		if (use_MC) // use the information we got from MC to test paths
 		{
-			if (paths[i + 1][0].deleted)
-				continue;
-			obj += vars[i];
-		}
+			assert(pathsImport.size() == num_of_paths + 1);
 
+			if (bitstreams == 1)
+			{
+				std::cout << "\\\\\\\\\\\\\\\\\\\\\\///////////////\\\\\\\\\\\\\\\\\\/////////////////deleteing" << std::endl;
+			}
+
+			for (int i = 0; i < num_of_paths; i++)
+			{
+				coeff[i] = pathsImport[i + 1];
+			//	if (coeff[i] >= 1)
+			//		std::cout << i + 1 << " ";
+				//(1.0 / (num_of_paths*num_of_paths))* (num_of_paths - i); //num_of_paths - 
+				if (bitstreams == 1) // lsat bit stream with the problem
+				{
+				//	if (coeff[i] < 1.0)
+				//		model.addConstr(vars[i], GRB_EQUAL, 0.0);
+				}
+			}
+
+			obj.addTerms(coeff, vars, num_of_paths);
+			
+		}
+		else // just try maximizing tested paths with equal probability
+		{
+
+
+			for (int i = 0; i < num_of_paths; i++)
+			{
+				if (paths[i + 1][0].deleted)
+					continue;
+				obj += vars[i];
+			}
+		}
 		model.setObjective(obj, GRB_MAXIMIZE);
 
 		model.optimize();
@@ -1225,6 +1255,9 @@ void ILP_solve_2()
 			}
 			else
 			{
+					//	std::cout << vars[i].get(GRB_StringAttr_VarName) << " "
+					//		<< vars[i].get(GRB_DoubleAttr_X) << " " << 
+					//		coeff[i] << std::endl;
 				if (vars[i].get(GRB_DoubleAttr_X)  <= 0.9999)
 					std::cout << i << " " << vars[i].get(GRB_DoubleAttr_X) << std::endl;
 				assert(vars[i].get(GRB_DoubleAttr_X) > 0.9999);
@@ -1252,6 +1285,7 @@ void ILP_solve_2()
 		delete[] up_vars_aux;
 		delete[] type_vars_aux;
 		delete[] names_vars_aux;
+		delete[] coeff;
 
 	}
 	catch (GRBException e) {
@@ -2622,7 +2656,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 
 
 
-void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vector<int> > & pathsSchedule)
+void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vector<int> > & pathsSchedule, std::vector<double> pathsImport, bool use_MC)
 {
 	try {
 		std::cout << "-------MAximizing paths per " << bitStreams << "-----" << std::endl;
@@ -3548,18 +3582,50 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		////////////////////////////////
 		/// set objective function /////
 		////////////////////////////////
+
+		/////////
+		/////////
+		
+		/////////
+		/////////
 		GRBLinExpr obj = 0.0;
+		double* coeff = new double[num_of_paths];
 		std::cout << "number of bit streams " << bitStreams << std::endl;
-		for (int i = 0; i < num_of_paths; i++)
+		if (use_MC) // use the information we got from MC to test paths
 		{
-			if (paths[i + 1][0].deleted)
-				continue;
+			assert(pathsImport.size() == num_of_paths + 1);
+
+			for (int i = 0; i < num_of_paths; i++)
+			{
+				
+				coeff[i] = pathsImport[i + 1];
+				//(1.0 / (num_of_paths*num_of_paths))* (num_of_paths - i); //num_of_paths - 
+			}
+
+
+
 			for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
 			{
-				obj += vars[bitStreamCounter][i];
+			//	obj += vars[bitStreamCounter][i];
+				obj.addTerms(coeff, vars[bitStreamCounter], num_of_paths);
+			}
+			
+
+			
+		}
+		else
+		{
+	
+			for (int i = 0; i < num_of_paths; i++)
+			{
+				if (paths[i + 1][0].deleted)
+					continue;
+				for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
+				{
+					obj += vars[bitStreamCounter][i];
+				}
 			}
 		}
-
 		model.setObjective(obj, GRB_MAXIMIZE);
 
 		model.optimize();
@@ -3582,12 +3648,14 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 			}
 			else
 			{
+
+
 				if (vars[0][i].get(GRB_DoubleAttr_X) <= 0.9999)
 					std::cout << i << " " << vars[0][i].get(GRB_DoubleAttr_X) << std::endl;
 				assert(vars[0][i].get(GRB_DoubleAttr_X) > 0.9999);
 			}
-			//		std::cout << vars[i].get(GRB_StringAttr_VarName) << " "
-			//			<< vars[i].get(GRB_DoubleAttr_X) << std::endl;
+			
+					
 		}
 
 
@@ -3621,6 +3689,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		delete[] up_vars_aux;
 		delete[] type_vars_aux;
 		delete[] names_vars_aux;
+		delete[] coeff;
 
 	}
 	catch (GRBException e) {

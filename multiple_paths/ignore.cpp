@@ -57,13 +57,13 @@ int remove_fanin_higher_than_three() // esnures that he number of inputs + the n
 				/// debugging begin
 				int oldTotal = totalIn;
 
-				totalIn +=  reduce_number_of_LUT_inputs(i, j, k, excessInputs); //reduce_number_of_LUT_inputs_maximize_tested_paths(i, j, k, excessInputs);//
+				totalIn +=  reduce_number_of_LUT_inputs_maximize_tested_paths(i, j, k, excessInputs);//reduce_number_of_LUT_inputs(i, j, k, excessInputs); //
 
 				if (oldTotal != totalIn)
 				{
 					// we deleted stuff
-					std::cout << " deleted " << totalIn - oldTotal << " at LUT " << i << " " << j << " " << k << std::endl;
-					std::cout << "adder value is " << adder << " inputs used " << inputs_before_deleteing << "required control" << reqControl_befor_deletion <<std::endl << std::endl;
+				//	std::cout << " deleted " << totalIn - oldTotal << " at LUT " << i << " " << j << " " << k << std::endl;
+				//	std::cout << "adder value is " << adder << " inputs used " << inputs_before_deleteing << "required control" << reqControl_befor_deletion <<std::endl << std::endl;
 
 					check_control_signal_required_second(i, j, k);
 				}
@@ -804,7 +804,7 @@ void assign_test_phases_ib()
 	std::vector < std::vector <int> > pathRelationGraph;
 	// create the graph representing the connections between paths
 	
-//	delete_especial_reconvergent_fanout();
+	//delete_especial_reconvergent_fanout();
 	
 	generate_pathRelationGraph(pathRelationGraph); //creates the PRG and add edges to ensure that all off path inputs of every tested path is fixed (cannot test 2 oaths with fan-in overlap)
 

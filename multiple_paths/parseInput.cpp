@@ -631,6 +631,9 @@ void insert_to_REsDelay(std::string tempKey, double delay, int edgeType)
 	auto iter = REsDelay.find(tempKey);
 
 	// 
+
+	if (tempKey == "RELE_BUFFER:X84Y45S0I12")
+		std::cout << "debuggng" << std::endl;
 	if (iter == REsDelay.end()) // RE not found
 	{
 

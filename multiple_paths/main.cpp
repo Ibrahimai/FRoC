@@ -202,7 +202,7 @@ void delete_all()
 }
 
 
-void cycloneIV_stuff(bool & scheduleChanged, std::vector < std::vector<int> > & pathsSchedule, int bitStreams,  int feedbackPaths, int remainingPaths, std::map<std::string, double>  & testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete, bool strictCoverage)
+void cycloneIV_stuff(bool & scheduleChanged, std::vector < std::vector<int> > & pathsSchedule, int bitStreams,  int feedbackPaths, int remainingPaths, std::map<std::string, double>  & testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, std::map<std::string, double>  timingEdgesMapComplete, bool strictCoverage, std::vector<double> pathsImport, bool use_MC)
 {
 	int i;
 	calc_stats();
@@ -217,14 +217,15 @@ void cycloneIV_stuff(bool & scheduleChanged, std::vector < std::vector<int> > & 
 	// try ibrahim
 	//delete_especial_reconvergent_fanout();
 	//ILP_solve();
-//	ILP_solve_2();
-	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, strictCoverage, casacadedRegion);
+	ILP_solve_2(pathsImport, use_MC, bitStreams);
+//	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, strictCoverage, casacadedRegion);
 //	ILP_solve_3();
 
 #ifdef maxPerBitStream
+	scheduleChanged = true;
 	if (scheduleChanged)
 	{
-		ILP_solve_max_paths_per_x_bit_stream(bitStreams, pathsSchedule);
+		ILP_solve_max_paths_per_x_bit_stream(bitStreams, pathsSchedule, pathsImport, use_MC);
 		scheduleChanged = false;
 	}
 	else
@@ -259,8 +260,8 @@ void cycloneIV_stuff(bool & scheduleChanged, std::vector < std::vector<int> > & 
 	std::cout << "total number of edges " << totalTimingEdges << std::endl;
 	check_LE_outputs();
 
-	if(remove_arithLUT_with_two_inputs_and_no_cin() > 0)
-		scheduleChanged = true;
+//	if(remove_arithLUT_with_two_inputs_and_no_cin() > 0)
+//		scheduleChanged = true;
 
 	std::cout << "after removing situation when adder uses two inputs no cin and cannot control cin  number of luts is  ,";
 	check_LE_outputs();
@@ -427,6 +428,108 @@ void stratixV_stuff()
 	
 }
 #endif
+
+
+
+int get_number_of_failure(std::vector<double>  pathsImport)
+{
+	int count = 0;
+
+	for (int i = 1; i < pathsImport.size(); i++)
+	{
+		if (pathsImport[i] >= 1.0) // it was critical
+		{
+			if (!paths[i][0].tested) // it was not tested
+			{
+				count += pathsImport[i];
+		//		std::cout << "path nyumber " << i << " not tested " << pathsImport[i] <<  std::endl;
+			}
+			
+		}
+	}
+	assert((int)count == count);
+
+	return count;
+}
+
+// return a vectos wit paths importance just like the MC but this guy gets it from a text file, 
+// to save run time for FPL 2017 paper
+std::vector<double> get_paths_import_from_file(char* mc_prev_run)
+{
+	std::ifstream mc_prev_file(mc_prev_run);
+	if (!mc_prev_file)
+	{
+		std::cout << "Can not find file" << mc_prev_run << "  Terminating.... " << std::endl;
+		assert(false);
+	}
+	std::vector<double> pathsImport;
+
+	pathsImport.clear();
+	pathsImport.resize(paths.size());
+
+	std::fill(pathsImport.begin(), pathsImport.end(), 0.0);
+	std::string line;
+
+	std::string tempNumber;
+	while (std::getline(mc_prev_file, line))
+	{
+		tempNumber.clear();
+		tempNumber.resize(0);
+		int i = 0;
+		for (; i < line.size(); i++)
+		{
+			if (!isdigit(line[i]))
+				break;
+			else
+				tempNumber.push_back(line[i]);
+		}
+		int index = stoi(tempNumber);
+		i++;
+		tempNumber.clear();
+		tempNumber.resize(0);
+		for (; i < line.size(); i++)
+		{
+			if (!isdigit(line[i]))
+				break;
+			else
+				tempNumber.push_back(line[i]);
+		}
+		double value = stof(tempNumber);
+
+		pathsImport[index] = value;
+	}
+
+	for (int k = 1; k < pathsImport.size(); k++)
+	{
+		if (pathsImport[k] != 0)
+			continue;
+		pathsImport[k] = 1.0 / (paths.size());// *((k / 10) + 1));// *num_of_failures);
+
+	}
+	
+	return pathsImport;
+}
+
+
+void helper(std::vector<double>  & pathsImport)
+{
+	std::cout << "*************************************************************************************" << std::endl;
+	std::cout << "*************************************************************************************" << std::endl;
+	std::cout << "*************************************************************************************" << std::endl;
+	std::cout << "hansafar ya dawly" << std::endl;
+	std::cout << "*************************************************************************************" << std::endl;
+	std::cout << "*************************************************************************************" << std::endl;
+	std::cout << "*************************************************************************************" << std::endl;
+	for (int k = 1; k < pathsImport.size(); k++)
+	{
+		if (pathsImport[k] >= 1)
+			continue;
+	//	std::cout << k << " ";
+		pathsImport[k] = 0;
+
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	
@@ -460,7 +563,7 @@ int main(int argc, char* argv[])
 
 	bool  scheduleChanged = true;
 	std::vector < std::vector<int> > pathsSchedule;
-	int x = 6;
+	int x = 1;
 #ifdef MCsim
 	assert(timingEdgesDelay.size() == timingEdgesMapComplete.size());
 
@@ -473,6 +576,12 @@ int main(int argc, char* argv[])
 	int number_of_samples = 5000;
 	
 	bool strictCoverage = true;
+	bool use_MC = true;
+	int corelationModel = PARTIALCORELATION;
+	bool slidingWindow = true;
+	bool useFileForMC = true;
+
+
 	double sigma;
 	double qDelayInter;
 
@@ -488,103 +597,86 @@ int main(int argc, char* argv[])
 		qDelayInter = atof(argv[8]);
 	}
 
-	print_paths_delays(temp);
-	run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter);
-	return 0;
+	//print_paths_delays(temp);
+	std::vector<double>  pathsImport;
+	std::vector<double>  pathsImport_check;
+	std::vector<double>  firstPathsImport;
+
+	
+
+
+	std::fill(pathsImport.begin(), pathsImport.end(), 1.0); // default importance of 1 to all paths
+	int num_of_bit_stream = 0;
+	//return 0;
 #endif
+	int checkFailures;
+	if (!useFileForMC)
+	{
+		auto const start = std::chrono::high_resolution_clock::now();
+		checkFailures = run_MC(slidingWindow, corelationModel, number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
+		auto const end = std::chrono::high_resolution_clock::now();
+
+		auto delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+		std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+		std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+		std::cout << "MC simulation of " << number_of_samples << " took " << (delta_time.count())/(1000.0) << " seconds " << std::endl;
+		std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+		std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+	}
+	else
+	{
+		pathsImport = get_paths_import_from_file(argv[9]);
+		
+	}
+//	std::cout << "Important INFRO *******************************************************************************" << std::endl;
+//	std::cout << "Important INFRO *******************************************************************************" << std::endl;
+//	std::cout << "Number of paths in Pcand is " << paths.size() - 1 << " but number of paths that were founc critical is " << checkFailures << std::endl;
+//	std::cout << "Important INFRO *******************************************************************************" << std::endl;
+//	std::cout << "Important INFRO *******************************************************************************" << std::endl;
+//	return 0;
+	pathsImport_check = get_paths_import_from_file(argv[9]);
+	int number_of_samples_check = 1000000;
+	firstPathsImport = pathsImport;
+//	helper(pathsImport);
 	while (true)
 	{
 	//	scheduleChanged = true;
-		cycloneIV_stuff(scheduleChanged, pathsSchedule, x,feedbackPaths, remainingPaths, testedTimingEdgesMap, timingEdgeToPaths, timingEdgesMapComplete, strictCoverage);
+		
+		// effect of only using the first MC sim
+	//	pathsImport = firstPathsImport;
+
+	//	int numberOfFailures = get_number_of_failure(pathsImport);
+
+	//	std::cout << numberOfFailures << " " << checkFailures << std::endl;
+
+//		if (num_of_bit_stream == 0)
+	//		if (!useFileForMC)
+		//		assert(numberOfFailures == checkFailures);
+
+		cycloneIV_stuff(scheduleChanged, pathsSchedule, x,feedbackPaths, remainingPaths, testedTimingEdgesMap, timingEdgeToPaths, timingEdgesMapComplete, strictCoverage, pathsImport, use_MC);
+		num_of_bit_stream++;
+		get_allPathsTested(remainingPaths);
 		IgnoredPathStats << testedTimingEdgesMap.size() << "\t";
 		IgnoredPathStats << count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete) << "\t" << std::endl;
 
-		int testedEdgesTillNow;
+	
 
-		if (strictCoverage)
-			testedEdgesTillNow = count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete);
-		else
-			testedEdgesTillNow = testedTimingEdgesMap.size();
-
-		get_allPathsTested(remainingPaths);			
-		///////////////////////////////// MC stuff begin ////////////////////////////////////////////////////////
-		///////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifdef MCsim
-		int testedEdges;
-		if (strictCoverage)
-			testedEdges = count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete);
-		else
-			testedEdges = testedTimingEdgesMap.size();
-
-			if (testedEdges == timingEdgesMapComplete.size()) // then all edges has been tested
-		{
-			/*	run_MC(number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths);
-
-			get_allPathsTested(remainingPaths);
-
-			std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << "untested " << std::endl;
-			std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;
-
-			std::vector<int> testedPaths;
-			testedPaths.resize(0);
-			std::vector<int> unTestedPaths;
-			unTestedPaths.resize(0);
-
-			for (int j = 0; j < paths.size(); j++)
-			{
-				if (paths[j].size() < 1)
-					continue;
-				if (paths[j][0].tested)
-				{
-					testedPaths.push_back(j);
-				}
-				else
-				{
-					unTestedPaths.push_back(j);
-				}
-			}
-
-			assert(remainingPaths == unTestedPaths.size());
-
-			// starting MC simulation
-
-			MC_generate_edges_rand_vars(0.05, 3);
-			MC_generate_REs_rand_vars(0.05, 3);
-
-			if (MC_validate_RE_delays(timingEdgeToPaths))
-				std::cout << "Alles clar " << std::endl;
-			else
-				assert(false);
-
-			if (MC_validate_edges_delays(timingEdgeToPaths))
-				std::cout << "Alles clar " << std::endl;
-			else
-				assert(false);
-
-			double failureProb = MC_sim_edges(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
-			//		double failureProb = 0.0;
-			std::cout << "failure rate with timing edges is " << failureProb << std::endl;
-
-			failureProb = MC_sim_RE(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths);
-			//		double failureProb = 0.0;
-			std::cout << "failure rate with timing edges is " << failureProb << std::endl;*/
-			return 0;
-		}
-#endif // MCsim
-
-		///////////////////////////////////////////////////////////////////////////////////////////////
-		///////////////////////////////// MC stuff end ////////////////////////////////////////////////
-		///////////////////////////////////////////////////////////////////////////////////////////////
-
-		if (get_allPathsTested(remainingPaths))// || (testedEdgesTillNow == timingEdgesMapComplete.size()))
+		if (get_allPathsTested(remainingPaths) || x == 1)// || (testedEdgesTillNow == timingEdgesMapComplete.size()))
 		{
 			print_stats(argv);
 			count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete);
+			// Now I am done testing, I will check prob of failure
+			//rerun_MC(slidingWindow, corelationModel, number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
+
 		//	if (x == 0)
 		//	{
 				std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 				std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 				std::cout << "      " << remainingPaths << "remainig" << std::endl;
+				std::cout << "   Bit stream number    " << num_of_bit_stream << " " << std::endl;
+				std::cout << " Probability of failure is " << (get_number_of_failure(pathsImport_check)*1.0) / number_of_samples_check << std::endl;
+			//	rerun_MC(slidingWindow, corelationModel, number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
+
 				std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 				std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 		//	}
@@ -595,6 +687,11 @@ int main(int argc, char* argv[])
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 			std::cout << "      " << remainingPaths << "remainig" << std::endl;
+			std::cout << "   Bit stream number    " << num_of_bit_stream << " " << std::endl;
+		//	if (x == 2)
+		//		helper(pathsImport);
+
+			std::cout << " Probability of failure is " << (get_number_of_failure(pathsImport_check)*1.0) / number_of_samples_check << std::endl;
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 			std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 
@@ -606,6 +703,7 @@ int main(int argc, char* argv[])
 			if (remainingPaths == feedbackPaths)
 				set_number_of_bitstreams_ohne_feedback();
 		}
+		x--;
 
 	}
 

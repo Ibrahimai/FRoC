@@ -1,6 +1,12 @@
 /*ibrahim*/
 #pragma once
 #define MCsim
+
+// MC stuff
+#define NOCORELATION 0
+#define FULLCORELATION 1
+#define PARTIALCORELATION 2
+
 #include "fpgaAarch.h"
 #ifdef CycloneIV
 #include "cycloneIV_model.h"
