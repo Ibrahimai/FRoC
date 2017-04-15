@@ -4,17 +4,313 @@
 #include "util.h"
 
 #ifdef CycloneIV
-int parseIn(int argc, char* argv[])
-{
-	if (argc<4)
+
+// returns 0 if it fails
+int parseOptions(int argc, char* argv[], 
+	std::string & outputName, 
+	bool &  MCsimulation,
+	bool &  readMCsamplesFile,
+	int &  calibBitstreams,
+	bool &  ILPform,
+	bool &  optPerXBitstreams,
+	double &  var,
+	double &  yld,
+	int &  MCsamplesCount,
+	std::string & MCsimFileName){
+	////////////////////////////////////////////////
+	// Possible inputs file that iFRoC could take///
+	////////////////////////////////////////////////
+
+	// Musts
+	std::string metaFileName = "";
+	std::string metaRoutingFileName = "";
+
+	// not required
+	std::string metaEdgeFileName = "";
+	MCsimFileName = "";
+	std::string checkRoutingFileName = ""; // file name of the rcf generated from the calibration bitstream, we use it to double check that our constraint were honored
+	outputName = "unkown";
+
+	// default option values
+	MCsimulation = false; // default no MCsim
+	readMCsamplesFile = false; // default no MCsim
+	calibBitstreams = 1; // 1 calibration bitstream
+	ILPform = false; // no ILP
+	optPerXBitstreams = false; // default mazimize per 1 bitstream
+	var = 0.05;
+	yld = 2;
+	MCsamplesCount = 10000;
+
+
+	// vector of strings to store all command line arguments
+	std::vector<std::string> allCommandArguments;
+	allCommandArguments.resize(argc - 1);
+
+	// copy from argv to our vector of strings
+	for (int i = 0; i < allCommandArguments.size(); i++)
+		allCommandArguments[i] = argv[i + 1];
+
+
+	std::string option = "";
+	for (int i = 0; i < allCommandArguments.size(); i++)
 	{
-		std::cout << "No Input file was given. Terminating.... /n";
+		if (allCommandArguments[i][0] == '-') // if its an option, lets check if we are expecting an option or not
+		{
+			if (option != "") // we are not expecting an option, oops wrong input
+			{
+				if (option == "-h" || option == "--help") // meta file name
+				{
+					helpMessage();
+					return 0;
+				}
+				std::cout << "option " << option << " has no value." << std::endl;
+				std::cout << "Terminating program...." << std::endl;
+				return 0;
+			}
+			else // we are actually expecting an option, so all good.
+			{
+				option = allCommandArguments[i];
+			}
+			continue;
+
+		}
+
+		if (option == "")
+		{
+			std::cout << "Wrong input format. " << allCommandArguments[i] << " was not preceeded by an option." << std::endl;
+			std::cout << "Terminating program...." << std::endl;
+			return 0;
+		}
+
+		// we have an option set and allcommandarg[i] is a value
+
+		if (option == "-fp" || option == "--meta") // meta file name
+		{
+			std::cout << "Meta file name is: " << allCommandArguments[i] << std::endl;
+			metaFileName = allCommandArguments[i];
+		}
+		else if (option == "-fr" || option == "--metaRouting") // meta routing file name
+		{
+			std::cout << "MetaRouting routing file name is: " << allCommandArguments[i] << std::endl;
+			metaRoutingFileName = allCommandArguments[i];
+		}
+		else if (option == "-fe" || option == "--metaEdge") // meta edge file name
+		{
+			std::cout << "MetaEdge used for MC file name is " << allCommandArguments[i] << std::endl;
+			metaEdgeFileName = allCommandArguments[i];
+			// meta edge presence means that we are doing MC sim
+			MCsimulation = true;
+		}
+		else if (option == "-fmc" || option == "--MCfile") // meta edge file name
+		{
+			std::cout << "MC samples file name is " << allCommandArguments[i] << std::endl;
+			MCsimFileName = allCommandArguments[i];
+			MCsimulation = true; 
+			ILPform = true; // MC sim omplies ILP form
+			readMCsamplesFile = true;
+		}
+		else if (option == "-o" || option == "--outputName") // output
+		{
+			std::cout << "Output file preceeded by  " << allCommandArguments[i] << std::endl;
+			outputName = allCommandArguments[i];
+		}
+		else if (option == "-n" || option == "--bitstreams") // number of bit streams
+		{
+			std::cout << "test number of bit streams is " << allCommandArguments[i] << std::endl;
+			if(isInt(allCommandArguments[i]))
+				calibBitstreams = stoi(allCommandArguments[i]);
+			else
+			{
+				std::cout << "ahaa but " << allCommandArguments[i] << " is not really an integer !!" << std::endl;
+				std::cout << "Terminating program...." << std::endl;
+				return 0;
+			}
+		}
+		else if (option == "-v" || option == "--var") // var for MC sim, should be entered as a pecentage of the mean
+		{
+			std::cout << "var is: " << allCommandArguments[i] << std::endl;
+			if (isInt(allCommandArguments[i]))
+			{
+				var = (stoi(allCommandArguments[i])*1.0) / 100.0;
+				MCsimulation = true;
+				ILPform = true; // MC sim omplies ILP form
+			}
+			else
+			{
+				std::cout << "ahaa but " << allCommandArguments[i] << " is not really an integer !!" << std::endl;
+				std::cout << "Terminating program...." << std::endl;
+				return 0;
+			}
+			
+		}
+		else if (option == "-y" || option == "--yld") // yld, how Quartus interprets the "worst-case delay"
+		{
+			std::cout << "yld is " << allCommandArguments[i] << std::endl;
+			if (isInt(allCommandArguments[i]))
+			{
+				yld = (stoi(allCommandArguments[i])*1.0) ;
+				MCsimulation = true;
+				ILPform = true; // MC sim omplies ILP form
+			}
+			else
+			{
+				std::cout << "ahaa but " << allCommandArguments[i] << " is not really an integer !!" << std::endl;
+				std::cout << "Terminating program...." << std::endl;
+				return 0;
+			}
+		}
+		else if (option == "-mc" || option == "--MCsamples") // number of mc samples
+		{
+			std::cout << "Number of MCsamples is " << allCommandArguments[i] << std::endl;
+			if (isInt(allCommandArguments[i]))
+			{
+				MCsamplesCount = (stoi(allCommandArguments[i]));
+				MCsimulation = true;
+				ILPform = true; // MC sim omplies ILP form
+			}
+			else
+			{
+				std::cout << "ahaa but " << allCommandArguments[i] << " is not really an integer !!" << std::endl;
+				std::cout << "Terminating program...." << std::endl;
+				return 0;
+			}
+		}
+		else if (option == "-i" || option == "--ILP") // 0 means per bit stream anyhing else means per X bit stream
+		{
+			std::cout << "test ILP is " << allCommandArguments[i] << std::endl;
+			ILPform = true;
+			if (allCommandArguments[i][0] == '0')
+			{
+				std::cout << "ILP optimization per 1 bitstream" << std::endl;
+			}
+			else
+			{
+				optPerXBitstreams = true;
+				std::cout << "ILP optimization per X bitstreams" << std::endl;
+			}
+		}
+		else
+		{
+			std::cout << "option " << option << " is not supported." << std::endl;
+			std::cout << "Terminating program...." << std::endl;
+			return 0;
+		}
+
+		option = "";
+	}
+
+	// if we finished the loop and option is not empty then sthis option was not set
+	if (option != "")
+	{
+		if (option == "-h" || option == "--help") // meta file name
+		{
+			helpMessage();
+			return 0;
+		}
+		std::cout << "option " << option << " has no value." << std::endl;
+		std::cout << "Terminating program...." << std::endl;
 		return 0;
 	}
-	std::ifstream metaData(argv[1]);
+
+	if (metaFileName == "" || metaRoutingFileName == "") // no inputs files were given so we can't run iFRoC
+	{
+		std::cout << "Not enough input files were given. iFRoC needs a meta file and a meta routing file." << std::endl;
+		std::cout << "Terminating program...." << std::endl;
+		return 0;
+
+	}
+
+	if (metaEdgeFileName == "" && MCsimulation) // if the user asked for MC simulation but did not give a meta edge file then we will not do MC
+	{
+		MCsimulation = false;
+		std::cout << std::endl << "Mc simulation was requested but no timing edge file was given. iFRoC will ignoe MC request." << std::endl;
+
+	}
+
+	// parse the meta file
+
+	if (parseIn(metaFileName) == 0)
+	{
+		std::cout << "Terminating program...." << std::endl;
+		return 0;
+	}
+
+	// parse the routing file
+	if (read_routing(metaRoutingFileName) == 1)
+	{
+		if (MCsimulation)
+		{
+			// parse timing edge file for MC
+			if (read_timing_edges(argv[5]) == 1)
+				return 1;
+			else
+			{
+				std::cout << "Terminating program...." << std::endl;
+				return 0;
+			}
+				
+		}
+	}
+
+	else
+	{
+		std::cout << "Terminating program...." << std::endl;
+		return 0;
+	}
+
+
+	return 1;
+}
+
+bool isInt(std::string input) // return true if input string is an int
+{
+
+	for (int i = 0; i < input.size(); i++)
+	{
+		if (!isdigit(input[i]))// not a digit
+			return false;
+	}
+
+	return true;
+}
+
+void helpMessage() // prints help message
+{
+	std::cout << "Welcome to iFRoC :)" << std::endl;
+	std::cout << "Let's calibirate your application to your specific chip!!" << std::endl;
+	std::cout << "iFRoC can be run in multiple modes, so pay attention to the following messages:" << std::endl << std::endl;
+
+	std::cout << "USAGE: " << std::endl;
+	std::cout << "\t iFRoC (-fp | -meta <metaFileName>) (-fr | -metaRouting <metaRoutingFileName>) [options <value>]" << std::endl << std::endl;
+
+	std::cout << "Options: " << std::endl;
+	std::cout << "\t -h   --help       \tShow help(this) screen" << std::endl;
+	std::cout << "\t -fp  --meta       \tMeta file name need to run out parser on the delay report." << std::endl;
+	std::cout << "\t -fr  --metaRouting\tMeta routing file name need to run out parser on the delay report." << std::endl;
+	std::cout << "\t -fe  --metaEdge   \tMeta edge file used for MC simulation, need to run our edgeParser." << std::endl;
+	std::cout << "\t -fmc --MCfile     \tFile with a previous run of MC simulation, used to save time." << std::endl;
+	std::cout << "\t -o   --outputName \tApplication name, string will be appended to all output file name" << std::endl;
+	std::cout << "\t -n   --bitstreams \tNumber of desired calibration bitstreams" << std::endl;
+	std::cout << "\t -v   --var        \tExpected delay variation from mean, integer value as a percentage of mean.[defualt 5%]" << std::endl;
+	std::cout << "\t -y   --yld        \tHow does Quartus build their timing models.[default mu + 2 sigma]." << std::endl;
+	std::cout << "\t -mc  --MCsamples \tNUmber of MC samples" << std::endl;
+	std::cout << "\t -i   --ILP        \tILP mode, 0 is optimize per 1 but stream other wise optimize over all calibration bitstream." << std::endl << std::endl << std::endl;
+
+
+	std::cout << "Good luck with running iFRoC." << std::endl;
+
+
+
+
+}
+
+int parseIn(std::string metaFileName)
+{
+
+	std::ifstream metaData(metaFileName);
 	if (!metaData)
 	{
-		std::cout << "Can not find file" << argv[1] << "  Terminating.... " << std::endl;
+		std::cout << "Can not find file" << metaFileName << "  Terminating.... " << std::endl;
 		return 0;
 	}
 	std::string line;
@@ -231,28 +527,6 @@ int parseIn(int argc, char* argv[])
 	tempPath.clear();
 
 	update_cascaded_list();
-
-	
-
-	if (read_routing(argv[2]) == 1)
-	{
-#ifdef MCsim
-		if (read_timing_edges(argv[5]) == 1)
-			return 1;
-		else
-			return 0;
-
-#else
-
-		return 1;
-#endif // MCsim
-	}
-		
-	else
-	{
-		
-		return 0;
-	}
 
 	
 
@@ -744,7 +1018,7 @@ void adjust_REsDelay()
 
 
 // read routing files, model routing structures and create REstoDelay and REstoPaths.
-int read_routing(char* routingFile)
+int read_routing(std::string routingFile)
 {
 	int i, path, node;
 	std::ifstream metaData(routingFile);
@@ -934,7 +1208,7 @@ int read_routing(char* routingFile)
 		// empty path, just checking
 		if (paths[i].size() < 2)
 			continue;
-		int lastNode = paths[i].size() - 1;
+		int lastNode = (int)paths[i].size() - 1;
 
 
 		int FFx = paths[i][lastNode].x;

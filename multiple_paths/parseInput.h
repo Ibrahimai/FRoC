@@ -1,7 +1,20 @@
 
-
-int parseIn(int argc, char* argv[]);
-int read_routing(char* routingFile);// read routing file, should be called after deleting paths
+// returns 0 if it fails
+int parseOptions(int argc, char* argv[],
+	std::string & outputName,
+	bool &  MCsimulation,
+	bool &  readMCsamplesFile,
+	int &  calibBitstreams,
+	bool &  ILPform,
+	bool &  optPerXBitstreams,
+	double &  var,
+	double &  yld,
+	int &  MCsamplesCount,
+	std::string & MCsimFileName);
+void helpMessage(); // prints help message;
+bool isInt(std::string input); // return true if input string is an int
+int parseIn(std::string metaFileName);
+int read_routing(std::string routingFile);// read routing file, should be called after deleting paths
 void check_routing(char* routingFilePost);
 void check_shared_inputs();
 bool compare_routing();

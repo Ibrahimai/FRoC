@@ -24,7 +24,7 @@ int remove_arithLUT_with_two_inputs_and_no_cin();
 std::vector<Path_logic_component> number_of_distinct_inputs_to_lab(int x, int y, double & numberOfDistinctInputs);
 int remove_to_match_routing_constraint();
 void delete_especial_reconvergent_fanout();
-void assign_test_phases_ib();
+void assign_test_phases_ib(bool ILPform);
 void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph);
 void unkown(std::vector < std::vector <int> > & pathRelationGraph, int i, Path_node  tempCell);
 void add_connection(std::vector < std::vector <int> > & pathRelationGraph, int x, int y);

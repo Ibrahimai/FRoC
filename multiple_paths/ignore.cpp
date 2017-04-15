@@ -799,12 +799,14 @@ void delete_especial_reconvergent_fanout()
 
 }
 
-void assign_test_phases_ib()
+void assign_test_phases_ib(bool ILPform)
 {
 	std::vector < std::vector <int> > pathRelationGraph;
 	// create the graph representing the connections between paths
 	
-	//delete_especial_reconvergent_fanout();
+	// if we have removed paths using the ILP formulation then we dont have to handel recovergent fanout sepreately
+	if(!ILPform)
+		delete_especial_reconvergent_fanout();
 	
 	generate_pathRelationGraph(pathRelationGraph); //creates the PRG and add edges to ensure that all off path inputs of every tested path is fixed (cannot test 2 oaths with fan-in overlap)
 
@@ -846,13 +848,13 @@ void assign_test_phases_ib()
 		}
 		if (newColor) // must introduce a new color
 		{
-			paths[i][0].testPhase = possPhases.size();
+			paths[i][0].testPhase = (int)possPhases.size();
 			possPhases.push_back(1);
 
 		}
 	}
 
-	numberOfTestPhases = possPhases.size();
+	numberOfTestPhases = (int)possPhases.size();
 }
 
 void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph)// add edges to the PRG to handle cascaded paths

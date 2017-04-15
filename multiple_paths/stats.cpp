@@ -262,7 +262,7 @@ int check_number_of_timing_edges_more()
 			{
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
 				pIn = paths[i][j + 1].portIn;
-				bestPath = paths.size();
+				bestPath = (int)paths.size();
 				for (k = 0; k < (int)fpgaLogic[dX][dY][dZ].nodes.size(); k++)
 				{
 					tempPath = fpgaLogic[dX][dY][dZ].nodes[k].path;
@@ -305,7 +305,7 @@ int check_number_of_timing_edges_more()
 			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
 			{
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
-				bestPath = paths.size();
+				bestPath = (int)paths.size();
 				for (k = 0; k < (int)fpgaLogic[sX][sY][sZ].nodes.size(); k++)
 				{
 					tempPath = fpgaLogic[sX][sY][sZ].nodes[k].path;
@@ -333,7 +333,7 @@ int check_number_of_timing_edges_more()
 
 	edgeCoverageFile.close();
 
-	return timingEdgeSlack.size();
+	return (int)timingEdgeSlack.size();
 }
 
 void calc_stats()
@@ -408,13 +408,13 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 			auto iter = timingEdgeSlack.find(tempKey);
 			auto iter_temp = timingEdgesDelay.find(tempKey);
 #ifdef MCsim
-			assert(iter_temp != timingEdgesDelay.end());
+		//	assert(iter_temp != timingEdgesDelay.end());
 #endif
 			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
 			{
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
 				pIn = paths[i][j + 1].portIn;
-				bestPath = paths.size();
+				bestPath = (int)paths.size();
 				for (k = 0; k < (int)fpgaLogic[dX][dY][dZ].nodes.size(); k++)
 				{
 					tempPath = fpgaLogic[dX][dY][dZ].nodes[k].path;
@@ -473,13 +473,13 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 
 			auto iter_temp = timingEdgesDelay.find(tempKey);
 #ifdef MCsim
-			assert(iter_temp != timingEdgesDelay.end());
+		//	assert(iter_temp != timingEdgesDelay.end());
 #endif
 
 			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
 			{
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
-				bestPath = paths.size();
+				bestPath = (int)paths.size();
 				for (k = 0; k < (int)fpgaLogic[sX][sY][sZ].nodes.size(); k++)
 				{
 					tempPath = fpgaLogic[sX][sY][sZ].nodes[k].path;
@@ -546,7 +546,7 @@ void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdge
 		
 			// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
 			pIn = paths[i][j + 1].portIn;
-			bestPath = paths.size();
+			bestPath = (int)paths.size();
 			for (k = 0; k < (int)fpgaLogic[dX][dY][dZ].nodes.size(); k++)
 			{
 
@@ -609,7 +609,7 @@ void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdge
 			auto iter = timingEdgeSlack.find(tempKey);
 
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
-				bestPath = paths.size();
+				bestPath = (int)paths.size();
 			for (k = 0; k < (int)fpgaLogic[sX][sY][sZ].nodes.size(); k++)
 			{
 				tempPath = fpgaLogic[sX][sY][sZ].nodes[k].path;
