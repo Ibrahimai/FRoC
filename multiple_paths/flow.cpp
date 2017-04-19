@@ -230,16 +230,13 @@ void cycloneIV_stuff(bool & scheduleChanged,
 		//ILP_solve();
 		if (!optPerXBitstreams)
 		{
-			ILP_solve_2(pathsImport, use_MC, bitStreams);
+			ILP_solve(pathsImport, use_MC, bitStreams);
 			//	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, strictCoverage, casacadedRegion);
 			//	ILP_solve_3();
 
 		}
 		else
 		{
-
-
-
 			scheduleChanged = true;
 			if (scheduleChanged)
 			{

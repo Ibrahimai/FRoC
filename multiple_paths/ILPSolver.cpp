@@ -1,17 +1,14 @@
 
 #define checksetr 
 
-
-
-
 #ifdef checksetr
 #include "globalVar.h"
-//#include "completeNetlist.h"
 #include "ILPSolver.h"
 #include "util.h"
 #include "gurobi_c++.h"
 #include <unordered_map>
 
+/*
 
 void ILP_solve()
 {
@@ -219,9 +216,9 @@ void ILP_solve()
 
 }
 
-
+*/
 // maximize number of paths/ bitstream, using auxilliary variables to represent LUT inputs and use these variables to create constraints for LUT inputs and re-convergent fanout
-void ILP_solve_2(std::vector<double> pathsImport, bool use_MC, int bitstreams) // bitstreams just for debugging purposes
+void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // bitstreams just for debugging purposes
 {
 	try {
 		GRBEnv env = GRBEnv();
@@ -240,7 +237,7 @@ void ILP_solve_2(std::vector<double> pathsImport, bool use_MC, int bitstreams) /
 		////// Path variables////////////////////
 		/////////////////////////////////////////
 
-		int num_of_paths = paths.size() - 1;
+		int num_of_paths = (int)paths.size() - 1;
 		double* lb_vars = new double[num_of_paths];
 		double* up_vars = new double[num_of_paths];
 		// obj set to null, so the coe-effecients will be set to default values of zeros
@@ -1382,7 +1379,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 		////// Path variables////////////////////
 		/////////////////////////////////////////
 
-		int num_of_paths = paths.size() - 1;
+		int num_of_paths = (int)paths.size() - 1;
 		double* lb_vars = new double[num_of_paths];
 		double* up_vars = new double[num_of_paths];
 		// obj set to null, so the coe-effecients will be set to default values of zeros
@@ -1425,7 +1422,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 			//std::cout << temp << std::endl;
 		}
 
-		GRBVar* vars_edges = model.addVars(lb_vars_edges, up_vars_edges, NULL, type_vars_edges, names_vars_edges, timingEdgesMapComplete.size());
+		GRBVar* vars_edges = model.addVars(lb_vars_edges, up_vars_edges, NULL, type_vars_edges, names_vars_edges, (int)timingEdgesMapComplete.size());
 
 		
 
@@ -2523,7 +2520,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 		double* coeff = new double[num_of_paths];
 		GRBLinExpr obj = 0.0;
 
-		int remaining_deges = timingEdgesMapComplete.size() - total_tested_timing_edges;
+		int remaining_deges = (int)timingEdgesMapComplete.size() - total_tested_timing_edges;
 		std::cout << " remaining_edges " << remaining_deges << " cascaeded deges " << number_of_edges_cacsaded_paths(timingEdgeToPaths,  strictEdgeCounting, timingEdgesMapComplete) << std::endl;
 		
 	//	bool more_Edges_to_test;
@@ -2682,7 +2679,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		////// Path variables////////////////////
 		/////////////////////////////////////////
 
-		int num_of_paths = paths.size() - 1;
+		int num_of_paths = (int)paths.size() - 1;
 		double* lb_vars = new double[num_of_paths];
 		double* up_vars = new double[num_of_paths];
 		// obj set to null, so the coe-effecients will be set to default values of zeros
@@ -3709,7 +3706,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 
 
 // trying global optimumum
-void ILP_solve_3()
+/*void ILP_solve_3()
 {
 	
 	try {
@@ -4171,6 +4168,6 @@ void ILP_solve_3()
 	}
 
 
-}
+}*/
 
 #endif
