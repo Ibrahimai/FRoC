@@ -125,7 +125,7 @@ public:
 		sourcePort = sourPort;
 	}
 
-	void Routing_connection::clear()
+	void clear()
 	{
 		usedRoutingResources.resize(0);
 		destinationX = 0;

@@ -12,7 +12,7 @@ std::unordered_map<std::string, std::vector < Rand_Edge_Delay > >  Cells_REsRand
 
 
 //dev_per_to_mean is the ration of dev / mean, quartus_delay is how do we interperet the delay reported by quartus, 1 means mean + sigma
-void MC_generate_REs_rand_vars(double dev_per_to_mean, int quartus_delay)
+void MC_generate_REs_rand_vars(double dev_per_to_mean, double quartus_delay)
 {
 	Cells_REsRandVars.clear();
 	Cells_REsRandVars_standard.clear();
@@ -121,7 +121,7 @@ void MC_generate_REs_rand_vars(double dev_per_to_mean, int quartus_delay)
 }
 
 //dev_per_to_mean is the ration of dev / mean, quartus_delay is how do we interperet the delay reported by quartus, 1 means mean + sigma
-void MC_generate_edges_rand_vars(double dev_per_to_mean, int quartus_delay) 
+void MC_generate_edges_rand_vars(double dev_per_to_mean, double quartus_delay) 
 {
 	 
 	timingEdgesRandVars.clear();
@@ -360,7 +360,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 
 					if (z < 0) // then its an IC delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
 					{
-						currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+						currentEdgeType = (int)floor(currentEdgeType / 2.0) * 3;//(currentEdgeType % 2) * 3;
 					}
 
 					// get the opposite transition 0 -> 3, 1 -> 2, 2 -> 1, 3 -> 0; 
@@ -1004,7 +1004,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 						{
 							// del = u + (sigma/sqrt2)*RV1 + (sigma/sqrt2)*RV2
 							currDelay = (iter_delay->second)[i].randVars.mean()
-								+ (((iter_delay->second)[i].randVars.stddev()) / sqrt(2))*currSampleRVMatrix[xBegin][yBegin];
+								+ (((iter_delay->second)[i].randVars.stddev()) / sqrt(2))*currSampleRVMatrix[xBegin][yBegin]
 							+(((iter_delay->second)[i].randVars.stddev()) / sqrt(2)*((iter_delay_standard->second)[i].randVars)(gen));
 							//+ (((iter_delay->second)[i].randVars.stddev()) / sqrt(2))*currSampleRVMatrix[xEnd][yEnd];
 						}
@@ -1092,7 +1092,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 				int currentEdgeType = paths[currentPaths[i]][currentNodes[i]].edgeType; // get the corresponding cell delay
 				assert(currentEdgeType > -1 && currentEdgeType < 4);
 				// this is a RE delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
-				currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+				currentEdgeType = (int)floor(currentEdgeType / 2.0) * 3;//(currentEdgeType % 2) * 3;
 				assert(transitionDelay[currentEdgeType] > -1);
 				pathsDelay[currentPaths[i]] += transitionDelay[currentEdgeType];
 
@@ -1294,7 +1294,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 
 					if (z < 0) // then its an IC delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
 					{
-						currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+						currentEdgeType = (int)floor(currentEdgeType / 2.0) * 3;//(currentEdgeType % 2) * 3;
 					}
 
 					assert(transitionDelay[currentEdgeType] > -1);
@@ -1553,7 +1553,9 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 			currentPaths.push_back((iter->second)[counter_vector].path);
 			currentNodes.push_back((iter->second)[counter_vector].node);
 		}
-		int x, y, z = -1;
+		int x = -1;
+		int y = -1;
+		int z = -1;
 		if (tempKey[0] == 'C') // if its a cell get the location of it please
 			get_location_from_key(tempKey, x, y, z);
 		
@@ -1629,7 +1631,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 
 				if (z < 0) // then its an IC delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
 				{
-					currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+					currentEdgeType = (int)floor(currentEdgeType / 2.0) * 3;//(currentEdgeType % 2) * 3;
 				}
 				
 				assert(transitionDelay[currentEdgeType] > -1);
@@ -1680,7 +1682,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 	// now we have all path delaysa including clock skew, lets compare what we have against the stored paths slack
 
 	bool succ = true;
-	double relationship = 1;
+	//double relationship = 1;
 	std::cout << "using Edges " << std::endl;
 	for (int i = 1; i < pathsDelay.size(); i++)
 	{
@@ -1784,7 +1786,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			assert(currentEdgeType > -1 && currentEdgeType < 4);
 			
 			// this is a RE delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
-			currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+			currentEdgeType = (int)floor(currentEdgeType / 2.0) * 3;//(currentEdgeType % 2) * 3;
 			assert(transitionDelay[currentEdgeType] > -1);
 			if (currentPaths[i] == 1)
 				std::cout << "a7aaaa" << std::endl;
@@ -1910,7 +1912,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 
 				if (z < 0) // then its an IC delay, so it can eithe have type 0 (FF) or type 3 (RR), get the type from the destination node transistion. transofrm 0,1 -> 0 and 2,3 to 3
 				{
-					currentEdgeType = floor(currentEdgeType / 2) * 3;//(currentEdgeType % 2) * 3;
+					currentEdgeType = (int)floor(currentEdgeType / 2.0) * 3;//(currentEdgeType % 2) * 3;
 				}
 
 				assert(transitionDelay[currentEdgeType] > -1);
@@ -1971,7 +1973,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 	// now we have all path delaysa including clock skew, lets compare what we have against the stored paths slack
 
 	bool succ = true;
-	double relationship = 1;
+	//double relationship = 1;
 	std::cout << "using REs " << std::endl;
 
 	for (int i = 1; i < pathsDelay.size(); i++)
@@ -2005,19 +2007,11 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 /////////////// RUn MC simulation //////////////////////
 ////////////////////////////////////////////////////////
 
-int run_MC(bool slidingWindow, int corelationModel, int number_of_samples, bool strictCoverage, std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, int remainingPaths, double sigma, double qDelayInter, std::vector<double> & pathsImport)
+double run_MC(bool slidingWindow, int corelationModel, int number_of_samples,  std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, int remainingPaths, double sigma, double qDelayInter, std::vector<double> & pathsImport)
 {
 	std::cout << "**************************** Running MC simulation for " << number_of_samples << " samples with sigma of " << sigma << " and qdelay as mean plus " << qDelayInter << " sigma " << std::endl;
 
-	int testedEdges;
-//	if (strictCoverage)
-//		testedEdges = count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete);
-//	else
-//		testedEdges = testedTimingEdgesMap.size();
 
-//	if (testedEdges == timingEdgesMapComplete.size()) // then all edges has been tested
-//	{
-		//get_allPathsTested(remainingPaths);
 
 		std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << " untested " << std::endl;
 		std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;
@@ -2025,6 +2019,7 @@ int run_MC(bool slidingWindow, int corelationModel, int number_of_samples, bool 
 		std::vector<int> testedPaths;
 		testedPaths.resize(0);
 		std::vector<int> unTestedPaths;
+
 		unTestedPaths.resize(0);
 
 		for (int j = 0; j < paths.size(); j++)
@@ -2078,7 +2073,7 @@ int run_MC(bool slidingWindow, int corelationModel, int number_of_samples, bool 
 }
 
 // does the exact same thing as run_mc but it doesn't initialize the rand variables and delays etc..
-void rerun_MC(bool slidingWindow, int corelationModel, int number_of_samples, bool strictCoverage, std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, int remainingPaths, double sigma, double qDelayInter, std::vector<double> & pathsImport)
+void rerun_MC(bool slidingWindow, int corelationModel, int number_of_samples, std::map<std::string, double>  timingEdgesMapComplete, std::map<std::string, double>  testedTimingEdgesMap, std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths,   std::vector<double> & pathsImport)
 {
 	std::vector<int> testedPaths;
 	testedPaths.resize(0);

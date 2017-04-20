@@ -343,7 +343,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 		///////////// set deleted path to 0//////////////////////////////////
 		/////////////////////////////////////////////////////////////////////
 
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i < (int)paths.size(); i++)
 		{
 			if (paths[i][0].deleted) // path is deleted
 			{
@@ -362,7 +362,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 		////// //////////
 		//////////////////////////////////////////////////////////////////////
 
-		int totala = 0;
+		//int totala = 0;
 		
 		// /*
 		for (int i = 0; i < FPGAsizeX; i++)
@@ -381,7 +381,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 					std::vector<std::vector<int> > paths_sets;// 2d-vector to store all paths using pin x
 					paths_sets.resize(InputPortSize);
 
-					for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+					for (int l = 0; l < (int)fpgaLogic[i][j][k].nodes.size(); l++)
 					{
 						Path_logic_component temp_node = fpgaLogic[i][j][k].nodes[l];
 						if (paths[temp_node.path][0].deleted)
@@ -405,7 +405,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 							feeder_paths.resize(0);
 
 
-							for (int m = 0; m < fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
+							for (int m = 0; m < (int)fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
 							{
 								Path_logic_component temp_node = fpgaLogic[feeederX][feeederY][feeederZ].nodes[m];
 								if (paths[temp_node.path][0].deleted) // if deleted ignore it
@@ -421,11 +421,11 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 
 							std::vector<int> conflict_ports;
 							// loopo across paths_sets and make sure there is no common path between feeder_paths and other paths using 
-							bool extra_check = false;
+							//bool extra_check = false;
 
 							std::vector<int> intersectionPaths; // set of paths that is common betwwen feeder_paths & paths_sets[m]
 
-							for (int m = 0; m < paths_sets.size(); m++)
+							for (int m = 0; m < (int)paths_sets.size(); m++)
 							{
 								if (m == l) // current port, that we are checking if it can be fixed
 									continue;
@@ -433,9 +433,9 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 								intersectionPaths.clear();
 
 								conflict_ports.resize(0);
-								for (int mm = 0; mm < paths_sets[m].size();mm++)
+								for (int mm = 0; mm < (int)paths_sets[m].size();mm++)
 								{
-									for (int counter = 0; counter < feeder_paths.size(); counter++)
+									for (int counter = 0; counter < (int)feeder_paths.size(); counter++)
 									{
 										if (feeder_paths[counter] == paths_sets[m][mm]) // then port l and port m can not be tested together, because the feeder of port l also connected to another port
 										{ 
@@ -485,12 +485,12 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 									intersectionSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); 
 									pinSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-									for (int setCounter = 0; setCounter < intersectionPaths.size(); setCounter++)
+									for (int setCounter = 0; setCounter < (int)intersectionPaths.size(); setCounter++)
 									{
 										model.addConstr(intersectionSetILP, GRB_GREATER_EQUAL, vars[intersectionPaths[setCounter] -1]); // model as ILP => Pi
 									}
 
-									for (int setCounter = 0; setCounter < paths_sets[l].size(); setCounter++)
+									for (int setCounter = 0; setCounter < (int)paths_sets[l].size(); setCounter++)
 									{
 										model.addConstr(pinSetILP, GRB_GREATER_EQUAL, vars[paths_sets[l][setCounter ] - 1]); // model as ILP => Pi
 									}
@@ -675,7 +675,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 
 					tempControl = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); // create temp variable to represent one if control signal is needed and zero other wise
 
-					for (int fanout = 0; fanout < fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
+					for (int fanout = 0; fanout < (int)fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
 					{
 						// get destination port
 						int fanoutDestX = fpgaLogic[i][j][k].connections[fanout].destinationX;
@@ -702,7 +702,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 							// so we will check the connections of this LUT and see 
 
 							
-							for (int cascadedFanout = 0; cascadedFanout < fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
+							for (int cascadedFanout = 0; cascadedFanout < (int)fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
 							{
 								int cascadedFanoutDestX = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationX;
 								int cascadedFanoutDestY = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationY;
@@ -848,7 +848,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 							std::vector<int> pathsIJKZ; // paths using lut i,j,k and using an input Z
 							pathsIJKZ.resize(0);
 
-							for (int ii = 0; ii < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
+							for (int ii = 0; ii < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
 							{
 								Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[ii];
 								if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
@@ -862,7 +862,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 
 
 								// loop across nodes using LUT i,j,k to see all paths using lut i,j,k from an input other than port z
-								for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+								for (int l = 0; l < (int)fpgaLogic[i][j][k].nodes.size(); l++)
 								{
 									if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted)
 										continue;
@@ -912,7 +912,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 								GRBVar pathsIJKZSetILP;
 								pathsIJKZSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-								for (int setCounter = 0; setCounter < pathsIJKZ.size(); setCounter++)
+								for (int setCounter = 0; setCounter < (int)pathsIJKZ.size(); setCounter++)
 								{
 									model.addConstr(pathsIJKZSetILP, GRB_GREATER_EQUAL, vars[pathsIJKZ[setCounter] - 1]); // model as ILP => Pi
 								}
@@ -934,12 +934,12 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 								pathsToRegSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 								pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-								for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+								for (int setCounter = 0; setCounter <(int)pathsToReg.size(); setCounter++)
 								{
 									model.addConstr(pathsToRegSetILP, GRB_GREATER_EQUAL, vars[pathsToReg[setCounter] - 1]); // model as ILP => Pi
 								}
 
-								for (int setCounter = 0; setCounter <pathsIJKandRegFeeder.size(); setCounter++)
+								for (int setCounter = 0; setCounter <(int)pathsIJKandRegFeeder.size(); setCounter++)
 								{
 									model.addConstr(pathsIJKandRegFeederSetILP, GRB_GREATER_EQUAL, vars[pathsIJKandRegFeeder[setCounter] - 1]); // model as ILP => Pi
 								}
@@ -970,9 +970,9 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 		/////////////////////////////////////////////////////////////////////////////
 		////////////////// Constraints to check that the source reg. can toggle /////
 		/////////////////////////////////////////////////////////////////////////////
-		int pol = 0;
+	//	int pol = 0;
 
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i < (int)paths.size(); i++)
 		{
 			if (paths[i].size() < 1)
 				continue;
@@ -1005,7 +1005,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 			std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
 			pathsToReg.resize(0);
 
-			for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
+			for (int j = 0; j < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
 			{
 
 
@@ -1040,7 +1040,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 				pathsToRegSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 			//	pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-				for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+				for (int setCounter = 0; setCounter < (int)pathsToReg.size(); setCounter++)
 				{
 					model.addConstr(pathsToRegSetILP, GRB_GREATER_EQUAL, vars[pathsToReg[setCounter] - 1]); // model as ILP => Pi
 				}
@@ -1059,7 +1059,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 				pathsRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 				
 
-				for (int setCounter = 0; setCounter < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
+				for (int setCounter = 0; setCounter < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
 				{
 					if ((paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][0].deleted)) // ibrahim 01/01/2017
 						continue;
@@ -1070,7 +1070,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 
 				int destinationX, destinationY, destinationZ, destinationPortIn;
 
-				for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
+				for (int j = 0; j < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
 				{
 						// get destination j
 					destinationX = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationX;
@@ -1084,7 +1084,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 					if (destinationZ%LUTFreq != 0) // it's a reg then continue. I think.
 						continue;
 
-					for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
+					for (int k = 0; k <(int)fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
 					{
 						if (fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].path == i) // then this destination is a lut that is also used by path i, we can not toggle the source of path i while keeping the off-path inputs at this LUT fixed.
 						{
@@ -1167,14 +1167,14 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 		////// Pi = X_i_j_k_P1 & X_i_j_kk_P2 & ......... ////////////////////////
 		/////////////////////////////////////////////////////////////////////////
 
-		for (int i = 0; i < paths.size(); i++)
+		for (int i = 0; i < (int)paths.size(); i++)
 		{
 			if (paths[i].size() < 3) // no LUTs
 				continue;
 			if (paths[i][0].deleted)
 				continue;
 			// ib14/12/16 GRBVar* temp_constr = new GRBVar[paths[i].size()-2];
-			for (int j = 1; j < paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
+			for (int j = 1; j <(int)paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
 			{
 				std::string temp_key = std::to_string(paths[i][j].x) + "_" + std::to_string(paths[i][j].y) + "_" + std::to_string(paths[i][j].z) + "__" + std::to_string(paths[i][j].portIn);
 			//	std::cout << temp_key << std::endl;
@@ -1310,14 +1310,14 @@ int number_of_edges_cacsaded_paths(std::map<std::string, std::vector<Path_logic_
 		// check if this edge is tested
 		flag = true;
 		std::vector <int> tempPaths;// = iter->second; // get the equivalent edge from the complete timing net list
-		for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+		for (int counter_vector = 0; counter_vector < (int)(iter->second).size(); counter_vector++)
 			tempPaths.push_back((iter->second)[counter_vector].path);
 
 		assert(tempPaths.size() > 0);
 		if (!strictEdgeCounting)
 		{
 
-			for (int i = 0; i < tempPaths.size(); i++)
+			for (int i = 0; i <(int)tempPaths.size(); i++)
 			{
 				if ((paths[tempPaths[i]][0].x != paths[tempPaths[i]].back().x) || (paths[tempPaths[i]][0].y != paths[tempPaths[i]].back().y) || ((paths[tempPaths[i]][0].z != paths[tempPaths[i]].back().z)))
 				{
@@ -1335,7 +1335,7 @@ int number_of_edges_cacsaded_paths(std::map<std::string, std::vector<Path_logic_
 		//		break;
 		//	}
 
-			for (int i = 0; i < tempPaths.size(); i++)
+			for (int i = 0; i <(int)tempPaths.size(); i++)
 			{
 				auto iter_temp = timingEdgesMapComplete.find(iter->first); // get the equivalent edge from the complete timing net list
 				assert(iter_temp != timingEdgesMapComplete.end()); // must be there
@@ -1411,7 +1411,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 		char* type_vars_edges = new char[timingEdgesMapComplete.size()];
 		string* names_vars_edges = new string[timingEdgesMapComplete.size()];
 
-		for (int i = 0; i < timingEdgesMapComplete.size(); i++)
+		for (int i = 0; i < (int)timingEdgesMapComplete.size(); i++)
 		{
 			lb_vars_edges[i] = 0.0;
 			up_vars_edges[i] = 1.0;
@@ -1580,14 +1580,14 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 			assert(iter_edge_paths != timingEdgeToPaths.end());
 			std::vector<int> paths_using_edge;// = iter_edge_paths->second;
 
-			for (int counter_vector = 0; counter_vector < (iter_edge_paths->second).size(); counter_vector++)
+			for (int counter_vector = 0; counter_vector < (int)(iter_edge_paths->second).size(); counter_vector++)
 				paths_using_edge.push_back((iter_edge_paths->second)[counter_vector].path);
 
 
 			// add all paths variable to be ored later
 			GRBVar* temp_constr = new GRBVar[paths_using_edge.size()];
 			int number_of_paths = 0;
-			for (int j = 0; j < paths_using_edge.size(); j++)
+			for (int j = 0; j < (int)paths_using_edge.size(); j++)
 			{
 				if (!strictEdgeCounting) // if we are not counting edges strictly, then add all paths using this edge
 				{ 
@@ -1625,7 +1625,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 		///////////// set deleted path to 0//////////////////////////////////
 		/////////////////////////////////////////////////////////////////////
 
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i < (int)paths.size(); i++)
 		{
 			if (paths[i][0].deleted) // path is deleted
 			{
@@ -1644,7 +1644,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 		//////////////////////////////////////////////////////////////////////
 
 		// copied from ilp_solve_2
-		int totala = 0;
+		//int totala = 0;
 
 		// /*
 		for (int i = 0; i < FPGAsizeX; i++)
@@ -1663,7 +1663,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 					std::vector<std::vector<int> > paths_sets;// 2d-vector to store all paths using pin x
 					paths_sets.resize(InputPortSize);
 
-					for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+					for (int l = 0; l < (int)fpgaLogic[i][j][k].nodes.size(); l++)
 					{
 						Path_logic_component temp_node = fpgaLogic[i][j][k].nodes[l];
 						if (paths[temp_node.path][0].deleted)
@@ -1687,7 +1687,7 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 							feeder_paths.resize(0);
 
 
-							for (int m = 0; m < fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
+							for (int m = 0; m <(int)fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
 							{
 								Path_logic_component temp_node = fpgaLogic[feeederX][feeederY][feeederZ].nodes[m];
 								if (paths[temp_node.path][0].deleted) // if deleted ignore it
@@ -1703,11 +1703,11 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 
 							std::vector<int> conflict_ports;
 							// loopo across paths_sets and make sure there is no common path between feeder_paths and other paths using 
-							bool extra_check = false;
+							//bool extra_check = false;
 
 							std::vector<int> intersectionPaths; // set of paths that is common betwwen feeder_paths & paths_sets[m]
 
-							for (int m = 0; m < paths_sets.size(); m++)
+							for (int m = 0; m < (int)paths_sets.size(); m++)
 							{
 								if (m == l) // current port, that we are checking if it can be fixed
 									continue;
@@ -1715,9 +1715,9 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 								intersectionPaths.clear();
 
 								conflict_ports.resize(0);
-								for (int mm = 0; mm < paths_sets[m].size(); mm++)
+								for (int mm = 0; mm <(int)paths_sets[m].size(); mm++)
 								{
-									for (int counter = 0; counter < feeder_paths.size(); counter++)
+									for ( counter = 0; counter < (int)feeder_paths.size(); counter++)
 									{
 										if (feeder_paths[counter] == paths_sets[m][mm]) // then port l and port m can not be tested together, because the feeder of port l also connected to another port
 										{
@@ -1767,12 +1767,12 @@ void ILP_solve_max_timing_edges(std::map<std::string, double>  testedTimingEdges
 									intersectionSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 									pinSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-									for (int setCounter = 0; setCounter < intersectionPaths.size(); setCounter++)
+									for (int setCounter = 0; setCounter < (int)intersectionPaths.size(); setCounter++)
 									{
 										model.addConstr(intersectionSetILP, GRB_GREATER_EQUAL, vars[intersectionPaths[setCounter] - 1]); // model as ILP => Pi
 									}
 
-									for (int setCounter = 0; setCounter < paths_sets[l].size(); setCounter++)
+									for (int setCounter = 0; setCounter < (int)paths_sets[l].size(); setCounter++)
 									{
 										model.addConstr(pinSetILP, GRB_GREATER_EQUAL, vars[paths_sets[l][setCounter] - 1]); // model as ILP => Pi
 									}
@@ -1946,7 +1946,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 
 					tempControl = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); // create temp variable to represent one if control signal is needed and zero other wise
 
-					for (int fanout = 0; fanout < fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
+					for (int fanout = 0; fanout < (int)fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
 					{
 						// get destination port
 						int fanoutDestX = fpgaLogic[i][j][k].connections[fanout].destinationX;
@@ -1973,7 +1973,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 							// so we will check the connections of this LUT and see 
 
 							
-							for (int cascadedFanout = 0; cascadedFanout < fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
+							for (int cascadedFanout = 0; cascadedFanout < (int)fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
 							{
 								int cascadedFanoutDestX = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationX;
 								int cascadedFanoutDestY = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationY;
@@ -2175,7 +2175,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 							std::vector<int> pathsIJKZ; // paths using lut i,j,k and using an input Z
 							pathsIJKZ.resize(0);
 
-							for (int ii = 0; ii < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
+							for (int ii = 0; ii < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
 							{
 								Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[ii];
 								if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
@@ -2189,7 +2189,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 
 
 								// loop across nodes using LUT i,j,k to see all paths using lut i,j,k from an input other than port z
-								for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+								for (int l = 0; l < (int)fpgaLogic[i][j][k].nodes.size(); l++)
 								{
 									if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted)
 										continue;
@@ -2239,7 +2239,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 								GRBVar pathsIJKZSetILP;
 								pathsIJKZSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-								for (int setCounter = 0; setCounter < pathsIJKZ.size(); setCounter++)
+								for (int setCounter = 0; setCounter < (int)pathsIJKZ.size(); setCounter++)
 								{
 									model.addConstr(pathsIJKZSetILP, GRB_GREATER_EQUAL, vars[pathsIJKZ[setCounter] - 1]); // model as ILP => Pi
 								}
@@ -2261,12 +2261,12 @@ for (int i = 0; i < FPGAsizeX; i++)
 								pathsToRegSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 								pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-								for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+								for (int setCounter = 0; setCounter < (int)pathsToReg.size(); setCounter++)
 								{
 									model.addConstr(pathsToRegSetILP, GRB_GREATER_EQUAL, vars[pathsToReg[setCounter] - 1]); // model as ILP => Pi
 								}
 
-								for (int setCounter = 0; setCounter <pathsIJKandRegFeeder.size(); setCounter++)
+								for (int setCounter = 0; setCounter <(int)pathsIJKandRegFeeder.size(); setCounter++)
 								{
 									model.addConstr(pathsIJKandRegFeederSetILP, GRB_GREATER_EQUAL, vars[pathsIJKandRegFeeder[setCounter] - 1]); // model as ILP => Pi
 								}
@@ -2297,9 +2297,9 @@ for (int i = 0; i < FPGAsizeX; i++)
 		/////////////////////////////////////////////////////////////////////////////
 		////////////////// Constraints to check that the source reg. can toggle /////
 		/////////////////////////////////////////////////////////////////////////////
-		int pol = 0;
+	//	int pol = 0;
 
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i < (int)paths.size(); i++)
 		{
 			if (paths[i].size() < 1)
 				continue;
@@ -2332,7 +2332,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 			std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
 			pathsToReg.resize(0);
 
-			for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
+			for (int j = 0; j < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
 			{
 
 
@@ -2367,7 +2367,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 				pathsToRegSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 				//	pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-				for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+				for (int setCounter = 0; setCounter < (int)pathsToReg.size(); setCounter++)
 				{
 					model.addConstr(pathsToRegSetILP, GRB_GREATER_EQUAL, vars[pathsToReg[setCounter] - 1]); // model as ILP => Pi
 				}
@@ -2386,7 +2386,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 				pathsRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
 
-				for (int setCounter = 0; setCounter < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
+				for (int setCounter = 0; setCounter < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
 				{
 					if ((paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][0].deleted)) // ibrahim 01/01/2017
 						continue;
@@ -2397,7 +2397,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 
 				int destinationX, destinationY, destinationZ, destinationPortIn;
 
-				for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
+				for (int j = 0; j < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
 				{
 					// get destination j
 					destinationX = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationX;
@@ -2411,7 +2411,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 					if (destinationZ%LUTFreq != 0) // it's a reg then continue. I think.
 						continue;
 
-					for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
+					for (int k = 0; k < (int)fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
 					{
 						if (fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].path == i) // then this destination is a lut that is also used by path i, we can not toggle the source of path i while keeping the off-path inputs at this LUT fixed.
 						{
@@ -2492,14 +2492,14 @@ for (int i = 0; i < FPGAsizeX; i++)
 		////// Pi = X_i_j_k_P1 & X_i_j_kk_P2 & ......... ////////////////////////
 		/////////////////////////////////////////////////////////////////////////
 
-		for (int i = 0; i < paths.size(); i++)
+		for (int i = 0; i < (int)paths.size(); i++)
 		{
 			if (paths[i].size() < 3) // no LUTs
 				continue;
 			if (paths[i][0].deleted)
 				continue;
 			// ib14/12/16 GRBVar* temp_constr = new GRBVar[paths[i].size()-2];
-			for (int j = 1; j < paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
+			for (int j = 1; j < (int)paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
 			{
 				std::string temp_key = std::to_string(paths[i][j].x) + "_" + std::to_string(paths[i][j].y) + "_" + std::to_string(paths[i][j].z) + "__" + std::to_string(paths[i][j].portIn);
 				//	std::cout << temp_key << std::endl;
@@ -2529,7 +2529,7 @@ for (int i = 0; i < FPGAsizeX; i++)
 	//	else
 
 		std::cout << "total tested timing edges = " << total_tested_timing_edges << std::endl;
-		if (total_tested_timing_edges<timingEdgesMapComplete.size()&&(cascadedRegion || (remaining_deges>number_of_edges_cacsaded_paths(  timingEdgeToPaths, strictEdgeCounting, timingEdgesMapComplete)))) // if we still ahve timing edges to test, then our objective function is to maximize number of edges, other wise maximze number of paths
+		if (total_tested_timing_edges<(int)timingEdgesMapComplete.size()&&(cascadedRegion || (remaining_deges>number_of_edges_cacsaded_paths(  timingEdgeToPaths, strictEdgeCounting, timingEdgesMapComplete)))) // if we still ahve timing edges to test, then our objective function is to maximize number of edges, other wise maximze number of paths
 		{ 
 			std::cout << "***************************************** optimizing for edgesss **********************" << std::endl;
 			counter = 0;
@@ -2801,7 +2801,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		///////////// set deleted path to 0//////////////////////////////////
 		/////////////////////////////////////////////////////////////////////
 
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i <(int)paths.size(); i++)
 		{
 			if (paths[i][0].deleted) // path is deleted
 			{
@@ -2823,7 +2823,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		////// //////////
 		//////////////////////////////////////////////////////////////////////
 
-		int totala = 0;
+		//int totala = 0;
 
 		// /*
 		for (int i = 0; i < FPGAsizeX; i++)
@@ -2842,7 +2842,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 					std::vector<std::vector<int> > paths_sets;// 2d-vector to store all paths using pin x
 					paths_sets.resize(InputPortSize);
 
-					for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+					for (int l = 0; l < (int)fpgaLogic[i][j][k].nodes.size(); l++)
 					{
 						Path_logic_component temp_node = fpgaLogic[i][j][k].nodes[l];
 						if (paths[temp_node.path][0].deleted)
@@ -2866,7 +2866,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 							feeder_paths.resize(0);
 
 
-							for (int m = 0; m < fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
+							for (int m = 0; m < (int)fpgaLogic[feeederX][feeederY][feeederZ].nodes.size(); m++) // loop across paths using this LUT
 							{
 								Path_logic_component temp_node = fpgaLogic[feeederX][feeederY][feeederZ].nodes[m];
 								if (paths[temp_node.path][0].deleted) // if deleted ignore it
@@ -2882,11 +2882,11 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 
 							std::vector<int> conflict_ports;
 							// loopo across paths_sets and make sure there is no common path between feeder_paths and other paths using 
-							bool extra_check = false;
+						//	bool extra_check = false;
 
 							std::vector<int> intersectionPaths; // set of paths that is common betwwen feeder_paths & paths_sets[m]
 
-							for (int m = 0; m < paths_sets.size(); m++)
+							for (int m = 0; m < (int)paths_sets.size(); m++)
 							{
 								if (m == l) // current port, that we are checking if it can be fixed
 									continue;
@@ -2894,9 +2894,9 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 								intersectionPaths.clear();
 
 								conflict_ports.resize(0);
-								for (int mm = 0; mm < paths_sets[m].size(); mm++)
+								for (int mm = 0; mm < (int)paths_sets[m].size(); mm++)
 								{
-									for (int counter = 0; counter < feeder_paths.size(); counter++)
+									for (int counter = 0; counter < (int)feeder_paths.size(); counter++)
 									{
 										if (feeder_paths[counter] == paths_sets[m][mm]) // then port l and port m can not be tested together, because the feeder of port l also connected to another port
 										{
@@ -2935,7 +2935,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 									}
 									
 
-									for (int setCounter = 0; setCounter < intersectionPaths.size(); setCounter++)
+									for (int setCounter = 0; setCounter <(int)intersectionPaths.size(); setCounter++)
 									{
 										for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
 										{
@@ -2944,7 +2944,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 									//	model.addConstr(intersectionSetILP, GRB_GREATER_EQUAL, vars[intersectionPaths[setCounter] - 1]); // model as ILP => Pi
 									}
 
-									for (int setCounter = 0; setCounter < paths_sets[l].size(); setCounter++)
+									for (int setCounter = 0; setCounter < (int)paths_sets[l].size(); setCounter++)
 									{
 										for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
 										{
@@ -3032,7 +3032,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 					}
 					//tempControl = model.addVar(0.0, 1.0, 0.0, GRB_BINARY); // create temp variable to represent one if control signal is needed and zero other wise
 
-					for (int fanout = 0; fanout < fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
+					for (int fanout = 0; fanout < (int)fpgaLogic[i][j][k].connections.size(); fanout++) // loop across all fanouts
 					{
 						// get destination port
 						int fanoutDestX = fpgaLogic[i][j][k].connections[fanout].destinationX;
@@ -3067,7 +3067,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 
 																																										/// else we this LUT is connected to a cascaded reg so control signal might be required depending on the cascaded paths
 																																										// so we will check the connections of this LUT and see 
-							for (int cascadedFanout = 0; cascadedFanout < fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
+							for (int cascadedFanout = 0; cascadedFanout < (int)fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections.size(); cascadedFanout++)
 							{
 								int cascadedFanoutDestX = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationX;
 								int cascadedFanoutDestY = fpgaLogic[fanoutDestX][fanoutDestY][fanoutDestZ].connections[cascadedFanout].destinationY;
@@ -3234,7 +3234,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 							std::vector<int> pathsIJKZ; // paths using lut i,j,k and using an input Z
 							pathsIJKZ.resize(0);
 
-							for (int ii = 0; ii < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
+							for (int ii = 0; ii < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); ii++) // loop across all paths using the lut feeding the reg in question
 							{
 								Path_logic_component tempNode = fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[ii];
 								if (paths[tempNode.path][0].deleted) // if this path is deleted, then continue
@@ -3248,7 +3248,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 
 
 								// loop across nodes using LUT i,j,k to see all paths using lut i,j,k from an input other than port z
-								for (int l = 0; l < fpgaLogic[i][j][k].nodes.size(); l++)
+								for (int l = 0; l < (int)fpgaLogic[i][j][k].nodes.size(); l++)
 								{
 									if (paths[fpgaLogic[i][j][k].nodes[l].path][0].deleted)
 										continue;
@@ -3289,7 +3289,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 									pathsIJKZSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 								}
 
-								for (int setCounter = 0; setCounter < pathsIJKZ.size(); setCounter++)
+								for (int setCounter = 0; setCounter <(int)pathsIJKZ.size(); setCounter++)
 								{
 									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
 									{
@@ -3312,7 +3312,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 									pathsIJKandRegFeederSetILP[bitStreamCounter] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 								}
 
-								for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+								for (int setCounter = 0; setCounter < (int)pathsToReg.size(); setCounter++)
 								{
 									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
 									{
@@ -3320,7 +3320,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 									}
 								}
 
-								for (int setCounter = 0; setCounter <pathsIJKandRegFeeder.size(); setCounter++)
+								for (int setCounter = 0; setCounter <(int)pathsIJKandRegFeeder.size(); setCounter++)
 								{
 									for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
 									{
@@ -3357,9 +3357,9 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		/////////////////////////////////////////////////////////////////////////////
 		////////////////// Constraints to check that the source reg. can toggle /////
 		/////////////////////////////////////////////////////////////////////////////
-		int pol = 0;
+	//	int pol = 0;
 
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i <(int)paths.size(); i++)
 		{
 			if (paths[i].size() < 1)
 				continue;
@@ -3392,7 +3392,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 			std::vector<int> pathsToReg; // vector of paths using the lut feeding the reg and the reg
 			pathsToReg.resize(0);
 
-			for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
+			for (int j = 0; j < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); j++) // loop across this reg feeder and see if it has the same path as path i
 			{
 
 
@@ -3432,7 +3432,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 				
 				//	pathsIJKandRegFeederSetILP = model.addVar(0.0, 1.0, 0.0, GRB_BINARY);
 
-				for (int setCounter = 0; setCounter < pathsToReg.size(); setCounter++)
+				for (int setCounter = 0; setCounter <(int)pathsToReg.size(); setCounter++)
 				{
 					for (int bitStreamCounter = 0; bitStreamCounter < bitStreams; bitStreamCounter++)
 					{
@@ -3460,7 +3460,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 				}
 
 
-				for (int setCounter = 0; setCounter < fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
+				for (int setCounter = 0; setCounter < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes.size(); setCounter++)
 				{
 					if (paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].x == sourceRegX && paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].y == sourceRegY && paths[fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].path][fpgaLogic[regFeederX][regFeederY][regFeederZ].nodes[setCounter].node + 1].z == sourceRegZ)
 					{
@@ -3473,7 +3473,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 
 				int destinationX, destinationY, destinationZ, destinationPortIn;
 
-				for (int j = 0; j < fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
+				for (int j = 0; j < (int)fpgaLogic[regFeederX][regFeederY][regFeederZ].connections.size(); j++) // loop over all connections from regFeeder to its fanout
 				{
 					// get destination j
 					destinationX = fpgaLogic[regFeederX][regFeederY][regFeederZ].connections[j].destinationX;
@@ -3487,7 +3487,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 					if (destinationZ%LUTFreq != 0) // it's a reg then continue. I think.
 						continue;
 
-					for (int k = 0; k < fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
+					for (int k = 0; k < (int)fpgaLogic[destinationX][destinationY][destinationZ].nodes.size(); k++)
 					{
 						if (fpgaLogic[destinationX][destinationY][destinationZ].nodes[k].path == i) // then this destination is a lut that is also used by path i, we can not toggle the source of path i while keeping the off-path inputs at this LUT fixed.
 						{
@@ -3530,14 +3530,14 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		////// Pi = X_i_j_k_P1 & X_i_j_kk_P2 & ......... ////////////////////////
 		/////////////////////////////////////////////////////////////////////////
 
-		for (int i = 0; i < paths.size(); i++)
+		for (int i = 0; i < (int)paths.size(); i++)
 		{
 			if (paths[i].size() < 3) // no LUTs
 				continue;
 			if (paths[i][0].deleted)
 				continue;
 			// ib14/12/16 GRBVar* temp_constr = new GRBVar[paths[i].size()-2];
-			for (int j = 1; j < paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
+			for (int j = 1; j < (int)paths[i].size() - 1; j++) // loop through all nodes in path i, execluding the source ans sink register
 			{
 				std::string temp_key = std::to_string(paths[i][j].x) + "_" + std::to_string(paths[i][j].y) + "_" + std::to_string(paths[i][j].z) + "__" + std::to_string(paths[i][j].portIn);
 				//	std::cout << temp_key << std::endl;

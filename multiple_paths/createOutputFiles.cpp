@@ -1285,7 +1285,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	controllerFile << "end" << std::endl;
 	controllerFile << std::endl << "//// instantiate counter for reset phases basically just counter to flush the orTree and relax timing requirments for control signals" << std::endl;
 	// find maximum latenct of or network, i.e max depth of the network. So first find maximum input
-	int max = errorSignalDivision[0].size();
+	int max = (int)errorSignalDivision[0].size();
 	for (i = 0; i < (int)errorSignalDivision.size(); i++)
 	{
 		if ((int)errorSignalDivision[i].size()>max)
@@ -1293,8 +1293,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	}
 	// get counter length to flush the or network
 	// network depth
-	int orDepth = ceil(log(max) / log(LUTinputSize));
-	int reset_counter_length = ceil(log(orDepth + addedLatencyToBufferSinks + addedLatencyTorelaxTimingConstraints) / log(2));
+	int orDepth = (int)ceil(log(max) / log(LUTinputSize));
+	int reset_counter_length = (int)ceil(log(orDepth + addedLatencyToBufferSinks + addedLatencyTorelaxTimingConstraints) / log(2));
 	std::cout << "Reset Counter Latency is " << reset_counter_length << std::endl;
 	controllerFile << "counter_testing #(.L(" << reset_counter_length << ")) count0_reset(.CLK(CLK),.clr(reset_counter_reset),.timerReached(timer_reached_reset));" << std::endl;
 #ifdef shiftRegOrTree
@@ -1317,7 +1317,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	//create
 	for (i = 0; i < numberOfTestPhases; i++)
 	{
-		create_or_tree(errorSignalDivision[i].size(), LUTinputSize, i, controllerFile);
+		create_or_tree((int)errorSignalDivision[i].size(), LUTinputSize, i, controllerFile);
 	}
 
 	//	create_or_tree(9, 4, 0, controllerFile);
@@ -1335,8 +1335,8 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 {
 	int i, j, k;
 	int x;
-	int total = 0;
-	bool deleted = true;
+	//int total = 0;
+	//bool deleted = true;
 	std::ofstream verilogFile;
 	verilogFile.open("VerilogFile.txt");
 	int path = -1;
@@ -1685,7 +1685,7 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 
 				if (fpgaLogic[i][j][k].inputPorts[Cin]) // Cin is used to connect to combout
 				{
-					int pathFeederPort3, nodeFeederPort3;
+					//int pathFeederPort3, nodeFeederPort3;
 					assert(get_feeder(i, j, k, port1, pathFeederPort1, nodeFeederPort1));
 					assert(get_feeder(i, j, k, port2, pathFeederPort2, nodeFeederPort2));
 					assert(get_feeder(i, j, k, port3, pathFeederPort3, nodeFeederPort3));
@@ -2029,8 +2029,8 @@ void create_or_tree(int inputs, int LUTinputs, int number, std::ofstream& contro
 		return;
 
 	}
-	int numOfLevels = ceil((log(inputs) / log(LUTinputs)));
-	int currentLevelLength = ceil(inputs / 4.0);
+	int numOfLevels = (int)ceil((log(inputs) / log(LUTinputs)));
+	int currentLevelLength = (int)ceil(inputs / 4.0);
 	int i, j;
 	std::vector<int> levelSizes;
 	levelSizes.resize(0);
@@ -2038,7 +2038,7 @@ void create_or_tree(int inputs, int LUTinputs, int number, std::ofstream& contro
 	{
 		levelSizes.push_back(currentLevelLength);
 		controllerFile << "reg [" << currentLevelLength - 1 << ":0] level_" << i + 1 << " /*synthesis noprune */ ; " << std::endl;
-		currentLevelLength = ceil(currentLevelLength / 4.0);
+		currentLevelLength = (int)ceil(currentLevelLength / 4.0);
 	}
 
 	controllerFile << "always @ (posedge CLK or posedge reset) begin" << std::endl;
@@ -2086,7 +2086,7 @@ void create_RCF_file()
 {
 	int i, j, k, l;
 	int x;
-	int total = 0;
+//	int total = 0;
 	int destX, destY, destZ;
 	std::ofstream RoFile;
 	RoFile.open("RCF_File.txt");

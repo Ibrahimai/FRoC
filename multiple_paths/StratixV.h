@@ -90,7 +90,7 @@ public:
 //	bool deleted; // for the cases where we have to delete paths after reading the routing file, specifically for the port D and port E thing when 6_input LUts are required
 	std::vector<std::string> usedRoutingResources; // vector of strings, each string corresponds to a routing resource used (ex: R4:x*y*...)
 	Routing_connection() {};
-	Routing_connection(int xx, int yy, int zz, int destPort, int sourPort, int flag)
+	Routing_connection(int xx, int yy, int zz, int destPort, int sourPort)
 	{
 		usedRoutingResources.resize(0);
 		destinationX = xx;

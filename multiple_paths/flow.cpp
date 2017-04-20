@@ -208,7 +208,8 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	std::map<std::string, double>  & testedTimingEdgesMap, 
 	std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths, 
 	std::map<std::string, double>  timingEdgesMapComplete, 
-	bool strictCoverage, std::vector<double> pathsImport, 
+	bool strictCoverage, bool maxTestEdges,
+	std::vector<double> pathsImport, 
 	bool use_MC, 
 	bool ILPform,
 	bool optPerXBitstreams)
@@ -230,8 +231,11 @@ void cycloneIV_stuff(bool & scheduleChanged,
 		//ILP_solve();
 		if (!optPerXBitstreams)
 		{
-			ILP_solve(pathsImport, use_MC, bitStreams);
-			//	ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, strictCoverage, casacadedRegion);
+			
+			if(maxTestEdges)
+				ILP_solve_max_timing_edges(  testedTimingEdgesMap,  timingEdgeToPaths,  timingEdgesMapComplete, strictCoverage, casacadedRegion);
+			else
+				ILP_solve(pathsImport, use_MC, bitStreams);
 			//	ILP_solve_3();
 
 		}
@@ -246,12 +250,12 @@ void cycloneIV_stuff(bool & scheduleChanged,
 			else
 			{
 				std::cout << "------------------------------- Not going through the solver as we already know the schedule we are deleteing stuff that are not in  " << pathsSchedule.size() - bitStreams << std::endl;
-				for (int k = 1; k < paths.size(); k++)
+				for (int k = 1; k < (int)paths.size(); k++)
 				{
 					if (paths[k][0].deleted)
 						continue;
 					bool pathTested = false;
-					for (int j = 0; j < pathsSchedule[pathsSchedule.size() - bitStreams].size(); j++)
+					for (int j = 0; j <(int)pathsSchedule[pathsSchedule.size() - bitStreams].size(); j++)
 					{
 						if (k == pathsSchedule[pathsSchedule.size() - bitStreams][j])
 						{
@@ -457,7 +461,7 @@ int get_number_of_failure(std::vector<double>  pathsImport)
 {
 	int count = 0;
 
-	for (int i = 1; i < pathsImport.size(); i++)
+	for (int i = 1; i < (int)pathsImport.size(); i++)
 	{
 		if (pathsImport[i] >= 1.0) // it was critical
 		{
@@ -498,7 +502,7 @@ std::vector<double> get_paths_import_from_file(std::string mc_prev_run)
 		tempNumber.clear();
 		tempNumber.resize(0);
 		int i = 0;
-		for (; i < line.size(); i++)
+		for (; i < (int)line.size(); i++)
 		{
 			if (!isdigit(line[i]))
 				break;
@@ -509,7 +513,7 @@ std::vector<double> get_paths_import_from_file(std::string mc_prev_run)
 		i++;
 		tempNumber.clear();
 		tempNumber.resize(0);
-		for (; i < line.size(); i++)
+		for (; i < (int)line.size(); i++)
 		{
 			if (!isdigit(line[i]))
 				break;
@@ -521,7 +525,7 @@ std::vector<double> get_paths_import_from_file(std::string mc_prev_run)
 		pathsImport[index] = value;
 	}
 
-	for (int k = 1; k < pathsImport.size(); k++)
+	for (int k = 1; k < (int)pathsImport.size(); k++)
 	{
 		if (pathsImport[k] != 0)
 			continue;
@@ -542,7 +546,7 @@ void helper(std::vector<double>  & pathsImport)
 	std::cout << "*************************************************************************************" << std::endl;
 	std::cout << "*************************************************************************************" << std::endl;
 	std::cout << "*************************************************************************************" << std::endl;
-	for (int k = 1; k < pathsImport.size(); k++)
+	for (int k = 1; k <(int)pathsImport.size(); k++)
 	{
 		if (pathsImport[k] >= 1)
 			continue;
@@ -600,14 +604,14 @@ int runiFRoC(int argc, char* argv[])
 	bool  scheduleChanged = true;
 	std::vector < std::vector<int> > pathsSchedule;
 	int x = calibBitstreams;
-	int number_of_samples;
-	int number_of_samples_check;
+	int number_of_samples=-1;
+	int number_of_samples_check=-1;
 	int num_of_bit_stream;
 	std::vector<double>  pathsImport;
 	std::vector<double>  pathsImport_check;
 	std::vector<double>  firstPathsImport;
 	bool strictCoverage = true;
-	bool use_MC;
+	bool use_MC = false;
 	int corelationModel;
 	bool slidingWindow ;
 	bool useFileForMC ;
@@ -652,13 +656,13 @@ int runiFRoC(int argc, char* argv[])
 
 
 		std::fill(pathsImport.begin(), pathsImport.end(), 1.0); // default importance of 1 to all paths
-		num_of_bit_stream = 0;
+		
 	
-		int checkFailures;
+		double checkFailures;
 		if (!readMCsamplesFile) // run our own MC sim
 		{
 			auto const start = std::chrono::high_resolution_clock::now();
-			checkFailures = run_MC(slidingWindow, corelationModel, number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
+			checkFailures = run_MC(slidingWindow, corelationModel, number_of_samples,  timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
 			auto const end = std::chrono::high_resolution_clock::now();
 	
 			auto delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -667,24 +671,28 @@ int runiFRoC(int argc, char* argv[])
 			std::cout << "MC simulation of " << number_of_samples << " took " << (delta_time.count()) / (1000.0) << " seconds " << std::endl;
 			std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
 			std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+			number_of_samples_check = number_of_samples;
 		}
 		else // read MC from file
 		{
 			pathsImport = get_paths_import_from_file(MCsimFileName);
+			number_of_samples_check = 1000000;
 
 		}
 
 		pathsImport_check = get_paths_import_from_file(MCsimFileName);
-		number_of_samples_check = 1000000;
+		
 		firstPathsImport = pathsImport;
 	}
 #endif
 	//	helper(pathsImport);
-	while (true)
+	num_of_bit_stream = 0;
+	//while (true)
+	for (;;)// infinite loop
 	{
 
 		cycloneIV_stuff(scheduleChanged, pathsSchedule, x, feedbackPaths, remainingPaths, testedTimingEdgesMap, 
-			timingEdgeToPaths, timingEdgesMapComplete, strictCoverage, pathsImport, use_MC, ILPform, optPerXBitstreams);
+			timingEdgeToPaths, timingEdgesMapComplete, strictCoverage, false, pathsImport, use_MC, ILPform, optPerXBitstreams);
 		num_of_bit_stream++;
 		get_allPathsTested(remainingPaths);
 		IgnoredPathStats << testedTimingEdgesMap.size() << "\t";
@@ -697,7 +705,7 @@ int runiFRoC(int argc, char* argv[])
 			print_stats(argv);
 			count_timing_edges_realistic(testedTimingEdgesMap, timingEdgesMapComplete);
 			// Now I am done testing, I will check prob of failure
-			//rerun_MC(slidingWindow, corelationModel, number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
+			//rerun_MC(slidingWindow, corelationModel, number_of_samples,  timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths,   pathsImport);
 			if (MCsimulation)
 			{
 				std::cout << "############################################" << std::endl << "##############################################" << std::endl;
@@ -705,7 +713,7 @@ int runiFRoC(int argc, char* argv[])
 				std::cout << "      " << remainingPaths << "remainig" << std::endl;
 				std::cout << "   Bit stream number    " << num_of_bit_stream << " " << std::endl;
 				std::cout << " Probability of failure is " << (get_number_of_failure(pathsImport_check)*1.0) / number_of_samples_check << std::endl;
-				//	rerun_MC(slidingWindow, corelationModel, number_of_samples, strictCoverage, timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
+				//	rerun_MC(slidingWindow, corelationModel, number_of_samples,  timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths,  pathsImport);
 				std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 				std::cout << "############################################" << std::endl << "##############################################" << std::endl;
 			}

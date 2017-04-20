@@ -56,7 +56,7 @@ void update_testedPaths(std::vector <std::vector<int> > test_structure) // test 
 
 	for (int i = 0; i < (int)test_structure.size(); i++)
 	{
-		tested_path_in_phase.push_back(test_structure[i].size());
+		tested_path_in_phase.push_back((int)test_structure[i].size());
 		for (int j = 0; j < (int)test_structure[i].size(); j++)
 		{
 			tested_path_in_current_bitstream.push_back(test_structure[i][j]);
