@@ -599,7 +599,7 @@ int runiFRoC(int argc, char* argv[])
 	// store all timing edges and all paths using each edge
 	std::map<std::string, std::vector<Path_logic_component> >  timingEdgeToPaths;
 
-	generate_timing_edges_of_all_paths(timingEdgesMapComplete, timingEdgeToPaths);
+	generate_timing_edges_of_all_paths(timingEdgesMapComplete, timingEdgeToPaths, MCsimulation);
 
 	bool  scheduleChanged = true;
 	std::vector < std::vector<int> > pathsSchedule;
@@ -633,7 +633,7 @@ int runiFRoC(int argc, char* argv[])
 		use_MC = true;
 		corelationModel = PARTIALCORELATION;
 		slidingWindow = true;
-		useFileForMC = true;
+		useFileForMC = readMCsamplesFile;
 
 
 		double sigma;
@@ -659,7 +659,7 @@ int runiFRoC(int argc, char* argv[])
 		
 	
 		double checkFailures;
-		if (!readMCsamplesFile) // run our own MC sim
+		if (!useFileForMC) // run our own MC sim
 		{
 			auto const start = std::chrono::high_resolution_clock::now();
 			checkFailures = run_MC(slidingWindow, corelationModel, number_of_samples,  timingEdgesMapComplete, testedTimingEdgesMap, timingEdgeToPaths, remainingPaths, sigma, qDelayInter, pathsImport);
@@ -672,6 +672,9 @@ int runiFRoC(int argc, char* argv[])
 			std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
 			std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
 			number_of_samples_check = number_of_samples;
+		
+			// since no paths are tested so MC should fail in all our samples
+			assert(checkFailures == 1.0);
 		}
 		else // read MC from file
 		{

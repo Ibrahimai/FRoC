@@ -102,7 +102,7 @@ public:
 //		deleted = false;
 	}
 
-	void Routing_connection::clear()
+	void clear()
 	{
 		usedRoutingResources.resize(0);
 	//	deleted = false;
@@ -173,7 +173,7 @@ public:
 	ALUT(int over);
 	int get_utilization();
 	void set_utilization(int x);
-	void ALUT::add_node(int p, int n, int in, int out, bool highS, bool MLABtype);
+	void add_node(int p, int n, int in, int out, bool highS, bool MLABtype);
 	void remove_overlap(int p, std::vector<int> & deleted_nodes);
 	//	void remove_overlap_with_fanin(int p, int pIn, std::vector<int> & deleted_nodes);
 };

@@ -368,7 +368,7 @@ void print_path_coverage_to_file()
 
 // generate a map of timing edges counting ic and cell delay different timing edges (timingEdgeSlack), this should be called before deleting any path to create the total timing edges map
 // also create sthe timing edges to paths map, which stores all paths using each timing edge.
-void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<Path_logic_component> > & timingEdgeToPaths)
+void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<Path_logic_component> > & timingEdgeToPaths, bool MCsimulation)
 {
 	int i, j, k;
 	int sX, sY, sZ, sP, dX, dY, dZ, dP; // source port is the output port of a node, destination port is the output port of the destination
@@ -407,9 +407,9 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 			tempKey = "ICsX" + std::to_string(sX) + "sY" + std::to_string(sY) + "sZ" + std::to_string(sZ) + "sP" + std::to_string(sP) + "dX" + std::to_string(dX) + "dY" + std::to_string(dY) + "dZ" + std::to_string(dZ) + "dP" + std::to_string(dP);
 			auto iter = timingEdgeSlack.find(tempKey);
 			auto iter_temp = timingEdgesDelay.find(tempKey);
-#ifdef MCsim
-		//	assert(iter_temp != timingEdgesDelay.end());
-#endif
+			if(MCsimulation)
+				assert(iter_temp != timingEdgesDelay.end());
+
 			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
 			{
 				// to get the righ slack we will loop across all nodes using the destination cell and check the worst slack that uses the same port in and same port out
@@ -472,9 +472,9 @@ void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEd
 			auto iter = timingEdgeSlack.find(tempKey);
 
 			auto iter_temp = timingEdgesDelay.find(tempKey);
-#ifdef MCsim
-		//	assert(iter_temp != timingEdgesDelay.end());
-#endif
+			if (MCsimulation)
+				assert(iter_temp != timingEdgesDelay.end());
+
 
 			if (iter == timingEdgeSlack.end()) // was not found, so add it to the map with the right slack
 			{

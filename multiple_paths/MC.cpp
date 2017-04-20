@@ -1,4 +1,3 @@
-#pragma once
 #include "MC.h"
 #include "globalVar.h"
 
@@ -275,8 +274,8 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 		double maxUntestedPathDelay = 0.0;
 		double maxTestedPathDelay = 0.0;
 
-		int longestUntestedPath = -1;
-		int longestTestedPath = -1;
+	//	int longestUntestedPath = -1;
+	//	int longestTestedPath = -1;
 
 
 		int longestPath = -1;
@@ -450,14 +449,14 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 				if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
 				{
 					maxUntestedPathDelay = pathsDelay[currentPaths[i]];
-					longestUntestedPath = currentPaths[i];
+				//	longestUntestedPath = currentPaths[i];
 				}
 
 				//oppo begin
 				if (pathsDelayOpTransition[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
 				{
 					maxUntestedPathDelay = pathsDelayOpTransition[currentPaths[i]];
-					longestUntestedPath = currentPaths[i];
+				//	longestUntestedPath = currentPaths[i];
 				}
 
 				//oppo end
@@ -465,14 +464,14 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 				if (pathsDelay[currentPaths[i]]>maxTestedPathDelay && paths[currentPaths[i]][0].tested)
 				{
 					maxTestedPathDelay = pathsDelay[currentPaths[i]];
-					longestTestedPath = currentPaths[i];
+				//	longestTestedPath = currentPaths[i];
 				}
 
 				//oppo begin
 				if (pathsDelayOpTransition[currentPaths[i]]>maxTestedPathDelay && paths[currentPaths[i]][0].tested)
 				{
 					maxTestedPathDelay = pathsDelayOpTransition[currentPaths[i]];
-					longestTestedPath = currentPaths[i];
+				//	longestTestedPath = currentPaths[i];
 				}
 				// oppo end
 
@@ -824,12 +823,11 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 		double maxUntestedPathDelay = 0.0;
 		double maxTestedPathDelay = 0.0;
 
-		int longestUntestedPath = -1;
-		int longestTestedPath = -1;
+	//	int longestUntestedPath = -1;
+	//	int longestTestedPath = -1;
 
 
 		int longestPath = -1;
-		int edgetype = -1;
 
 		double currSampleRv = 0.0;
 
@@ -882,7 +880,6 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 			// at most the number of delays of an RE can be 2, FF and RR
 			assert((iter_delay->second).size() < 3);
 
-			edgetype = -1;
 
 			std::vector<double> transitionDelay(4, -1); // RE edge transition can either be 0 or 3
 
@@ -1107,13 +1104,13 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 				if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
 				{
 					maxUntestedPathDelay = pathsDelay[currentPaths[i]];
-					longestUntestedPath = currentPaths[i];
+				//	longestUntestedPath = currentPaths[i];
 				}
 
 				if (pathsDelay[currentPaths[i]]>maxTestedPathDelay && paths[currentPaths[i]][0].tested)
 				{
 					maxTestedPathDelay = pathsDelay[currentPaths[i]];
-					longestTestedPath = currentPaths[i];
+				//	longestTestedPath = currentPaths[i];
 				}
 
 			}
@@ -1161,7 +1158,6 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 			assert(iter_delay != Cells_REsRandVars.end()); //timingEdgesRandVars
 			assert(iter_delay_standard != Cells_REsRandVars_standard.end()); //timingEdgesRandVars
 
-			edgetype = -1;
 
 			std::vector<double> transitionDelay(8, -1);
 
@@ -1249,7 +1245,6 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 				if (currDelay > maxDelay)
 				{
 					maxDelay = currDelay;
-					edgetype = (iter_delay->second)[i].type;
 				}
 
 				//	maxDelay = currDelay;
@@ -1330,7 +1325,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 				if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
 				{
 					maxUntestedPathDelay = pathsDelay[currentPaths[i]];
-					longestUntestedPath = currentPaths[i];
+				//	longestUntestedPath = currentPaths[i];
 				}
 
 
@@ -1338,7 +1333,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 				if (pathsDelay[currentPaths[i]]>maxTestedPathDelay && paths[currentPaths[i]][0].tested)
 				{
 					maxTestedPathDelay = pathsDelay[currentPaths[i]];
-					longestTestedPath = currentPaths[i];
+				//	longestTestedPath = currentPaths[i];
 				}
 			}
 
@@ -1535,12 +1530,11 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 	double maxUntestedPathDelay = 0.0;
 	double maxTestedPathDelay = 0.0;
 
-	int longestUntestedPath = -1;
-	int longestTestedPath = -1;
+//	int longestUntestedPath = -1;
+//	int longestTestedPath = -1;
 
 
-	int longestPath = -1;
-	int edgetype = -1;
+//	int longestPath = -1;
 	// loop over all timing edges to get the delay of each edge and add it to the paths using it
 	for (auto iter = timingEdgeToPaths.begin(); iter != timingEdgeToPaths.end(); iter++)
 	{
@@ -1576,7 +1570,6 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 		// the timing edge must exist in the timingedge delay vars map
 		assert(iter_delay != timingEdgesDelay.end());
 
-		edgetype = -1;
 
 		std::vector<double> transitionDelay(8, -1);
 		// loop across different transistions at this edge
@@ -1589,7 +1582,6 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 			if (currDelay > maxDelay)
 			{
 				maxDelay = currDelay;
-				edgetype = (iter_delay->second)[i].type;
 			}
 			if ((iter_delay->second)[i].type > 3)
 				assert(z%LUTFreq != 0);
@@ -1659,13 +1651,13 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 			if (pathsDelay[currentPaths[i]]>maxPathDelay)
 			{
 				maxPathDelay = pathsDelay[currentPaths[i]];
-				longestPath = currentPaths[i];
+//				longestPath = currentPaths[i];
 			}
 
 			if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
 			{
 				maxUntestedPathDelay = pathsDelay[currentPaths[i]];
-				longestUntestedPath = currentPaths[i];
+			//	longestUntestedPath = currentPaths[i];
 			}
 
 
@@ -1673,7 +1665,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 			if (pathsDelay[currentPaths[i]]>maxTestedPathDelay && paths[currentPaths[i]][0].tested)
 			{
 				maxTestedPathDelay = pathsDelay[currentPaths[i]];
-				longestTestedPath = currentPaths[i];
+			//	longestTestedPath = currentPaths[i];
 			}
 		}
 
@@ -1731,8 +1723,8 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 	double maxUntestedPathDelay = 0.0;
 	double maxTestedPathDelay = 0.0;
 
-	int longestUntestedPath = -1;
-	int longestTestedPath = -1;
+//	int longestUntestedPath = -1;
+//	int longestTestedPath = -1;
 
 	int longestPath = -1;
 	int edgetype = -1;
@@ -1803,13 +1795,13 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
 			{
 				maxUntestedPathDelay = pathsDelay[currentPaths[i]];
-				longestUntestedPath = currentPaths[i];
+		//		longestUntestedPath = currentPaths[i];
 			}
 
 			if (pathsDelay[currentPaths[i]]>maxTestedPathDelay && paths[currentPaths[i]][0].tested)
 			{
 				maxTestedPathDelay = pathsDelay[currentPaths[i]];
-				longestTestedPath = currentPaths[i];
+			//	longestTestedPath = currentPaths[i];
 			}
 
 		}
@@ -1952,7 +1944,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
 			{
 				maxUntestedPathDelay = pathsDelay[currentPaths[i]];
-				longestUntestedPath = currentPaths[i];
+			//	longestUntestedPath = currentPaths[i];
 			}
 
 
@@ -1960,7 +1952,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			if (pathsDelay[currentPaths[i]]>maxTestedPathDelay && paths[currentPaths[i]][0].tested)
 			{
 				maxTestedPathDelay = pathsDelay[currentPaths[i]];
-				longestTestedPath = currentPaths[i];
+			//	longestTestedPath = currentPaths[i];
 			}
 		}
 
@@ -2013,61 +2005,57 @@ double run_MC(bool slidingWindow, int corelationModel, int number_of_samples,  s
 
 
 
-		std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << " untested " << std::endl;
-		std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;
+	std::cout << "All edges were tested but still there remains the following number of untested paths :-  " << remainingPaths << " untested " << std::endl;
+	std::cout << "starting MC simulation with " << number_of_samples << " samples " << std::endl;
 
-		std::vector<int> testedPaths;
-		testedPaths.resize(0);
-		std::vector<int> unTestedPaths;
+	std::vector<int> testedPaths;
+	testedPaths.resize(0);
+	std::vector<int> unTestedPaths;
 
-		unTestedPaths.resize(0);
+	unTestedPaths.resize(0);
 
-		for (int j = 0; j < (int)paths.size(); j++)
+	for (int j = 0; j < (int)paths.size(); j++)
+	{
+		if (paths[j].size() < 1)
+			continue;
+		if (paths[j][0].tested)
 		{
-			if (paths[j].size() < 1)
-				continue;
-			if (paths[j][0].tested)
-			{
-				testedPaths.push_back(j);
-			}
-			else
-			{
-				unTestedPaths.push_back(j);
-			}
+			testedPaths.push_back(j);
 		}
+		else
+		{
+			unTestedPaths.push_back(j);
+		}
+	}
 
-//		std::cout << "untested " << unTestedPaths.size() << std::endl;
 
-//		std::cout << "uremaining  " << remainingPaths << std::endl;
-
-		assert(remainingPaths == (int)unTestedPaths.size());
+	assert(remainingPaths == (int)unTestedPaths.size());
 
 		// starting MC simulation
 
-		MC_generate_edges_rand_vars(sigma, qDelayInter);
-		MC_generate_REs_rand_vars(sigma, qDelayInter);
+	MC_generate_edges_rand_vars(sigma, qDelayInter);
+	MC_generate_REs_rand_vars(sigma, qDelayInter);
+	
+	if (MC_validate_RE_delays(timingEdgeToPaths))
+		std::cout << "Alles clar " << std::endl;
+	else
+		assert(false);
 
-		if (MC_validate_RE_delays(timingEdgeToPaths))
-			std::cout << "Alles clar " << std::endl;
-		else
-			assert(false);
-
-		if (MC_validate_edges_delays(timingEdgeToPaths))
-			std::cout << "Alles clar " << std::endl;
-		else
-			assert(false);
-
+	if (MC_validate_edges_delays(timingEdgeToPaths))
+		std::cout << "Alles clar " << std::endl;
+	else
+		assert(false);
 //		double failureProb = MC_sim_edges(number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths, pathsImport);
 		//		double failureProb = 0.0;
 //		std::cout << "failure rate with timing edges is " << failureProb << std::endl;
 //		TE_MCSim << "failure rate with timing edges is " << failureProb << std::endl;
 
-		double failureProb2 = MC_sim_RE(slidingWindow, corelationModel,number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths, pathsImport);
+	double failureProb2 = MC_sim_RE(slidingWindow, corelationModel,number_of_samples, unTestedPaths, testedPaths, timingEdgeToPaths, pathsImport);
 
 		//		double failureProb = 0.0;
-		std::cout << "failure rate with RE is " << failureProb2 << std::endl;
-		RE_MCSim << "failure rate with RE is " << failureProb2 << std::endl;
-		return failureProb2 * number_of_samples;
+	std::cout << "failure rate with RE is " << failureProb2 << std::endl;
+	RE_MCSim << "failure rate with RE is " << failureProb2 << std::endl;
+	return failureProb2 * number_of_samples;
 		
 //	}
 }

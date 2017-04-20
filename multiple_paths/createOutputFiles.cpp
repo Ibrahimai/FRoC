@@ -841,6 +841,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 							{
 								portInToCombout = paths[fpgaLogic[x][y][z].nodes[k].path][fpgaLogic[x][y][z].nodes[k].node].portIn;
 								inverting_t = paths[fpgaLogic[x][y][z].nodes[k].path][fpgaLogic[x][y][z].nodes[k].node].inverting;
+								assert(inverting_t == paths[path_t][node_t].inverting);
 							}
 						}
 

@@ -16,5 +16,5 @@ void LUT_inputs_stat();
 //void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack);
 void update_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack);
 int count_timing_edges_realistic(std::map<std::string, double>  testedTimingEdgeSlack, std::map<std::string, double>  completeTimingEdgeSlack);
-void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<Path_logic_component> > & timingEdgeToPaths);
+void generate_timing_edges_of_all_paths(std::map<std::string, double> & timingEdgeSlack, std::map<std::string, std::vector<Path_logic_component> > & timingEdgeToPaths,  bool MCsimulation);
 void print_paths_delays(std::string name_prefix);

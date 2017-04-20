@@ -1349,12 +1349,12 @@ int read_timing_edges(char* edgesFile)
 	int prevX = -1; 
 	int prevY = -1; 
 	int prevZ = -1; 
-	int prevPin = -1; 
+//	int prevPin = -1; 
 	int prevPout = -1;
 
 	char currI = 'l'; 
 	char currO  = 'l'; 
-	char prevI  = 'l'; 
+//	char prevI  = 'l'; 
 	char prevO = 'l'; // the edge typ of the input and output from the prev and current node
 
 	int edgeType = -1;
@@ -1455,9 +1455,9 @@ int read_timing_edges(char* edgesFile)
 				prevX = currX;
 				prevY = currY;
 				prevZ = currZ;
-				prevPin = currPin;
+			//	prevPin = currPin;
 				prevPout = currPout;
-				prevI = currI;
+			//	prevI = currI;
 				prevO = currO;
 
 				///////////////////////////////////// read x, y, z /////////////////////////////////////////////////////////
@@ -1554,9 +1554,9 @@ int read_timing_edges(char* edgesFile)
 				prevX = currX;
 				prevY = currY;
 				prevZ = currZ;
-				prevPin = currPin;
+			//	prevPin = currPin;
 				prevPout = currPout;
-				prevI = currI;
+			//	prevI = currI;
 				prevO = currO;
 
 				///////////////////////////////////// read x, y, z /////////////////////////////////////////////////////////
