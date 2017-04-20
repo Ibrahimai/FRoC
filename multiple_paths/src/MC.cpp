@@ -1726,8 +1726,8 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 //	int longestUntestedPath = -1;
 //	int longestTestedPath = -1;
 
-	int longestPath = -1;
-	int edgetype = -1;
+//	int longestPath = -1;
+//	int edgetype = -1;
 	for (auto iter = REToPaths.begin(); iter != REToPaths.end(); iter++)
 	{
 		std::string tempKey = iter->first;
@@ -1752,7 +1752,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 		// at most the number of delays of an RE can be 2, FF and RR
 		assert((iter_delay->second).size() < 3);
 
-		edgetype = -1;
+	//	edgetype = -1;
 
 		std::vector<double> transitionDelay(4, -1); // RE edge transition can either be 0 or 3
 
@@ -1789,7 +1789,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			if (pathsDelay[currentPaths[i]]>maxPathDelay)
 			{
 				maxPathDelay = pathsDelay[currentPaths[i]];
-				longestPath = currentPaths[i];
+		//		longestPath = currentPaths[i];
 			}
 
 			if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
@@ -1849,7 +1849,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 		// the timing edge must exist in the timingedge delay vars map
 		assert(iter_delay != timingEdgesDelay.end());
 
-		edgetype = -1;
+	//	edgetype = -1;
 
 		std::vector<double> transitionDelay(8, -1);
 		// loop across different transistions at this edge
@@ -1862,7 +1862,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			if (currDelay > maxDelay)
 			{
 				maxDelay = currDelay;
-				edgetype = (iter_delay->second)[i].type;
+			//	edgetype = (iter_delay->second)[i].type;
 			}
 			if ((iter_delay->second)[i].type > 3)
 				assert(z%LUTFreq != 0);
@@ -1938,7 +1938,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 			if (pathsDelay[currentPaths[i]]>maxPathDelay)
 			{
 				maxPathDelay = pathsDelay[currentPaths[i]];
-				longestPath = currentPaths[i];
+		//		longestPath = currentPaths[i];
 			}
 
 			if (pathsDelay[currentPaths[i]]>maxUntestedPathDelay && !paths[currentPaths[i]][0].tested)
