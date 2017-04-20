@@ -56,11 +56,11 @@ void MC_generate_REs_rand_vars(double dev_per_to_mean, double quartus_delay)
 			{
 				dev = 0.00000000000000000000000000000000000000000000001;
 			}
-			std::normal_distribution<double> randVarstemp(mean, dev);
-			std::normal_distribution<double> randVarstemp_standard(0.0, 1.0);
+		//	std::normal_distribution<double> randVarstemp(mean, dev);
+		//	std::normal_distribution<double> randVarstemp_standard(0.0, 1.0);
 
-			Rand_Edge_Delay temp = Rand_Edge_Delay(currentEdge[i].type, randVarstemp);
-			Rand_Edge_Delay temp_standard = Rand_Edge_Delay(currentEdge[i].type, randVarstemp_standard);
+			Rand_Edge_Delay temp = Rand_Edge_Delay(currentEdge[i].type, mean, dev);// randVarstemp);
+			Rand_Edge_Delay temp_standard = Rand_Edge_Delay(currentEdge[i].type, 0.0, 1.0);// randVarstemp_standard);
 			currentEdgeRand.push_back(temp);
 			currentEdgeRand_standard.push_back(temp_standard);
 		}
@@ -104,10 +104,10 @@ void MC_generate_REs_rand_vars(double dev_per_to_mean, double quartus_delay)
 			{
 				dev = 0.00000000000000000000000000000000000000000000001;
 			}
-			std::normal_distribution<double> randVarstemp(mean, dev);
-			std::normal_distribution<double> randVarstemp_standard(0.0, 1.0);
-			Rand_Edge_Delay temp = Rand_Edge_Delay(currentEdge[i].type, randVarstemp);
-			Rand_Edge_Delay temp_standard = Rand_Edge_Delay(currentEdge[i].type, randVarstemp_standard);
+		//	std::normal_distribution<double> randVarstemp(mean, dev);
+		//	std::normal_distribution<double> randVarstemp_standard(0.0, 1.0);
+			Rand_Edge_Delay temp = Rand_Edge_Delay(currentEdge[i].type, mean, dev);// randVarstemp);
+			Rand_Edge_Delay temp_standard = Rand_Edge_Delay(currentEdge[i].type, 0.0, 1.0);// randVarstemp_standard);
 			currentEdgeRand.push_back(temp);
 			currentEdgeRand_standard.push_back(temp_standard);
 		}
@@ -158,10 +158,10 @@ void MC_generate_edges_rand_vars(double dev_per_to_mean, double quartus_delay)
 				dev = 0.00000000000000000000000000000000000000000000001;
 			}
 			std::normal_distribution<double> randVarstemp(mean, dev);
-			Rand_Edge_Delay temp = Rand_Edge_Delay(currentEdge[i].type, randVarstemp);			
+			Rand_Edge_Delay temp = Rand_Edge_Delay(currentEdge[i].type, mean, dev);// randVarstemp);
 			currentEdgeRand.push_back(temp);
 			std::normal_distribution<double> randVarstemp_standard(0.0, 1.0);
-			Rand_Edge_Delay temp_standard = Rand_Edge_Delay(currentEdge[i].type, randVarstemp_standard);
+			Rand_Edge_Delay temp_standard = Rand_Edge_Delay(currentEdge[i].type, 0.0, 1.0);// randVarstemp_standard);
 			currentEdgeRand_standard.push_back(temp_standard);
 		}
 

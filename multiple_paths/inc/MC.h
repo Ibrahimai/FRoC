@@ -24,6 +24,12 @@ public:
 		type = ed;
 		randVars = randVarstemp;
 	}
+	Rand_Edge_Delay(int ed, double mean, double sigma )
+	{
+		type = ed;
+		std::normal_distribution<double> randVarstemp(mean, sigma);
+		randVars = randVarstemp;
+	}
 
 };
 
