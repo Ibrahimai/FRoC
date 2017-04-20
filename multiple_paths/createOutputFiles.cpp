@@ -2144,7 +2144,7 @@ void create_RCF_file()
 						}
 						if (fpgaLogic[i][j][k].connections[l].destinationX == -1)
 						{ 
-							if (l == fpgaLogic[i][j][k].connections.size() - 1 && first_route_found) 
+							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && first_route_found) 
 								RoFile << "}" << std::endl;
 							continue;
 						}
@@ -2293,7 +2293,7 @@ void create_RCF_file()
 							break;
 						}
 
-						if (l == fpgaLogic[i][j][k].connections.size() - 1)
+						if (l == (int)fpgaLogic[i][j][k].connections.size() - 1)
 							RoFile << "}" << std::endl;
 					}
 

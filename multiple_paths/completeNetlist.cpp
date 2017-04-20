@@ -69,7 +69,7 @@ void update_testedPaths(std::vector <std::vector<int> > test_structure) // test 
 	{
 		total += tested_path_in_phase[i];
 	}
-	assert(total == tested_path_in_current_bitstream.size());
+	assert(total == (int)tested_path_in_current_bitstream.size());
 	///// end double check
 
 	testedPaths.push_back(tested_path_in_current_bitstream);

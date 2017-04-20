@@ -29,7 +29,7 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 			sink = true;
 
 			sinks.push_back(fpgaLogic[x][y][z].nodes[l].path);
-			assert(fpgaLogic[x][y][z].nodes[l].node == paths[fpgaLogic[x][y][z].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
+			assert(fpgaLogic[x][y][z].nodes[l].node == (int)paths[fpgaLogic[x][y][z].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
 		}
 	//	if (source && sink)
 	//	{
@@ -40,9 +40,9 @@ bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc
 
 	if (sink&&source) // this register is a sink and source, just gonna check if they are all cascaded or not (some may be wraparound/feedback)
 	{
-		for (int i = 0; i < sinks.size(); i++)
+		for (int i = 0; i < (int)sinks.size(); i++)
 		{
-			for (int j = 0; j < sources.size(); j++)
+			for (int j = 0; j < (int)sources.size(); j++)
 			{
 				if (sinks[i] == sources[j]) // then this is a cascaded path so remove it from both
 				{
@@ -105,7 +105,7 @@ bool reg_free_input(int x, int y, int z) // returns true if the register in loc 
 			sink = true;
 
 		//	sinks.push_back(fpgaLogic[x][y][z].nodes[l].path);
-			assert(fpgaLogic[x][y][z].nodes[l].node == paths[fpgaLogic[x][y][z].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
+			assert(fpgaLogic[x][y][z].nodes[l].node == (int)paths[fpgaLogic[x][y][z].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
 		}
 		//	if (source && sink)
 		//	{
@@ -138,7 +138,7 @@ bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, 
 		nextNode = currentNode + 1;
 		if (paths[currentPath][0].deleted)
 			continue;
-		if (currentNode == paths[currentPath].size() - 2) // this node is the b4 last cell so it feeds a register, now just ignore it, for cascaded paths this cell must be controlled todo: if this is true return true; 
+		if (currentNode == (int)paths[currentPath].size() - 2) // this node is the b4 last cell so it feeds a register, now just ignore it, for cascaded paths this cell must be controlled todo: if this is true return true; 
 		{
 			// this means that this node is the cell before the last, so it feeds a aregister, we must check if this register is a cascaded register then we must control it.
 			
@@ -200,7 +200,9 @@ bool delete_path(int path)
 
 	// used to handle updating the cascaded list when the deleted path is a cascaded path
 	int cascadedFeederPath, cascadedFeederNode;
-	int cascadedFeederX, cascadedFeederY, cascadedFeederZ;
+	int cascadedFeederX = -1;
+	int cascadedFeederY = -1; 
+	int cascadedFeederZ = -1;
 
 
 	if (isCascadedReg)
@@ -241,7 +243,7 @@ bool delete_path(int path)
 			if (paths[fpgaLogic[x][y][z].nodes[j].path][0].deleted) // if this path is deleted then continue to next path
 				continue;
 
-			if (i == paths[path].size() - 1) // last element in the path which is the sink reg
+			if (i == (int)paths[path].size() - 1) // last element in the path which is the sink reg
 			{
 				assert(z%LUTFreq != 0); // make sure its a reg
 				if (fpgaLogic[x][y][z].nodes[j].node>0) // check if node j at reg x, y, z is a sink register. If thats the case then this register is still a sink
@@ -336,7 +338,7 @@ bool delete_path(int path)
 						extraCheck = true;
 
 						// since we have deleted a connection to a register we must update the cascaded list of xfeeder,yfeeder zfeeder by removing all paths starting at reg x, y, z
-						for (int pop = 0; pop < fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths.size(); pop++)
+						for (int pop = 0; pop < (int)fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths.size(); pop++)
 						{
 							// check if this cascaded path start at reg x, y,z. If so, then delete it from the cascaded list
 							if (paths[fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths[pop]][0].x == x && paths[fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths[pop]][0].y == y && paths[fpgaLogic[xFeeder][yFeeder][zFeeder].cascadedPaths[pop]][0].z == z)
@@ -380,7 +382,7 @@ bool delete_path(int path)
 
 	//	assert(fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.size() > 0); // since it is cascaded
 
-		for (i = 0; i < fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.size(); i++) 
+		for (i = 0; i < (int)fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths.size(); i++)
 		{
 
 			if (fpgaLogic[cascadedFeederX][cascadedFeederY][cascadedFeederZ].cascadedPaths[i] == path)
@@ -681,7 +683,9 @@ bool check_down_link_edge_transition(int i, int j, int k) // returns true if the
 {
 
 	int x;
-	int newI, newJ, newK;
+	int newI = -1;
+	int newJ = -1;
+	int newK = -1;
 	bool found = false;
 	for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++)
 	{

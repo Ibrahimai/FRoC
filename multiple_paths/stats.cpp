@@ -3,7 +3,7 @@
 void print_path(int path)
 {
 	std::cout << "PATH NUMBER " << path << " look like this :" << std::endl;
-	for (int i = 0; i < paths[path].size(); i++)
+	for (int i = 0; i < (int)paths[path].size(); i++)
 	{
 
 		std::cout << paths[path][i].x << "\t" << paths[path][i].y << "\t" << paths[path][i].z << "\t" << "using port " << paths[path][i].portIn <<std::endl;
@@ -68,7 +68,7 @@ int count_cascaded_paths() // returns number of feedback paths
 					else
 					{
 						sink = true;
-						assert(fpgaLogic[i][j][k].nodes[l].node == paths[fpgaLogic[i][j][k].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
+						assert(fpgaLogic[i][j][k].nodes[l].node == (int)paths[fpgaLogic[i][j][k].nodes[l].path].size() - 1); // make sure that this is really the sink of the corresponding path.
 					}
 					if (source && sink)
 					{
@@ -96,7 +96,7 @@ void get_cascaded_paths_inverting_behaviour()
 {
 	int compliantPaths = 0;
 	int total = 0;
-	for (int i = 0; i < paths.size(); i++)
+	for (int i = 0; i <(int)paths.size(); i++)
 	{
 		int inverters = 0;
 		if (paths[i].size() < 2)
@@ -106,7 +106,7 @@ void get_cascaded_paths_inverting_behaviour()
 		{
 			total++;
 		
-			for (int j = 1; j < paths[i].size()-1; j++) // loop through the LUTs used in this feedback path
+			for (int j = 1; j < (int)paths[i].size()-1; j++) // loop through the LUTs used in this feedback path
 			{
 				if (paths[i][j].inverting)
 					inverters++;
@@ -148,7 +148,7 @@ void check_LE_outputs()
 					{
 						assert(fpgaLogic[i][j][k].nodes.size()>0);
 						// this must be the last node in the path so check that
-						assert(fpgaLogic[i][j][k].nodes[0].node == paths[fpgaLogic[i][j][k].nodes[0].path].size() - 1);
+						assert(fpgaLogic[i][j][k].nodes[0].node == (int)paths[fpgaLogic[i][j][k].nodes[0].path].size() - 1);
 						totalSink++;
 					}
 				}
@@ -677,7 +677,7 @@ void print_paths_delays(std::string name_prefix)
 	delayTextFile.open(delay_file_name);
 
 	delayTextFile << "Path\tDelay\tNorm" << std::endl;
-	for (int i = 1; i < paths.size(); i++)
+	for (int i = 1; i < (int)paths.size(); i++)
 	{
 		delayTextFile << i << "\t" << pathClockRelation[i] - pathSlack[i] << "\t" << (pathClockRelation[i] - pathSlack[i]) / (pathClockRelation[1] - pathSlack[1]) << std::endl;
 

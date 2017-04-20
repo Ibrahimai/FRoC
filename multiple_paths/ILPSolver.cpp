@@ -1196,7 +1196,7 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 		double* coeff = new double[num_of_paths];
 		if (use_MC) // use the information we got from MC to test paths
 		{
-			assert(pathsImport.size() == num_of_paths + 1);
+			assert((int)pathsImport.size() == num_of_paths + 1);
 
 			if (bitstreams == 1)
 			{
@@ -3590,7 +3590,7 @@ void ILP_solve_max_paths_per_x_bit_stream(int bitStreams, std::vector < std::vec
 		std::cout << "number of bit streams " << bitStreams << std::endl;
 		if (use_MC) // use the information we got from MC to test paths
 		{
-			assert(pathsImport.size() == num_of_paths + 1);
+			assert((int)pathsImport.size() == num_of_paths + 1);
 
 			for (int i = 0; i < num_of_paths; i++)
 			{

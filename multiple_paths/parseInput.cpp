@@ -47,12 +47,12 @@ int parseOptions(int argc, char* argv[],
 	allCommandArguments.resize(argc - 1);
 
 	// copy from argv to our vector of strings
-	for (int i = 0; i < allCommandArguments.size(); i++)
+	for (int i = 0; i < (int)allCommandArguments.size(); i++)
 		allCommandArguments[i] = argv[i + 1];
 
 
 	std::string option = "";
-	for (int i = 0; i < allCommandArguments.size(); i++)
+	for (int i = 0; i < (int)allCommandArguments.size(); i++)
 	{
 		if (allCommandArguments[i][0] == '-') // if its an option, lets check if we are expecting an option or not
 		{
@@ -265,7 +265,7 @@ int parseOptions(int argc, char* argv[],
 bool isInt(std::string input) // return true if input string is an int
 {
 
-	for (int i = 0; i < input.size(); i++)
+	for (int i = 0; i <(int)input.size(); i++)
 	{
 		if (!isdigit(input[i]))// not a digit
 			return false;
@@ -328,8 +328,9 @@ int parseIn(std::string metaFileName)
 	pathClockRelation.resize(0);
 	pathClockRelation.push_back(0);
 
-	int i, counter, index1, x, y, z, pIn, pOut, edgeType;
+	int i, counter, x, y, z, pIn, pOut, edgeType;
 	int maxOverlap = 0;
+	int  index1 = -1;
 	double tempSlack;
 	bool slackReached = false;
 	bool invertingSignal;
@@ -469,7 +470,7 @@ int parseIn(std::string metaFileName)
 		if (node!=0 && z%LUTFreq==1) // this is a FF and not a source, it is a sink FF
 		{
 			int tempFFMode;
-			assert(node - 1 == tempPath.size() - 1);
+			assert(node - 1 == (int)tempPath.size() - 1);
 			if (tempPath[node - 1].x == x && tempPath[node - 1].y == y && (tempPath[node - 1].z == z - 1)) // means its fed from the LUT connected to the D input
 			{
 				tempFFMode = dInput;
@@ -922,7 +923,7 @@ void insert_to_REsDelay(std::string tempKey, double delay, int edgeType)
 	else // RE found
 	{
 		bool found = false;
-		for (int i = 0; i < iter->second.size(); i++)
+		for (int i = 0; i < (int)iter->second.size(); i++)
 		{
 			if ((iter->second)[i].delay == delay && (iter->second)[i].type == edgeType)
 			{
@@ -960,7 +961,7 @@ void adjust_REsDelay()
 		int riseCount = 0;
 
 		// loop over all edge delays in this RE to get an average for fall and rise delay for each RE
-		for (int i = 0; i < (iter->second).size(); i++)
+		for (int i = 0; i < (int)(iter->second).size(); i++)
 		{
 			if ((iter->second)[i].type==0) // fall
 			{
@@ -1000,7 +1001,7 @@ void adjust_REsDelay()
 		auto iter_path = REToPaths.find((iter->first));
 		assert(iter_path != REToPaths.end());
 
-		for (int i = 0; i < (iter_path->second).size(); i++)
+		for (int i = 0; i < (int)(iter_path->second).size(); i++)
 		{
 			if (paths[(iter_path->second)[i].path][(iter_path->second)[i].node].edgeType < 2)// then fall edge along this RE
 			{
@@ -1020,7 +1021,9 @@ void adjust_REsDelay()
 // read routing files, model routing structures and create REstoDelay and REstoPaths.
 int read_routing(std::string routingFile)
 {
-	int i, path, node;
+	int i;
+	int path = -1; 
+	int node = -1;
 	std::ifstream metaData(routingFile);
 	if (!metaData)
 	{
@@ -1033,7 +1036,9 @@ int read_routing(std::string routingFile)
 	bool deletedPath = false;
 	bool connExists;
 	int count = 0;
-	int sourceX, sourceY, sourceZ;
+	int sourceX = -1;
+	int sourceY = -1;
+	int sourceZ = -1;
 	double cellREDelay = 0.0;
 	while (std::getline(metaData, line))
 	{
@@ -1179,7 +1184,7 @@ int read_routing(std::string routingFile)
 					std::vector <RE_logic_component> tempPaths;
 					// store the path using RE, for node we choose the sink node as the node owning this RE
 					tempPaths.push_back(RE_logic_component(path,node+1, cellREDelay + REDelay));
-					assert(paths[path].size() > node + 1);
+					assert((int)paths[path].size() > node + 1);
 					REToPaths.insert(std::pair<std::string, std::vector<RE_logic_component> >(tempKeyRE, tempPaths));
 				}
 				else // this RE has been inserted then add the current path to the list of paths using it
@@ -1202,7 +1207,7 @@ int read_routing(std::string routingFile)
 
 	////// add connections between the last lut in a path and the reg its feeding because up till this point we didnt add this if the reg is fed using port D. We have added it if the reg is feeded using asdata
 
-	for (int i = 1; i < paths.size(); i++) // loop across all paths
+	for ( i = 1; i < (int)paths.size(); i++) // loop across all paths
 	{
 
 		// empty path, just checking
@@ -1225,7 +1230,7 @@ int read_routing(std::string routingFile)
 		bool existAlready = false;
 
 		// check if this connection has already been added
-		for (int count = 0; count < fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections.size(); count++)
+		for ( count = 0; count <(int)fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections.size(); count++)
 		{
 			if (fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections[count].destinationX == FFx && fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections[count].destinationY == FFy && fpgaLogic[lastLUTx][lastLUTy][lastLUTz].connections[count].destinationZ == FFz)
 			{
@@ -1284,7 +1289,7 @@ void insert_to_timingEdgesDelay(std::string tempKey, double delay, int edgeType)
 
 		bool found = false;
 
-		for (int i = 0; i < iter->second.size(); i++)
+		for (int i = 0; i < (int)iter->second.size(); i++)
 		{
 			if ((iter->second)[i].type == edgeType)
 			{
@@ -1331,14 +1336,26 @@ int read_timing_edges(char* edgesFile)
 
 
 
-	int i, counter, index1;
+	int i, counter;
 
 
 
+	int  index1 = -1;
+	int currX = -1;
+	int currY = -1;
+	int currZ = -1;
+	int currPin = -1;
+	int currPout = -1;
+	int prevX = -1; 
+	int prevY = -1; 
+	int prevZ = -1; 
+	int prevPin = -1; 
+	int prevPout = -1;
 
-	int currX, currY, currZ, currPin, currPout, prevX, prevY, prevZ, prevPin, prevPout = -1;
-
-	char currI, currO, prevI, prevO = 'l'; // the edge typ of the input and output from the prev and current node
+	char currI = 'l'; 
+	char currO  = 'l'; 
+	char prevI  = 'l'; 
+	char prevO = 'l'; // the edge typ of the input and output from the prev and current node
 
 	int edgeType = -1;
 

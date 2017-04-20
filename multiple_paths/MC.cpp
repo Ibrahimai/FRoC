@@ -45,7 +45,7 @@ void MC_generate_REs_rand_vars(double dev_per_to_mean, double quartus_delay)
 		assert(iter_rand_edges == Cells_REsRandVars.end());
 
 		//loop over all the edge delays of this edge (max 4. FF, FR, RF, RR)
-		for (int i = 0; i < currentEdge.size(); i++)
+		for (int i = 0; i < (int)currentEdge.size(); i++)
 		{
 			// u + quartus_delay*sigma = delay_reported_by_quartus (quartus_delay [0-3])
 			// sigma/mean = dev_per_to_mean
@@ -91,7 +91,7 @@ void MC_generate_REs_rand_vars(double dev_per_to_mean, double quartus_delay)
 		assert(iter_rand_edges == Cells_REsRandVars.end());
 
 		//loop over all the edge delays of this edge (max 4. FF, FR, RF, RR)
-		for (int i = 0; i < currentEdge.size(); i++)
+		for (int i = 0; i < (int)currentEdge.size(); i++)
 		{
 			// u + quartus_delay*sigma = delay_reported_by_quartus (quartus_delay [0-3])
 			// sigma/mean = dev_per_to_mean
@@ -146,7 +146,7 @@ void MC_generate_edges_rand_vars(double dev_per_to_mean, double quartus_delay)
 		assert(iter_rand_edges == timingEdgesRandVars.end());
 
 		//loop over all the edge delays of this edge (max 4. FF, FR, RF, RR)
-		for (int i = 0; i < currentEdge.size(); i++)
+		for (int i = 0; i < (int)currentEdge.size(); i++)
 		{
 			// u + quartus_delay*sigma = delay_reported_by_quartus (quartus_delay [0-3])
 			// sigma/mean = dev_per_to_mean
@@ -182,7 +182,7 @@ void get_location_from_key(std::string tempKey, int & x, int & y, int & z)
 	bool numberFound = false;
 
 	std::string temp = "";
-	for (int i = 0; i < tempKey.size(); i++)
+	for (int i = 0; i < (int)tempKey.size(); i++)
 	{
 		if (isdigit(tempKey[i]))
 		{
@@ -256,7 +256,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 
 
 		// taking clock skew into account
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i < (int)paths.size(); i++)
 		{
 			pathsDelay[i] -= pathClockSkew[i];
 			pathsDelayOpTransition[i] -= pathClockSkew[i];
@@ -288,7 +288,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 			std::vector<int> currentPaths;// = iter->second; // store paths of the current edge
 			std::vector<int> currentNodes;// = iter->second; // store the corresponding node of each  path used by this edge
 
-			for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+			for (int counter_vector = 0; counter_vector < (int)(iter->second).size(); counter_vector++)
 			{
 				currentPaths.push_back((iter->second)[counter_vector].path);
 				currentNodes.push_back((iter->second)[counter_vector].node);
@@ -318,7 +318,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 			std::vector<double> transitionDelay(8, -1); // 8 possible transistion delay, the normal 4 (ff,fr,rf,rr) and another 4 just for the Tco of the source register
 
 			// loop across different transistions at this edge
-			for (int i = 0; i < (iter_delay->second).size(); i++)
+			for (int i = 0; i < (int)(iter_delay->second).size(); i++)
 			{
 				double currDelay = ((iter_delay->second)[i].randVars)(gen);
 
@@ -350,7 +350,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 
 			// now we have a delay for this edge lets add it to all the paths its using
 
-			for (int i = 0; i < currentPaths.size(); i++)
+			for (int i = 0; i < (int)currentPaths.size(); i++)
 			{
 					 
 				if (z < 0 || z%LUTFreq == 0) // LUT ot IC
@@ -483,7 +483,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 		/// for stats purposes see what is the longest path ate each MC sample begin
 	
 		int index_longest_path = -1;
-		for (int k = 0; k < longestPaths.size(); k++)
+		for (int k = 0; k < (int)longestPaths.size(); k++)
 		{
 			if (longestPaths[k].first == longestPath)
 			{
@@ -507,7 +507,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 		// now we will check if the longest path corresponds to an untested path or not
 
 		bool fail = false;
-		for (int i = 0; i < untestedPaths.size(); i++)
+		for (int i = 0; i < (int)untestedPaths.size(); i++)
 		{
 			if (longestPath == untestedPaths[i])
 			{
@@ -517,7 +517,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 				int index = -1;
 				int untestedPath = -1;
 				untestedPath = untestedPaths[i];
-				for (int k = 0; k < problematicPaths.size(); k++)
+				for (int k = 0; k < (int)problematicPaths.size(); k++)
 				{
 					if (problematicPaths[k].first == untestedPaths[i])
 					{
@@ -558,7 +558,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 
 		// now I just wanted to check if the longest delay is also the same as a tested path
 
-		for (int i = 0; i < testedPaths.size(); i++)
+		for (int i = 0; i < (int)testedPaths.size(); i++)
 		{
 			if (maxPathDelay == pathsDelay[testedPaths[i]])
 			{
@@ -588,7 +588,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 	std::fill(pathsImport.begin(), pathsImport.end(), 0.0);
 
 	// print problematic paths
-	for (int k = 0; k < problematicPaths.size(); k++)
+	for (int k = 0; k < (int)problematicPaths.size(); k++)
 	{
 		TE_MCSim << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
 		std::cout << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
@@ -603,7 +603,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 	
 
 	int slowestPath = longestPaths[0].first;
-	for (int k = 0; k < longestPaths.size(); k++)
+	for (int k = 0; k < (int)longestPaths.size(); k++)
 	{
 		if (longestPaths[k].first > slowestPath)
 			slowestPath = longestPaths[k].first;
@@ -613,7 +613,7 @@ double MC_sim_edges(int num_of_simulations, std::vector<int> untestedPaths, std:
 	}
 
 	// add a bit of weight to the paths that are not longest to let the ILp consider testing them too
-	for (int k = 1; k < pathsImport.size(); k++)
+	for (int k = 1; k < (int)pathsImport.size(); k++)
 	{
 		if (pathsImport[k] != 0)
 			continue;
@@ -644,7 +644,7 @@ void get_RE_location_and_length(std::string Key, int & x, int & y, int & length)
 
 	bool foundNumber = false;
 	std::string tempNumber;
-	for (int i = 0; i < Key.size();i++)
+	for (int i = 0; i <(int)Key.size();i++)
 	{
 		if (!foundNumber)
 		{
@@ -692,7 +692,7 @@ void get_RE_location(std::string Key, int & x, int & y )
 
 	bool foundNumber = false;
 	std::string tempNumber;
-	for (int i = 0; i < Key.size(); i++)
+	for (int i = 0; i <(int)Key.size(); i++)
 	{
 		if (!foundNumber)
 		{
@@ -807,7 +807,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 		std::vector<double> pathsDelay(paths.size(), 0.0); // stores it with clock skew into account
 
 		// taking clock skew and total delta RE into account
-		for (int i = 1; i < paths.size(); i++)
+		for (int i = 1; i < (int)paths.size(); i++)
 		{
 			pathsDelay[i] -= pathClockSkew[i];
 			pathsDelay[i] += pathREsDelta[i];
@@ -845,9 +845,9 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 		else if (corelationModel == PARTIALCORELATION)
 		{
 			currSampleRVMatrix.resize(RVmatrix.size());
-			for (int i = 0; i < RVmatrix.size(); i++)
+			for (int i = 0; i < (int)RVmatrix.size(); i++)
 			{
-				for (int j = 0; j < RVmatrix[i].size(); j++)
+				for (int j = 0; j <(int)RVmatrix[i].size(); j++)
 				{	
 					currSampleRVMatrix[i].push_back((RVmatrix[i][j])(gen));
 				}
@@ -863,7 +863,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 			std::vector<int> currentNodes;// = iter->second; // store the corresponding node of each  path used by this edge
 
 
-			for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+			for (int counter_vector = 0; counter_vector < (int)(iter->second).size(); counter_vector++)
 			{
 				currentPaths.push_back((iter->second)[counter_vector].path);
 				currentNodes.push_back((iter->second)[counter_vector].node);
@@ -887,9 +887,9 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 			std::vector<double> transitionDelay(4, -1); // RE edge transition can either be 0 or 3
 
 			// loop across different transistions at this edge to get the max delay
-			for (int i = 0; i < (iter_delay->second).size(); i++)
+			for (int i = 0; i < (int)(iter_delay->second).size(); i++)
 			{
-				double currDelay;
+				double currDelay = 0.0;
 				
 				if (corelationModel== NOCORELATION)// totally independant variables
 				{
@@ -1087,7 +1087,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 					maxDelay = currDelay;			
 			}
 
-			for (int i = 0; i < currentPaths.size(); i++)
+			for (int i = 0; i <(int)currentPaths.size(); i++)
 			{
 				int currentEdgeType = paths[currentPaths[i]][currentNodes[i]].edgeType; // get the corresponding cell delay
 				assert(currentEdgeType > -1 && currentEdgeType < 4);
@@ -1139,7 +1139,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 			std::vector<int> currentPaths;// = iter->second; // store paths of the current edge
 			std::vector<int> currentNodes;// = iter->second; // store the corresponding node of each  path used by this edge
 
-			for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+			for (int counter_vector = 0; counter_vector < (int)(iter->second).size(); counter_vector++)
 			{
 				currentPaths.push_back((iter->second)[counter_vector].path);
 				currentNodes.push_back((iter->second)[counter_vector].node);
@@ -1166,11 +1166,11 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 			std::vector<double> transitionDelay(8, -1);
 
 			// loop across different transistions at this edge
-			for (int i = 0; i < (iter_delay->second).size(); i++)
+			for (int i = 0; i < (int)(iter_delay->second).size(); i++)
 			{
 				//double currDelay = ((iter_delay->second)[i].randVars)(gen);
 
-				double currDelay;
+				double currDelay = 0.0;
 
 				if (corelationModel == NOCORELATION)// totally independant variables
 				{
@@ -1280,7 +1280,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 
 			// now we have a delay for this edge lets add it to all the paths its using
 
-			for (int i = 0; i < currentPaths.size(); i++)
+			for (int i = 0; i <(int)currentPaths.size(); i++)
 			{
 				//	if(currentPaths[i]==1)
 				//	{
@@ -1359,7 +1359,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 		/// for stats purposes see what is the longest path ate each MC sample begin
 
 		int index_longest_path = -1;
-		for (int k = 0; k < longestPaths.size(); k++)
+		for (int k = 0; k <(int)longestPaths.size(); k++)
 		{
 			if (longestPaths[k].first == longestPath)
 			{
@@ -1383,7 +1383,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 		// now we will check if the longest path corresponds to an untested path or not
 
 		bool fail = false;
-		for (int i = 0; i < untestedPaths.size(); i++)
+		for (int i = 0; i <(int)untestedPaths.size(); i++)
 		{
 			if (longestPath == untestedPaths[i])
 			{
@@ -1393,7 +1393,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 				int index = -1;
 				int untestedPath = -1;
 				untestedPath = untestedPaths[i];
-				for (int k = 0; k < problematicPaths.size(); k++)
+				for (int k = 0; k < (int)problematicPaths.size(); k++)
 				{
 					if (problematicPaths[k].first == untestedPaths[i])
 					{
@@ -1434,7 +1434,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 
 		// now I just wanted to check if the longest delay is also the same as a tested path
 
-		for (int i = 0; i < testedPaths.size(); i++)
+		for (int i = 0; i < (int)testedPaths.size(); i++)
 		{
 			if (maxPathDelay == pathsDelay[testedPaths[i]])
 			{
@@ -1463,7 +1463,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 	std::fill(pathsImport.begin(), pathsImport.end(), 0.0);
 
 	// print problematic paths
-	for (int k = 0; k < problematicPaths.size(); k++)
+	for (int k = 0; k < (int)problematicPaths.size(); k++)
 	{
 		RE_MCSim << "Path " << problematicPaths[k].first << " is a problem in " << problematicPaths[k].second << " samples." << std::endl;
 		assert(pathsImport[problematicPaths[k].first] == 0.0);
@@ -1472,7 +1472,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 	}
 	RE_MCSim << "=----=-=-09-09=-=-09-0=-0==-0-9=-=0- " << std::endl;
 	int slowestPath = longestPaths[0].first;
-	for (int k = 0; k < longestPaths.size(); k++)
+	for (int k = 0; k < (int)longestPaths.size(); k++)
 	{
 		if (longestPaths[k].first > slowestPath)
 			slowestPath = longestPaths[k].first;
@@ -1480,7 +1480,7 @@ double MC_sim_RE(bool slidingWindow, int corelationModel, int num_of_simulations
 	}
 
 	// add a bit of weight to the paths that are not longest to let the ILp consider testing them too
-	for (int k = 1; k < pathsImport.size(); k++)
+	for (int k = 1; k <(int)pathsImport.size(); k++)
 	{
 		if (pathsImport[k] != 0)
 			continue;
@@ -1518,7 +1518,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 	std::vector<double> pathsDelayF(paths.size(), 0.0); // stores path delays with clock skew into account, the input edge is falling
 
 													   // taking clock skew into account
-	for (int i = 1; i < paths.size(); i++)
+	for (int i = 1; i < (int)paths.size(); i++)
 	{
 		pathsDelay[i] -= pathClockSkew[i];
 		pathsDelayF[i] -= pathClockSkew[i];
@@ -1548,7 +1548,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 		std::vector<int> currentPaths;// = iter->second; // store paths of the current edge
 		std::vector<int> currentNodes;// = iter->second; // store the corresponding node of each  path used by this edge
 
-		for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+		for (int counter_vector = 0; counter_vector < (int)(iter->second).size(); counter_vector++)
 		{
 			currentPaths.push_back((iter->second)[counter_vector].path);
 			currentNodes.push_back((iter->second)[counter_vector].node);
@@ -1580,7 +1580,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 
 		std::vector<double> transitionDelay(8, -1);
 		// loop across different transistions at this edge
-		for (int i = 0; i < (iter_delay->second).size(); i++)
+		for (int i = 0; i < (int)(iter_delay->second).size(); i++)
 		{
 			double currDelay = ((iter_delay->second)[i]).delay;
 
@@ -1615,7 +1615,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 
 		// now we have a delay for this edge lets add it to all the paths its using
 
-		for (int i = 0; i < currentPaths.size(); i++)
+		for (int i = 0; i < (int)currentPaths.size(); i++)
 		{
 			//	if(currentPaths[i]==1)
 			//	{
@@ -1684,7 +1684,7 @@ bool MC_validate_edges_delays(std::map<std::string, std::vector<Path_logic_compo
 	bool succ = true;
 	//double relationship = 1;
 	std::cout << "using Edges " << std::endl;
-	for (int i = 1; i < pathsDelay.size(); i++)
+	for (int i = 1; i < (int)pathsDelay.size(); i++)
 	{
 		double calcSlack = pathClockRelation[i] - pathsDelay[i] - 0.002; // the 0.002 is the clock uncertaininty used by quartus
 		double storedSlack = pathSlack[i];
@@ -1714,7 +1714,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 	std::vector<double> pathsDelay(paths.size(), 0.0); // stores it with clock skew into account
 
 	// taking clock skew and total delta RE into account
-	for (int i = 1; i < paths.size(); i++)
+	for (int i = 1; i < (int)paths.size(); i++)
 	{
 		pathsDelay[i] -= pathClockSkew[i];
 		pathsDelay[i] += pathREsDelta[i];
@@ -1743,7 +1743,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 		std::vector<int> currentNodes;// = iter->second; // store the corresponding node of each  path used by this edge
 
 
-		for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+		for (int counter_vector = 0; counter_vector < (int)(iter->second).size(); counter_vector++)
 		{
 			currentPaths.push_back((iter->second)[counter_vector].path);
 			currentNodes.push_back((iter->second)[counter_vector].node);
@@ -1765,7 +1765,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 		std::vector<double> transitionDelay(4, -1); // RE edge transition can either be 0 or 3
 
 		// loop across different transistions at this edge to store the corresponding delay of each edge
-		for (int i = 0; i < (iter_delay->second).size(); i++)
+		for (int i = 0; i < (int)(iter_delay->second).size(); i++)
 		{
 			double currDelay = (iter_delay->second)[i].delay;
 
@@ -1779,7 +1779,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 		}
 
 
-		for (int i = 0; i < currentPaths.size(); i++)
+		for (int i = 0; i < (int)currentPaths.size(); i++)
 		{
 
 			int currentEdgeType = paths[currentPaths[i]][currentNodes[i]].edgeType; // get the corresponding cell delay
@@ -1834,7 +1834,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 		std::vector<int> currentPaths;// = iter->second; // store paths of the current edge
 		std::vector<int> currentNodes;// = iter->second; // store the corresponding node of each  path used by this edge
 
-		for (int counter_vector = 0; counter_vector < (iter->second).size(); counter_vector++)
+		for (int counter_vector = 0; counter_vector < (int)(iter->second).size(); counter_vector++)
 		{
 			currentPaths.push_back((iter->second)[counter_vector].path);
 			currentNodes.push_back((iter->second)[counter_vector].node);
@@ -1861,7 +1861,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 
 		std::vector<double> transitionDelay(8, -1);
 		// loop across different transistions at this edge
-		for (int i = 0; i < (iter_delay->second).size(); i++)
+		for (int i = 0; i < (int)(iter_delay->second).size(); i++)
 		{
 			double currDelay = ((iter_delay->second)[i]).delay;
 
@@ -1896,7 +1896,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 
 		// now we have a delay for this edge lets add it to all the paths its using
 
-		for (int i = 0; i < currentPaths.size(); i++)
+		for (int i = 0; i < (int)currentPaths.size(); i++)
 		{
 			//	if(currentPaths[i]==1)
 			//	{
@@ -1976,7 +1976,7 @@ bool MC_validate_RE_delays(std::map<std::string, std::vector<Path_logic_componen
 	//double relationship = 1;
 	std::cout << "using REs " << std::endl;
 
-	for (int i = 1; i < pathsDelay.size(); i++)
+	for (int i = 1; i < (int)pathsDelay.size(); i++)
 	{
 		double calcSlack = pathClockRelation[i] - pathsDelay[i] - 0.002; // the 0.002 is the clock uncertaininty and clock set up time used by quartus
 		double storedSlack = pathSlack[i];
@@ -2022,7 +2022,7 @@ double run_MC(bool slidingWindow, int corelationModel, int number_of_samples,  s
 
 		unTestedPaths.resize(0);
 
-		for (int j = 0; j < paths.size(); j++)
+		for (int j = 0; j < (int)paths.size(); j++)
 		{
 			if (paths[j].size() < 1)
 				continue;
@@ -2040,7 +2040,7 @@ double run_MC(bool slidingWindow, int corelationModel, int number_of_samples,  s
 
 //		std::cout << "uremaining  " << remainingPaths << std::endl;
 
-		assert(remainingPaths == unTestedPaths.size());
+		assert(remainingPaths == (int)unTestedPaths.size());
 
 		// starting MC simulation
 
@@ -2080,7 +2080,7 @@ void rerun_MC(bool slidingWindow, int corelationModel, int number_of_samples, st
 	std::vector<int> unTestedPaths;
 	unTestedPaths.resize(0);
 
-	for (int j = 0; j < paths.size(); j++)
+	for (int j = 0; j < (int)paths.size(); j++)
 	{
 		if (paths[j].size() < 1)
 			continue;
