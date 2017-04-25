@@ -5,13 +5,14 @@
 #ifdef CycloneIV
 
 void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSignals, int i, int j, int k, std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1, int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting);//, std::vector <Path_logic_component>& cascadedControlSignals);
-void create_location_contraint_file() // modified for STratix V
+void create_location_contraint_file(int bitStreamNumber) // modified for STratix V
 {
 	int i, j, k;
 	int x;
 	int total = 0;
 	std::ofstream LoFile;
-	LoFile.open("LocationFile.txt");
+	std::string locFileName = "LocationFile_" + std::to_string(bitStreamNumber) + ".txt";
+	LoFile.open(locFileName);
 	int path = -1;
 	int node = -1;
 	for (i = 0; i < FPGAsizeX; i++)
@@ -80,10 +81,12 @@ void create_location_contraint_file() // modified for STratix V
 }
 
 
-void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> CoutSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals) // to be merged with the WYSIWYGs file to complete the source file.
+void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> CoutSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals, std::ifstream& verilogFileSecondPart, int bitStreamNumber) // to be merged with the WYSIWYGs file to complete the source file.
 {
 	std::ofstream verilogFile;
-	verilogFile.open("AuxilFile.txt");
+	std::ofstream LoFile;
+	std::string verilogFileName = "top_" + std::to_string(bitStreamNumber) + ".v";
+	verilogFile.open(verilogFileName);
 	verilogFile << "module top (input CLK, input reset, input start_test, output error, output fuck";
 #ifdef DUMMYREG
 	verilogFile << ", dummyOut";
@@ -264,17 +267,31 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 	else
 		verilogFile << ");" << std::endl;
 
+	// merge verilogSecondPart and verilog into one file
+
+	verilogFile << std::endl;
+	verilogFile << std::endl;
+
+	std::string line;
+	while (std::getline(verilogFileSecondPart, line)) // only loop when read succeeds
+	{
+		// use line here
+		verilogFile << line << '\n'; // copy line to output
+	}
+
 
 	verilogFile.close();
+	verilogFileSecondPart.close();
 }
 
 
 
-void create_controller_module(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals)
+void create_controller_module(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals, int bitStreamNumber)
 {
 
 	std::ofstream controllerFile;
-	controllerFile.open("controller.txt");
+	std::string controllerFileName = "controller_" + std::to_string(bitStreamNumber) + ".v";
+	controllerFile.open(controllerFileName);
 	// number of phases stored in numberOfStates.
 	// controller module will output all control signals and ((reset signals for all sources to paths)), takes input start tests and all sinks from the tested paths, outputs when it has completed one loop over all paths and error signal, input also when counter is full and outputs reset to the counter 
 	controllerFile << "module controller ( input CLK, input start_test, input reset, output reg error, input timer_reached, output reg reset_counter, ";
@@ -1332,7 +1349,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 	controllerFile.close();
 }
 
-void create_WYSIWYGs_file() // also calls create_auxill and create_controller
+void create_WYSIWYGs_file(int bitStreamNumber) // also calls create_auxill and create_controller
 {
 	int i, j, k;
 	int x;
@@ -1494,8 +1511,13 @@ void create_WYSIWYGs_file() // also calls create_auxill and create_controller
 #endif
 	verilogFile << "endmodule" << std::endl;
 	verilogFile.close();
-	create_auxil_file(sinks, controlSignals, CoutSignals, sources, cascadedControlSignals);
-	create_controller_module(sinks, controlSignals, sources, cascadedControlSignals);
+
+
+	// open the same file again as input
+	std::ifstream verilogFileSecondPart;
+	verilogFileSecondPart.open("VerilogFile.txt");
+	create_auxil_file(sinks, controlSignals, CoutSignals, sources, cascadedControlSignals, verilogFileSecondPart, bitStreamNumber);
+	create_controller_module(sinks, controlSignals, sources, cascadedControlSignals, bitStreamNumber);
 
 
 }
@@ -2083,14 +2105,15 @@ void create_or_tree(int inputs, int LUTinputs, int number, std::ofstream& contro
 
 
 
-void create_RCF_file()
+void create_RCF_file(int bitStreamNumber)
 {
 	int i, j, k, l;
 	int x;
 //	int total = 0;
 	int destX, destY, destZ;
 	std::ofstream RoFile;
-	RoFile.open("RCF_File.txt");
+	std::string RoFileName = "RCF_File_" + std::to_string(bitStreamNumber) + ".txt";
+	RoFile.open(RoFileName);
 	int path = -1;
 	int node = -1;
 	int pathDest = -1;

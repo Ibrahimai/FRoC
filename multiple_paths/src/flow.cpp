@@ -212,7 +212,8 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	std::vector<double> pathsImport, 
 	bool use_MC, 
 	bool ILPform,
-	bool optPerXBitstreams)
+	bool optPerXBitstreams,
+	int bitStreamNumber)
 {
 	int i;
 	calc_stats();
@@ -320,12 +321,12 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	std::cout << "total number of edges " << totalTimingEdges << std::endl;
 
 
-	create_location_contraint_file();
+	create_location_contraint_file(bitStreamNumber);
 	std::cout << "location file created " << std::endl;
-	create_WYSIWYGs_file(); // also creates auxillary 
+	create_WYSIWYGs_file(bitStreamNumber); // also creates auxillary 
 	std::cout << "wysiwyg create " << std::endl;
 	//create_controller_module();
-	create_RCF_file();
+	create_RCF_file(bitStreamNumber);
 
 	std::cout << "rcf created " << std::endl;
 
@@ -695,7 +696,7 @@ int runiFRoC(int argc, char* argv[])
 	{
 
 		cycloneIV_stuff(scheduleChanged, pathsSchedule, x, feedbackPaths, remainingPaths, testedTimingEdgesMap, 
-			timingEdgeToPaths, timingEdgesMapComplete, strictCoverage, false, pathsImport, use_MC, ILPform, optPerXBitstreams);
+			timingEdgeToPaths, timingEdgesMapComplete, strictCoverage, false, pathsImport, use_MC, ILPform, optPerXBitstreams, num_of_bit_stream);
 		num_of_bit_stream++;
 		get_allPathsTested(remainingPaths);
 		IgnoredPathStats << testedTimingEdgesMap.size() << "\t";
