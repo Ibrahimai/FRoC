@@ -537,10 +537,10 @@ char **argv;
       return (1);
     }
   }
-loCon = fopen("../fils/locationConstraint", "w");
-roCon = fopen("../fils/routingConstraint", "w");
-veri = fopen("../fils/verilo", "w");
-auxil = fopen("../fils/auxill", "w");
+loCon = fopen("dump/locationConstraint", "w");
+roCon = fopen("dump/routingConstraint", "w");
+veri = fopen("dump/verilo", "w");
+auxil = fopen("dump/auxill", "w");
 //meta = fopen("../fils/meta", "w");
 meta = fopen(argv[2], "w");
 //metaRouting =  fopen("../fils/metaRouting", "w");
