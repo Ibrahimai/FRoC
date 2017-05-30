@@ -4,6 +4,7 @@
 
 int main(int argc, char* argv[])
 {
+	// used to compute runtime
 	auto const start = std::chrono::high_resolution_clock::now();
 	if (runiFRoC( argc,  argv) == 1)
 	{
