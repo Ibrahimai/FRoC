@@ -8,6 +8,7 @@
 #define PARTIALCORELATION 2
 
 #include "fpgaAarch.h"
+
 #ifdef CycloneIV
 #include "cycloneIV_model.h"
 #endif
@@ -18,15 +19,19 @@
 
 #ifdef CycloneIV
 extern Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
-														  //std::vector < std::vector <bool>> testingPhases;
+extern bool fanoutLUTPlacement[FPGAsizeX][FPGAsizeY][FPGAsizeZ];														  //std::vector < std::vector <bool>> testingPhases;
 #endif
 #ifdef StratixV
 extern ALUT fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ];
 extern ALM alms[FPGAsizeX][FPGAsizeY][ALMsinLAB];
 #endif
 
+#include "routing_tree.h"
 //extern Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
-																 //std::vector < std::vector <bool>> testingPhases;
+
+
+
+//std::vector < std::vector <bool>> testingPhases;
 extern int numberOfTestPhases;
 
 ////todo: group all these paths* vectors into one data structure
@@ -56,3 +61,18 @@ extern std::unordered_map<std::string, std::vector < Edge_Delay > >  REsDelay; /
 
 extern std::map<std::string, std::vector<RE_logic_component> >  REToPaths; // map to store all RE and for each RE it stores the path and node using it. This is used
 
+//fanout stuff
+
+extern std::unordered_map<std::string, routing_tree> routing_trees; //map to store whole circuits routing trees for fanout modelling
+
+struct single_fanout{
+    std::string fanout_name;
+    //FANOUTX
+    std::string node_name;
+    //PATHXNODEY
+    std:: string placement = "";
+    //if filled, the fanout has a specific placement that must appear in the placement file
+};
+
+//collection of all fanouts (for adding to Verilog file)
+extern std::vector<struct single_fanout> all_fanouts;

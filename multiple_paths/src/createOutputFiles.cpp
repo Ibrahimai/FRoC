@@ -1,6 +1,9 @@
 #include "createOutputFiles.h"
 #include "globalVar.h"
 #include "util.h"
+#include "fanouts.h"
+//#include "StratixV.h"
+#include <sstream>
 
 #ifdef CycloneIV
 
@@ -2121,6 +2124,17 @@ void create_RCF_file(int bitStreamNumber)
 	int label;
 	std::map<std::string, int> branchLabel;
 	bool foundSource = false;
+        bool addBrace = false;
+        
+        //reset all reserved fanout placements for the next bitstream
+        for(unsigned i = 0; i < FPGAsizeX; i++){
+            for(unsigned j = 0; j < FPGAsizeY; j++){
+                for(unsigned k = 0; k < FPGAsizeZ; k++){
+                    fanoutLUTPlacement[i][j][k] = false;
+                }
+            }
+        }
+        
 	for (i = 0; i < FPGAsizeX; i++) // loop across all LUTs
 	{
 		for (j = 0; j < FPGAsizeY; j++)
@@ -2192,6 +2206,11 @@ void create_RCF_file(int bitStreamNumber)
 								// write the connection to the rcf
 								RoFile << "\tlabel = label_" << label << "_" << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" << std::endl;
 								// insert the label
+                                                                
+                                                                
+ //*****                                                        //either mark as used, or look for label
+                                                                
+                                                                
 								branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
 								label++;
 								continue;
@@ -2204,6 +2223,12 @@ void create_RCF_file(int bitStreamNumber)
 									// write the connection to the rcf
 									RoFile << "\tlabel = label_" << label << "_" << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" << std::endl;
 									// insert the label
+                                                                        
+                                                                        
+                                                                        //either mark as used or look for label
+                                                                        
+                                                                        
+                                                                        
 									branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
 									label++;
 									foundSource = true;
@@ -2216,7 +2241,11 @@ void create_RCF_file(int bitStreamNumber)
 									// start from the routing resource before the current (that was definetly used before)
 									RoFile << "\tbranch_point = label_" << iter->second << "_" << iter->first << "; " << std::endl;
 									RoFile << "\tlabel = label_" << label << "_" << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" << std::endl;
-									branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
+									
+                                                                        //either mark as used or look for label
+                                                                        
+                                                                        
+                                                                        branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
 									label++;
 									foundSource = true;
 
@@ -2308,7 +2337,7 @@ void create_RCF_file(int bitStreamNumber)
 						default:
 							if (destZ%LUTFreq==0 || fpgaLogic[destX][destY][destZ].FFMode != sData)
 							{
-								std::cout << "Something wron with destination port when creatubg RCF files at the final case statement of destination port" << std::endl;
+								std::cout << "Something wrong with destination port when creating RCF files at the final case statement of destination port" << std::endl;
 							}
 							else
 							{
@@ -2317,15 +2346,44 @@ void create_RCF_file(int bitStreamNumber)
 							break;
 						}
 
-						if (l == (int)fpgaLogic[i][j][k].connections.size() - 1)
-							RoFile << "}" << std::endl;
+						if (l == (int)fpgaLogic[i][j][k].connections.size() - 1){
+							RoFile << std::endl;
+                                                        addBrace = true;
+                                                }
 					}
 
+                                        if(addBrace){
+                                            std:: string resource_name;
+                                            std:: ostringstream FF_name_stream;
+                                            FF_name_stream << "FF_X" << i << "_Y" << j << "_N" << k;
+                                            resource_name = FF_name_stream.str();
+                                            std::ostringstream current_node_name;
+                                            current_node_name << "PATH" << path << "NODE" << node;
+                                            std::string current_node_name_str = current_node_name.str();
+
+                                            if(routing_trees.find(resource_name) != routing_trees.end()){
+                                                std::cout << resource_name << std::endl;
+                                                add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
+                                            }
+
+                                            std:: ostringstream LUT_name_stream;
+                                            LUT_name_stream << "LCCOMB_X" << i << "_Y" << j << "_N" << k;
+                                            resource_name = LUT_name_stream.str();
+
+                                            if(routing_trees.find(resource_name) != routing_trees.end()){
+                                                std::cout << resource_name << std::endl;
+                                                add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
+                                            }
+                                            RoFile << "}" << std::endl;
+                                            addBrace = false;
+                                        }
 				}
 
 			}
 		}
 	}
+        
+        
 
 }
 

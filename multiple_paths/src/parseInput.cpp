@@ -2,6 +2,7 @@
 #include "globalVar.h"
 #include "parseInput.h"
 #include "util.h"
+#include "routing_tree.h"
 
 #ifdef CycloneIV
 
@@ -30,6 +31,8 @@ int parseOptions(int argc, char* argv[],
 	MCsimFileName = "";
 	std::string checkRoutingFileName = ""; // file name of the rcf generated from the calibration bitstream, we use it to double check that our constraint were honored
 	outputName = "unkown";
+        std::string qsfFileName = "";
+        std::string rcfFileName = "";
 
 	// default option values
 	MCsimulation = false; // default no MCsim
@@ -189,6 +192,24 @@ int parseOptions(int argc, char* argv[],
 				std::cout << "ILP optimization per X bitstreams" << std::endl;
 			}
 		}
+                else if (option == "-q" || option == "--QSF")
+                {
+                    std:: cout << "QSF filename is: " << allCommandArguments[i] << std:: endl;
+                    qsfFileName = allCommandArguments[i];
+                    if(rcfFileName != ""){
+                        //rcf file already found, parse both
+                        routing_tree_maker(rcfFileName, qsfFileName);
+                    }
+                }
+                else if (option == "-r" || option == "--RCF")
+                {
+                    std:: cout << "RCF filename is: " << allCommandArguments[i] << std:: endl;
+                    rcfFileName = allCommandArguments[i];
+                    if(qsfFileName != ""){
+                        //qsf file already found, parse both
+                        routing_tree_maker(rcfFileName, qsfFileName);
+                    }
+                }
 		else
 		{
 			std::cout << "option " << option << " is not supported." << std::endl;
@@ -294,7 +315,9 @@ void helpMessage() // prints help message
 	std::cout << "\t -v   --var        \tExpected delay variation from mean, integer value as a percentage of mean.[defualt 5%]" << std::endl;
 	std::cout << "\t -y   --yld        \tHow does Quartus build their timing models.[default mu + 2 sigma]." << std::endl;
 	std::cout << "\t -mc  --MCsamples \tNUmber of MC samples" << std::endl;
-	std::cout << "\t -i   --ILP        \tILP mode, 0 is optimize per 1 but stream other wise optimize over all calibration bitstream." << std::endl << std::endl << std::endl;
+	std::cout << "\t -i   --ILP        \tILP mode, 0 is optimize per 1 but stream other wise optimize over all calibration bitstream." << std::endl;
+        std::cout << "\t -q   --QSF        \tQSF file name need to model fanouts" << std::endl;
+        std::cout << "\t -r   --RCF        \tRCF file name need to model fanouts" << std::endl << std::endl << std::endl;
 
 
 	std::cout << "Good luck with running iFRoC." << std::endl;

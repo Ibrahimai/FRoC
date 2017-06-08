@@ -18,11 +18,13 @@
 #include "completeNetlist.h"
 #include "ILPSolver.h"
 #include "MC.h"
+#include "routing_tree.h"
+#include "fanouts.h"
 
 
 #ifdef CycloneIV
 Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
-														  //std::vector < std::vector <bool>> testingPhases;
+bool fanoutLUTPlacement[FPGAsizeX][FPGAsizeY][FPGAsizeZ];														  //std::vector < std::vector <bool>> testingPhases;
 
 #endif
 #ifdef StratixV
@@ -52,6 +54,10 @@ std::unordered_map<std::string, std::vector < Edge_Delay > >  REsDelay; // map t
 std::vector <double> pathREsDelta; // store the delta delays of the used REs in each path
 
 std::map<std::string, std::vector<RE_logic_component> >  REToPaths; // map to store all RE and for each RE it stores the paths using it. This is used
+
+std::unordered_map<std::string, routing_tree> routing_trees; 
+
+std::vector<struct single_fanout> all_fanouts;
 
 void set_testing_phase(int fixed, int change)
 {
@@ -328,6 +334,9 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	//create_controller_module();
 	create_RCF_file(bitStreamNumber);
 
+        //add fanout information to verilog and placement files
+        edit_files_for_routing(bitStreamNumber);
+        
 	std::cout << "rcf created " << std::endl;
 
 	for (i = 1; i < (int)paths.size(); i++)
