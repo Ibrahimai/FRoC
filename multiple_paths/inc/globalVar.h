@@ -76,3 +76,8 @@ struct single_fanout{
 
 //collection of all fanouts (for adding to Verilog file)
 extern std::vector<struct single_fanout> all_fanouts;
+
+extern int numberOfFanouts;
+extern int numberOfPlacedFanouts;
+extern int numberOfIgnoredFanouts;
+extern int numberOfImpossibleFanouts;

@@ -2362,7 +2362,6 @@ void create_RCF_file(int bitStreamNumber)
                                             std::string current_node_name_str = current_node_name.str();
 
                                             if(routing_trees.find(resource_name) != routing_trees.end()){
-                                                std::cout << resource_name << std::endl;
                                                 add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
                                             }
 
@@ -2371,7 +2370,6 @@ void create_RCF_file(int bitStreamNumber)
                                             resource_name = LUT_name_stream.str();
 
                                             if(routing_trees.find(resource_name) != routing_trees.end()){
-                                                std::cout << resource_name << std::endl;
                                                 add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
                                             }
                                             RoFile << "}" << std::endl;

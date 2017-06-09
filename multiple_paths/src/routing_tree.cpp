@@ -163,8 +163,11 @@ int routing_tree_maker(string rcf_file_loc, string qsf_file_loc) {
                         else if(temp_line[6] == 'L'){
                             type = LOCAL_LINE;
                         }
-                        else {
+                        else if(temp_line[6] == 'F'){
                             type = LE_BUFFER;
+                        }
+                        else {
+                            type = DNM;
                         }
                         
                         int X, Y, N, I;

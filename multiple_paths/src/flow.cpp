@@ -59,6 +59,11 @@ std::unordered_map<std::string, routing_tree> routing_trees;
 
 std::vector<struct single_fanout> all_fanouts;
 
+int numberOfFanouts = 0;
+int numberOfPlacedFanouts = 0;
+int numberOfIgnoredFanouts = 0;
+int numberOfImpossibleFanouts = 0;
+
 void set_testing_phase(int fixed, int change)
 {
 	int phase1 = paths[fixed][0].testPhase;
@@ -336,7 +341,14 @@ void cycloneIV_stuff(bool & scheduleChanged,
 
         //add fanout information to verilog and placement files
         edit_files_for_routing(bitStreamNumber);
-        
+        std:: cout << "number of fanouts modeled: " << numberOfFanouts << std::endl;
+        std:: cout << "number of fanouts placed: " << numberOfPlacedFanouts << std::endl;
+        std:: cout << "number of fanouts that had to be ignored: " << numberOfIgnoredFanouts << std::endl;
+        std:: cout << "number of fanouts that couldn't be placed due to type (e.g. io pins, FF): " << numberOfImpossibleFanouts << std::endl;
+        numberOfFanouts = 0;
+        numberOfPlacedFanouts = 0;
+        numberOfIgnoredFanouts = 0;
+        numberOfImpossibleFanouts = 0;
 	std::cout << "rcf created " << std::endl;
 
 	for (i = 1; i < (int)paths.size(); i++)
