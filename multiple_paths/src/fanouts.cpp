@@ -64,7 +64,7 @@ void add_node_fanouts(routing_node & node, std::map<std::string, int> & branchLa
                     numberOfFanouts++;
                     numberOfPlacedFanouts++;
                     placed = true;
-                } else {
+                } else { //check the node's lab to see if any LUTs can be used for an approximate replication
                     for (N = 0; N < FPGAsizeZ; N += 2) {
                         if (fpgaLogic[X][Y][N].utilization == 0 && !fanoutLUTPlacement[X][Y][N] && X != 0 && Y != 0) {
                             //The node can be placed at its LUT
@@ -99,6 +99,7 @@ void add_node_fanouts(routing_node & node, std::map<std::string, int> & branchLa
                 Y = node.children[i]->Y;
                 N = node.children[i]->N;
                 bool placed = false;
+                //check to see if the fanout can be placed at a specific LUT in the LAB where it needs to be to connect to the Local Line/Interconnect
                 for (N = 0; N < FPGAsizeZ; N += 2) {
                     if (fpgaLogic[X][Y][N].utilization == 0 && !fanoutLUTPlacement[X][Y][N] && X != 0 && Y != 0) {
                         //The node can be placed at its LUT
@@ -331,7 +332,7 @@ void edit_files_for_routing(int bitStream){
     location_file << endl;
     for(unsigned i = 0; i < all_fanouts.size(); i++){
         location_file << "set_instance_assignment -name VIRTUAL_PIN ON -to " << all_fanouts[i].fanout_name << endl;
-        if (all_fanouts[i].placement != ""){
+        if (all_fanouts[i].placement != ""){ //check to see if Virtual IO placement needs to be specified
             location_file << all_fanouts[i].placement << endl;
         }
     }
