@@ -283,6 +283,14 @@ void cycloneIV_stuff(bool & scheduleChanged,
 
 		}
 	}
+
+
+	if (remove_LUT_or_FF_in_LE() > 0) // not in ILP
+		scheduleChanged = true;
+
+	std::cout << "after removing LAB/reg in the same LE conflict number of Luts is :";
+	check_LE_outputs();
+	
 	if (!ILPform)
 	{
 		if (remove_fanin_higher_than_three() > 0) // added to ILP

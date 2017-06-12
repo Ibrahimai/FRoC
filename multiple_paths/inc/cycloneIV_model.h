@@ -182,7 +182,7 @@ public:
 	int utilization;
 	int usedInputPorts;
 	int usedOutputPorts;
-	int FFMode; // -1 unused FF, 0 means used from D input, 1 means used from sdata (with lsload connected to 1)  input
+	int FFMode; // -1 unused FF or source only, 0 means used from D input, 1 means used from sdata (with lsload connected to 1)  input
 	bool inputPorts[InputPortSize];
 	bool outputPorts[OutputPortSize];
 	Path_logic_component owner; // the path,node that owns this ALUT (the ALUT name usedin the output file)
