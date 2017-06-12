@@ -861,7 +861,12 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 							{
 								portInToCombout = paths[fpgaLogic[x][y][z].nodes[k].path][fpgaLogic[x][y][z].nodes[k].node].portIn;
 								inverting_t = paths[fpgaLogic[x][y][z].nodes[k].path][fpgaLogic[x][y][z].nodes[k].node].inverting;
-								assert(inverting_t == paths[path_t][node_t].inverting);
+								if (paths[path_t][node_t].portOut == Combout)
+								{
+									// check that we have the same inverting behaviour. 
+									// must check that the first encountered path (path_t) uses combout before checking the assertion
+									assert(inverting_t == paths[path_t][node_t].inverting);
+								}
 							}
 						}
 
@@ -2178,6 +2183,11 @@ void create_RCF_file(int bitStreamNumber)
 							assert(destinZ%LUTFreq != 0);
 							assert(fpgaLogic[destinX][destinY][destinZ].FFMode == dInput);
 
+							// if this was the last connection, we need to close the routing signal with a brace
+							// We only have to close if it is not the only connection
+							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && l!=0)
+								RoFile << "}" << std::endl;
+
 							continue;
 						}
 						if (fpgaLogic[i][j][k].connections[l].destinationX == -1)
@@ -2309,6 +2319,8 @@ void create_RCF_file(int bitStreamNumber)
 							if (fpgaLogic[destX][destY][destZ].outputPorts[Combout - 5]) // combout is th eonly output
 							{
 								RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
+							//	if (pathDest == 2 && nodeDest == 9)
+						///			std::cout << "Debugging" << std::endl;
 							}
 							else // cout is the output
 							{
@@ -2318,7 +2330,7 @@ void create_RCF_file(int bitStreamNumber)
 						else
 						{
 							assert(true);
-							std::cout << "something wron with output od a destination when creating rcf." << std::endl;
+							std::cout << "something wrong with the output of a destination when creating rcf." << std::endl;
 						}
 						switch (fpgaLogic[i][j][k].connections[l].destinationPort)
 						{
