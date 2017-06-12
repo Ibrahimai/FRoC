@@ -38,3 +38,4 @@ int remove_to_fix_off_path_inputs();
 void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph);// add edges to the PRG to handle cascaded paths
 int  remove_to_toggle_source();
 void remove_feedback_paths();
+int remove_LUT_or_FF_in_LE();

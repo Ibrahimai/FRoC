@@ -3,7 +3,7 @@
 #include "dummyExtras.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+int free_cell(int x, int y, int z); // deletes all path in cell x,y,z
 int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs); // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based on the importance of the port (the more critical the port the more important it is)
 int reduce_number_of_LUT_inputs_maximize_tested_paths(int x, int y, int z, int excessInputs); // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based ;
 int remove_fanin_higher_than_three() // esnures that he number of inputs + the number of required control signals is <= LUTs inputs
@@ -74,6 +74,72 @@ int remove_fanin_higher_than_three() // esnures that he number of inputs + the n
 
 }
 
+
+int free_cell(int x, int y, int z)
+{
+	int count = 0;
+	for (int i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+	{
+		if (delete_path(fpgaLogic[x][y][z].nodes[i].path))
+			count++;
+	}
+
+	return count;
+}
+int remove_LUT_or_FF_in_LE() // checks if there exists a LUT and a reg in the same LE, where the
+// reg is not connected to the LUT. In that case it deletes either the LUT or the Reg.
+//todo: this may not be the best way to legalize this case, we could use both LUT and reg by freeing the c input
+//of the LUT. Then, the c input can be used to sload the reg.
+{
+	int i, j, k;
+	int totalDeleted = 0;
+	for (i = 0; i < FPGAsizeX; i++)
+	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			for (k = 0; k < FPGAsizeZ; k+= LUTFreq) // only LUTs
+			{
+				if (fpgaLogic[i][j][k].utilization == 0) // not used LUT so skip
+					continue;
+
+				if (fpgaLogic[i][j][k + 1].utilization == 0) // not used reg in the sam LE so skip
+					continue;
+
+				if (fpgaLogic[i][j][k + 1].FFMode == sData) // if it's sync laoded no need for the LUT so skip
+					continue;
+
+				if (fpgaLogic[i][j][k].inputPorts[portC] == false) // nothing connected to port c
+				{
+					int requiredControlSignals = 1;
+					if (check_control_signal_required(i, j, k)) // if fix signal is required then add one to the number of required control signals
+					{
+						requiredControlSignals++;
+					}
+					if (requiredControlSignals + fpgaLogic[i][j][k].usedInputPorts < LUTinputSize) // we have enough ports for control, LUT inputs and sload from c
+						continue;
+				}
+				// loop over the conncection to check if the LUT is conencted to the reg
+				bool isConnected = false;
+				for (int con = 0; con < (int)fpgaLogic[i][j][k].connections.size(); con++)
+				{
+					if (fpgaLogic[i][j][k].connections[con].destinationX == i
+						&& fpgaLogic[i][j][k].connections[con].destinationY == j
+						&& fpgaLogic[i][j][k].connections[con].destinationZ == k+1) // connected to FF
+						isConnected = true;
+				}
+
+				if (!isConnected) // not connected
+				{
+					if (fpgaLogic[i][j][k].utilization <= fpgaLogic[i][j][k + 1].utilization) // free cell with lower utilization
+						totalDeleted+=free_cell(i, j, k);
+					else
+						totalDeleted+=free_cell(i, j, k + 1);
+				}
+			}
+		}
+	}
+	return totalDeleted;
+}
 
 int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs) // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based on the importance of the port (the more critical the port the more important it is)
 {
