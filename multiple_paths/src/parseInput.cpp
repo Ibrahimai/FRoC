@@ -33,7 +33,7 @@ int parseOptions(int argc, char* argv[],
 	outputName = "unkown";
         std::string qsfFileName = "";
         std::string rcfFileName = "";
-
+        bool modelFanouts = false;
 	// default option values
 	MCsimulation = false; // default no MCsim
 	readMCsamplesFile = false; // default no MCsim
@@ -196,7 +196,7 @@ int parseOptions(int argc, char* argv[],
                 {
                     std:: cout << "QSF filename is: " << allCommandArguments[i] << std:: endl;
                     qsfFileName = allCommandArguments[i];
-                    if(rcfFileName != ""){
+                    if(rcfFileName != "" && modelFanouts){
                         //rcf file already found, parse both
                         routing_tree_maker(rcfFileName, qsfFileName);
                     }
@@ -205,10 +205,24 @@ int parseOptions(int argc, char* argv[],
                 {
                     std:: cout << "RCF filename is: " << allCommandArguments[i] << std:: endl;
                     rcfFileName = allCommandArguments[i];
-                    if(qsfFileName != ""){
+                    if(qsfFileName != "" && modelFanouts){
                         //qsf file already found, parse both
                         routing_tree_maker(rcfFileName, qsfFileName);
                     }
+                }
+                else if (option == "-f" || option == "--fanout")
+                {
+                    if(allCommandArguments[i] == "on" || allCommandArguments[i] == "ON" || allCommandArguments[i] == "true" || allCommandArguments[i] == "1")
+                    {
+                        modelFanouts = true;
+                        std:: cout << "Fanout option selected" << std:: endl;
+                        if(qsfFileName != "" && rcfFileName != ""){
+                            //qsf and rcf files already found, parse both
+                            routing_tree_maker(rcfFileName, qsfFileName);
+                        }
+                    }
+                    
+                    
                 }
 		else
 		{
@@ -219,6 +233,18 @@ int parseOptions(int argc, char* argv[],
 
 		option = "";
 	}
+        
+        if(modelFanouts && (rcfFileName == "" || qsfFileName == ""))
+        {
+            if((rcfFileName == "" && qsfFileName == ""))
+                std:: cout << "Fanout option selected, but qsf and rcf files not provided" << std:: endl;
+            else if(rcfFileName == "")
+                std:: cout << "Fanout option selected, but rcf file not provided" << std:: endl;
+            else 
+                std:: cout << "Fanout option selected, but qsf file not provided" << std:: endl;
+            std:: cout << "Terminating program...." << std:: endl;
+            return 0;
+        }
 
 	// if we finished the loop and option is not empty then sthis option was not set
 	if (option != "")
@@ -317,8 +343,8 @@ void helpMessage() // prints help message
 	std::cout << "\t -mc  --MCsamples \tNUmber of MC samples" << std::endl;
 	std::cout << "\t -i   --ILP        \tILP mode, 0 is optimize per 1 but stream other wise optimize over all calibration bitstream." << std::endl;
         std::cout << "\t -q   --QSF        \tQSF file name need to model fanouts" << std::endl;
-        std::cout << "\t -r   --RCF        \tRCF file name need to model fanouts" << std::endl << std::endl << std::endl;
-
+        std::cout << "\t -r   --RCF        \tRCF file name need to model fanouts" << std::endl;
+        std::cout << "\t -f   --fanout     \tModel fanouts (requires -q and -r options) if on option set, defaults to off" << std::endl << std::endl << std::endl;
 
 	std::cout << "Good luck with running iFRoC." << std::endl;
 

@@ -98,9 +98,8 @@ int routing_tree_maker(string rcf_file_loc, string qsf_file_loc) {
             } 
         }
     }
-    //All ID's are found and put in maps. Now need to read .rcf file
     
-
+    //All ID's are found and put in maps. Now need to read .rcf file
     while (!rcf_file.eof()){
         //string is the label, routing_node is pointer to node that the label refers to
         unordered_map<string, routing_node*> labels;
@@ -236,7 +235,7 @@ int routing_tree_maker(string rcf_file_loc, string qsf_file_loc) {
                             current_node->children.push_back(temp_node);
                             
                         }
-                        
+                        //after dest, the routing essentially starts over at the head unless another branch is declared
                         current_node = head_node;
                     }
                     
@@ -256,8 +255,10 @@ int routing_tree_maker(string rcf_file_loc, string qsf_file_loc) {
     return 0;
 }
 
+//gives the name of the routing node as used by Quartus
 string routing_node::get_name(){
     ostringstream name;
+    //first get the type
     if(type == C4){
         name << 'C' << L;
     }
@@ -282,13 +283,13 @@ string routing_node::get_name(){
     else {
         return "*";
     }
-    
+    //add XY locations
     name << ':' << 'X' << X << 'Y' << Y;
-    
+    //if a Flip Flop or LUT, add the N value
     if(type == FF || type == LCCOMB){
         name << 'N' << N;
     }
-    else{
+    else{ //otherwise add the S and I values
         name << 'S' << N;
         name << 'I' << I;
     }

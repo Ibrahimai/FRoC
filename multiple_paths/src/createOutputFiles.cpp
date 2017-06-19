@@ -2363,27 +2363,30 @@ void create_RCF_file(int bitStreamNumber)
                                                         addBrace = true;
                                                 }
 					}
-
+                                        
                                         if(addBrace){
+                                            //At the end of a net's routing, add missing fanouts to the net
                                             std:: string resource_name;
                                             std:: ostringstream FF_name_stream;
+                                            //create name of the FF (starting node) to search for it in the fanout map
                                             FF_name_stream << "FF_X" << i << "_Y" << j << "_N" << k;
                                             resource_name = FF_name_stream.str();
                                             std::ostringstream current_node_name;
                                             current_node_name << "PATH" << path << "NODE" << node;
                                             std::string current_node_name_str = current_node_name.str();
-
+                                            //if the FF is found, add fanouts to the path
                                             if(routing_trees.find(resource_name) != routing_trees.end()){
                                                 add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
                                             }
-
+                                            //now check if the source node is a LUT
                                             std:: ostringstream LUT_name_stream;
                                             LUT_name_stream << "LCCOMB_X" << i << "_Y" << j << "_N" << k;
                                             resource_name = LUT_name_stream.str();
-
+                                            //if the LUT is found, add fanouts to th epath (only one of this or the one above will trigger)
                                             if(routing_trees.find(resource_name) != routing_trees.end()){
                                                 add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
                                             }
+                                            //finish the file with a brace
                                             RoFile << "}" << std::endl;
                                             addBrace = false;
                                         }
