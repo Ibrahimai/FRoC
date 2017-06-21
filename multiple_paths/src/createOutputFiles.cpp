@@ -2140,6 +2140,8 @@ void create_RCF_file(int bitStreamNumber)
             }
         }
         
+        terminal_LUTS.clear();
+        
 	for (i = 0; i < FPGAsizeX; i++) // loop across all LUTs
 	{
 		for (j = 0; j < FPGAsizeY; j++)
@@ -2279,7 +2281,7 @@ void create_RCF_file(int bitStreamNumber)
 							RoFile << "\tbranch_point = label_" << iter->second << "_" << iter->first << "; " << std::endl;
 						}
 
-						// write last line dest = {...}, ....; but first we have to find who owns the destiantion LUT
+						// write last line dest = {...}, ....; but first we have to find who owns the destination LUT
 						destX = fpgaLogic[i][j][k].connections[l].destinationX;
 						destY = fpgaLogic[i][j][k].connections[l].destinationY;
 						destZ = fpgaLogic[i][j][k].connections[l].destinationZ;
@@ -2301,7 +2303,7 @@ void create_RCF_file(int bitStreamNumber)
 						{
 							if (fpgaLogic[destX][destY][destZ].FFMode != sData)
 							{
-								std::cout << "something is wrog with one of the registers when creating destiantion port in rcf file" << std::endl;
+								std::cout << "something is wrong with one of the registers when creating destination port in rcf file" << std::endl;
 								assert(1 == 2);
 
 							}
@@ -2313,6 +2315,9 @@ void create_RCF_file(int bitStreamNumber)
 						else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 2) // 2 output ports are used then name the destination signal as if it was combout
 						{
 							RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
+                                                        std:: stringstream LUTName;
+                                                        LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
+                                                        terminal_LUTS[LUTName.str()] = true;
 						}
 						else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 1)
 						{
@@ -2326,6 +2331,9 @@ void create_RCF_file(int bitStreamNumber)
 							{
 								RoFile << "PATH" << pathDest << "NODE" << nodeDest << "_Cout, DATAB ), route_port = ";
 							}
+                                                        std:: stringstream LUTName;
+                                                        LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
+                                                        terminal_LUTS[LUTName.str()] = true;
 						}
 						else
 						{

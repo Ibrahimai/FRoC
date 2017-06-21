@@ -55,7 +55,8 @@ std::vector <double> pathREsDelta; // store the delta delays of the used REs in 
 
 std::map<std::string, std::vector<RE_logic_component> >  REToPaths; // map to store all RE and for each RE it stores the paths using it. This is used
 
-std::unordered_map<std::string, routing_tree> routing_trees; 
+std::unordered_map<std::string, routing_tree> routing_trees;
+std::unordered_map<std::string, bool> terminal_LUTS;
 
 std::vector<struct single_fanout> all_fanouts;
 

@@ -82,35 +82,37 @@ void add_node_fanouts(routing_node & node, std::map<std::string, int> & branchLa
                     numberOfFanouts++;
                     numberOfPlacedFanouts++;
                     placed = true;
-                } else { //check the node's LAB to see if any LUTs can be used for an approximate replication
-                    for (N = 0; N < FPGAsizeZ; N += 2) {
-                        if (fpgaLogic[X][Y][N].utilization == 0 && !fanoutLUTPlacement[X][Y][N] && X != 0 && Y != 0) {
-                            //The node can be placed at its LUT
-                            fanoutLUTPlacement[X][Y][N] = true;
-
-                            ostringstream fanout_name;
-                            fanout_name << "FANOUT" << all_fanouts.size();
-                            
-                            RoFile << "\tbranch_point = " << branch_statemnet << ';' << endl;
-                            RoFile << "\tdest = " << '(' << fanout_name.str() << ')' << ';' << endl << endl;
-
-                            ostringstream placement;
-                            placement << "set_location_assignment LCCOMB_X" << X << "_Y" << Y << "_N" << N << " -to " << fanout_name.str();
-
-                            //add the fanout name to the list of fanouts (to be added to the verilog file)
-                            struct single_fanout tmp_fanout;
-                            tmp_fanout.fanout_name = fanout_name.str();
-                            tmp_fanout.node_name = node_name;
-                            tmp_fanout.placement = placement.str();
-                            all_fanouts.push_back(tmp_fanout);
-                            numberOfFanouts++;
-                            numberOfPlacedFanouts++;
-                            placed = true;
-                            break;
-                        }
-                    }
+                } 
+                else if(terminal_LUTS.find(node.children[i]->get_name()) == terminal_LUTS.end()){ //check the node's LAB to see if any LUTs can be used for an approximate replication if it hasn't been replicated already
+//                    for (N = 0; N < FPGAsizeZ; N += 2) {
+//                        if (fpgaLogic[X][Y][N].utilization == 0 && !fanoutLUTPlacement[X][Y][N] && X != 0 && Y != 0) {
+//                            //The node can be placed at its LUT
+//                            fanoutLUTPlacement[X][Y][N] = true;
+//
+//                            ostringstream fanout_name;
+//                            fanout_name << "FANOUT" << all_fanouts.size();
+//                            
+//                            RoFile << "\tbranch_point = " << branch_statemnet << ';' << endl;
+//                            RoFile << "\tdest = " << '(' << fanout_name.str() << ')' << ';' << endl << endl;
+//
+//                            ostringstream placement;
+//                            placement << "set_location_assignment LCCOMB_X" << X << "_Y" << Y << "_N" << N << " -to " << fanout_name.str();
+//
+//                            //add the fanout name to the list of fanouts (to be added to the verilog file)
+//                            struct single_fanout tmp_fanout;
+//                            tmp_fanout.fanout_name = fanout_name.str();
+//                            tmp_fanout.node_name = node_name;
+//                            tmp_fanout.placement = placement.str();
+//                            all_fanouts.push_back(tmp_fanout);
+//                            numberOfFanouts++;
+//                            numberOfPlacedFanouts++;
+//                            placed = true;
+//                            break;
+//                        }
+//                    }
+                    if(!placed) numberOfIgnoredFanouts++;
                 }
-                if(!placed) numberOfIgnoredFanouts++;
+                
             } else if (node.children[i]->type != FF && node.children[i]->type != DNM) { //check to see if Local_Line/Local_Interconnect can be replicated
                 //Local Lines and Local Interconnects require a LUT to be placed in their LAB
                 int X, Y, N;
@@ -230,35 +232,36 @@ void add_fanouts_to_routing(routing_tree & tree, std::map<std::string, int> & br
                         numberOfPlacedFanouts++;
                         placed = true;
                     }
-                    else{
-                        for(N = 0; N < FPGAsizeZ; N += 2){
-                            if (fpgaLogic[X][Y][N].utilization == 0 && !fanoutLUTPlacement[X][Y][N] && X != 0 && Y != 0) {
-                                //The node can be placed at its LUT
-                                fanoutLUTPlacement[X][Y][N] = true;
-
-                                ostringstream fanout_name;
-                                fanout_name << "FANOUT" << all_fanouts.size();
-                                //add the fanout to the rcf file, no need for branch point because the branch is coming directly from the LUT output
-
-                                RoFile << "\tdest = " << '(' << fanout_name.str() << ')' << ';' << endl << endl;
-
-                                ostringstream placement;
-                                placement << "set_location_assignment LCCOMB_X" << X << "_Y" << Y << "_N" << N << " -to " << fanout_name.str();
-
-                                //add the fanout name to the list of fanouts (to be added to the verilog file)
-                                struct single_fanout tmp_fanout;
-                                tmp_fanout.fanout_name = fanout_name.str();
-                                tmp_fanout.node_name = node_name;
-                                tmp_fanout.placement = placement.str();
-                                all_fanouts.push_back(tmp_fanout);
-                                numberOfFanouts++;
-                                numberOfPlacedFanouts++;
-                                placed = true;
-                                break;
-                            }
-                        }
+                    else if(terminal_LUTS.find(node->children[i]->get_name()) == terminal_LUTS.end()){ //check to ensure the LUT is supposed to be placed
+//                        for(N = 0; N < FPGAsizeZ; N += 2){
+//                            if (fpgaLogic[X][Y][N].utilization == 0 && !fanoutLUTPlacement[X][Y][N] && X != 0 && Y != 0) {
+//                                //The node can be placed at its LUT
+//                                fanoutLUTPlacement[X][Y][N] = true;
+//
+//                                ostringstream fanout_name;
+//                                fanout_name << "FANOUT" << all_fanouts.size();
+//                                //add the fanout to the rcf file, no need for branch point because the branch is coming directly from the LUT output
+//
+//                                RoFile << "\tdest = " << '(' << fanout_name.str() << ')' << ';' << endl << endl;
+//
+//                                ostringstream placement;
+//                                placement << "set_location_assignment LCCOMB_X" << X << "_Y" << Y << "_N" << N << " -to " << fanout_name.str();
+//
+//                                //add the fanout name to the list of fanouts (to be added to the verilog file)
+//                                struct single_fanout tmp_fanout;
+//                                tmp_fanout.fanout_name = fanout_name.str();
+//                                tmp_fanout.node_name = node_name;
+//                                tmp_fanout.placement = placement.str();
+//                                all_fanouts.push_back(tmp_fanout);
+//                                numberOfFanouts++;
+//                                numberOfPlacedFanouts++;
+//                                placed = true;
+//                                break;
+//                            }
+//                        }
+                        if(!placed) numberOfIgnoredFanouts++;
                     }
-                    if(!placed) numberOfIgnoredFanouts++;
+                    
                 }
                 else if (node-> children[i]->type != FF && node->children[i]->type != DNM){ //check to see if Local_Line/Local_Interconnect can be replicated
                     int X, Y, N;

@@ -64,6 +64,7 @@ extern std::map<std::string, std::vector<RE_logic_component> >  REToPaths; // ma
 //fanout stuff
 
 extern std::unordered_map<std::string, routing_tree> routing_trees; //map to store whole circuits routing trees for fanout modelling
+extern std::unordered_map<std::string, bool> terminal_LUTS; //map to store the terminal LUTs used by FRoC in a routing tree
 
 struct single_fanout{
     std::string fanout_name;
