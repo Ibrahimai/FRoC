@@ -107,3 +107,57 @@ void Logic_element::remove_overlap(int p, std::vector<int> & deletedPaths) // de
 
 }
 
+
+BRAM::BRAM()
+{
+
+	x = -1; // x location 
+	y = -1; // y location
+	operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
+	portADataWidth = -1;
+	portBDataWidth = -1;
+	portAAddressWidth = -1;
+	portBAddressWidth = -1;
+	portAWE = -1;
+	portARE = false;
+	portBWE = false;
+	portBRE = false;
+	clk0 = false;
+	ena0 = false;
+	clr0 = false;
+	// the following are part of the BRAM WYSIWYG but will not be considered initially
+	clk1 = false;
+	ena1 = false;
+	ena2 = false;
+	ena3 = false;
+	clr1 = false;
+
+}
+
+
+BRAM::BRAM(int xLoc, int yLoc)
+{
+
+	x = xLoc; // x location 
+	y = yLoc; // y location
+	operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
+	portADataWidth = -1;
+	portBDataWidth = -1;
+	portAAddressWidth = -1;
+	portBAddressWidth = -1;
+	portAWE = -1;
+	portARE = false;
+	portBWE = false;
+	portBRE = false;
+	clk0 = false;
+	ena0 = false;
+	clr0 = false;
+	// the following are part of the BRAM WYSIWYG but will not be considered initially
+	clk1 = false;
+	ena1 = false;
+	ena2 = false;
+	ena3 = false;
+	clr1 = false;
+
+}
+

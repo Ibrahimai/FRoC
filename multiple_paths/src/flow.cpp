@@ -20,11 +20,13 @@
 #include "MC.h"
 #include "routing_tree.h"
 #include "fanouts.h"
-
+#include <sstream> 
 
 #ifdef CycloneIV
 Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
-bool fanoutLUTPlacement[FPGAsizeX][FPGAsizeY][FPGAsizeZ];														  //std::vector < std::vector <bool>> testingPhases;
+bool fanoutLUTPlacement[FPGAsizeX][FPGAsizeY][FPGAsizeZ];														 
+//std::vector < std::vector <bool>> testingPhases;
+
 
 #endif
 #ifdef StratixV
@@ -53,12 +55,14 @@ std::unordered_map<std::string, std::vector < Edge_Delay > >  REsDelay; // map t
 
 std::vector <double> pathREsDelta; // store the delta delays of the used REs in each path
 
-std::map<std::string, std::vector<RE_logic_component> >  REToPaths; // map to store all RE and for each RE it stores the paths using it. This is used
+std::map<std::string, std::vector<RE_logic_component> >  REToPaths; // map to store all RE and for each RE it stores the paths using it.
 
 std::unordered_map<std::string, routing_tree> routing_trees;
 std::unordered_map<std::string, bool> terminal_LUTS;
 
 std::vector<struct single_fanout> all_fanouts;
+
+std::vector<BRAM> memories;
 
 int numberOfFanouts = 0;
 int numberOfPlacedFanouts = 0;
@@ -589,6 +593,97 @@ void helper(std::vector<double>  & pathsImport)
 
 
 
+void parseUsedMemories()
+{
+
+	std::ifstream metaData("memInfo.txt");
+	if (!metaData)
+	{
+		std::cout << "Can not find file  Terminating.... " << std::endl;
+		return;
+	}
+	std::string line;
+
+	bool first = true;
+
+
+	int x = -1; // x location 
+	int y = -1; // y location
+	int operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
+	int portADataWidth = -1;
+	int portBDataWidth = -1;
+	int portAAddressWidth = -1;
+	int portBAddressWidth = -1;
+	bool portAWE = false;
+	bool portARE = false;
+	bool portBWE = false;
+	bool portBRE = false;
+	bool clk0 = false;
+	bool ena0 = false;
+	bool clr0 = false;
+
+	while (std::getline(metaData, line))
+	{
+		if (line == "*****New Memory*******")
+		{
+			// we are reading a new memory so create a mem for the previously read memory
+			// we should check if this is the first mem or not
+			if (!first)
+			{
+
+
+			}
+			// read memory loc
+			assert(std::getline(metaData, line));
+			std::stringstream loc(line);
+			loc >> x >> y;
+			std::cout << "Xloc " << x << std::endl;
+			std::cout << "yloc " << y << std::endl;
+
+			// read memory mode
+			assert(std::getline(metaData, line));
+			std::stringstream mode(line);
+			std::string modeLine;
+			mode >> modeLine >> modeLine;
+
+			if (modeLine == "Single")
+			{
+				operationMode = singlePort;
+			}
+			else if (modeLine == "Simple")
+			{
+				operationMode = simpleDualPort;
+			}
+			else if (modeLine == "True")
+			{
+				operationMode = trueDualPort;
+			}
+			else
+			{
+				std::cout << modeLine << " is not a known mode!! Terminating" << std::endl;
+				assert(true);
+			}
+			std::cout << "mode " << operationMode;
+
+			// read logical depth
+			assert(std::getline(metaData, line));
+			std::stringstream logicalDepth(line);
+
+
+
+			first = false;
+		}
+		else if (line == "*****Output Ports*******")
+		{
+			std::cout << "lop";
+		}
+		else if (line == "****Input Ports*******")
+		{
+			std::cout << "lop";
+		}
+	}
+
+}
 
 int runiFRoC(int argc, char* argv[])
 {
@@ -603,6 +698,15 @@ int runiFRoC(int argc, char* argv[])
 	std::string MCsimFileName;
 	int MCsamplesCount;
 
+
+	////////////////////
+	///// New stuff ////
+	parseUsedMemories();
+
+	return 0;
+
+	//////////////////
+
 	if (parseOptions(argc, argv, outputName, MCsimulation, readMCsamplesFile, calibBitstreams, ILPform, optPerXBitstreams, var, yld, MCsamplesCount, MCsimFileName) != 1)
 	{
 		std::cout << "Terminating...." << std::endl;
@@ -616,7 +720,7 @@ int runiFRoC(int argc, char* argv[])
 	std::string stats_file_name = temp + "_stats.txt";
 	std::cout << timingEdgesDelay.size() << std::endl;
 	IgnoredPathStats.open(stats_file_name);
-	IgnoredPathStats << "ILP" << "\t" << "#ofIn" << "\t" << "adder" << "\t" << "routng" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << "\t" << "tested timing edges relaxed" << "\t" << "testing timing edges strict" << std::endl;
+	IgnoredPathStats << "ILP" << "\t" << "#ofIn" << "\t" << "adder" << "\t" << "routing" << "\t" << "offPath" << "\t" << "toggl_src" << "\t" << "reconv_fnout" << "\t" << "tested timing edges relaxed" << "\t" << "testing timing edges strict" << std::endl;
 	set_netlist(); // set original copy of netlist (without deleting anything)
 	int remainingPaths = (int)paths.size() - 1; // paths[0] is not really a path
 	int feedbackPaths = count_cascaded_paths();
@@ -786,3 +890,6 @@ int runiFRoC(int argc, char* argv[])
 	
 	return 1;
 }
+
+
+

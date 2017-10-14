@@ -22,6 +22,10 @@
 #define FFd (7)
 #define FFq (8)
 
+#define singlePort (0)
+#define simpleDualPort (1)
+#define trueDualPort (2)
+
 
 
 
@@ -191,6 +195,8 @@ public:
 	std::vector<Path_logic_component> nodes; // list of nodes representing which path and node use this le
 	std::vector<Routing_connection> connections; // vector of the connections of all fanouts for each logic element
 	std::vector<int> cascadedPaths; // each element in this vector represent a path that starts at FF x. Where the input of x is connected to the output of THIS logic element.
+
+
 	Logic_element();
 	Logic_element(int over);
 	int get_utilization();
@@ -202,7 +208,37 @@ public:
 
 
 
+class BRAM
+{
+public:
+	int x; // x location 
+	int y; // y location
+	int operationMode; // mode of the BRAM {dual_port, single port, true dual}
+	int portADataWidth;
+	int portBDataWidth;
+	int portAAddressWidth;
+	int portBAddressWidth;
+	bool portAWE;
+	bool portARE;
+	bool portBWE;
+	bool portBRE;
+	bool clk0;
+	bool ena0;
+	bool clr0;
+	// the following are part of the BRAM WYSIWYG but will not be considered initially
+	bool clk1;
+	bool ena1;
+	bool ena2;
+	bool ena3;
+	bool clr1;
 
+	BRAM();
+	BRAM(int xLoc, int yLoc);
+	
+
+
+
+};
 
 
 
