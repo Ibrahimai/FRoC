@@ -115,10 +115,12 @@ BRAM::BRAM()
 	y = -1; // y location
 	operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
 	portADataWidth = -1;
+	portAUsedDataWidth = -1; // the number of used bits from the width of A
+	portBUsedDataWidth = -1; // the number of used bits from the width of A
 	portBDataWidth = -1;
 	portAAddressWidth = -1;
 	portBAddressWidth = -1;
-	portAWE = -1;
+	portAWE = false;
 	portARE = false;
 	portBWE = false;
 	portBRE = false;

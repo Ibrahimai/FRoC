@@ -591,12 +591,63 @@ void helper(std::vector<double>  & pathsImport)
 	}
 }
 
+// this function prints all information stored in mem
+// used for debugging and development
+void printMemory(BRAM mem)
+{
 
+
+
+	std::cout << "Memory " << mem.name << " has the following attributes:" << std::endl;
+
+	std::cout << "Xlocation " << mem.x << " Ylocation " << mem.y << std::endl;
+
+	std::cout << "Operation mode:";
+	if (mem.operationMode == 0)
+		std::cout << " Single Port. " << std::endl;
+	else if (mem.operationMode == 1)
+		std::cout << "Simple Dual Port." << std::endl;
+	else if (mem.operationMode == 2)
+		std::cout << "True Dual Port." << std::endl;
+	else
+	{
+		std::cout << "ERROR: Undefined mode" << std::endl;
+	}
+
+	std::cout << "Port A data width is " << mem.portADataWidth << ". Only " << mem.portAUsedDataWidth << " bits are used" << std::endl;
+
+	std::cout << "Port A address width is " << mem.portAAddressWidth << std::endl;
+
+	std::cout << "Port B data width is " << mem.portBDataWidth << ". Only " << mem.portBUsedDataWidth << " bits are used" << std::endl;
+
+	std::cout << "Port B address width is " << mem.portBAddressWidth << std::endl;
+
+	if (mem.portAWE)
+		std::cout << "Port A Write enable is used" << std::endl;
+
+	if (mem.portARE)
+		std::cout << "Port A Read enable is used" << std::endl;
+
+	if (mem.portBWE)
+		std::cout << "Port b Write enable is used" << std::endl;
+
+	if (mem.portBRE)
+		std::cout << "Port B read enable is used" << std::endl;
+
+	if (mem.clk0)
+		std::cout << "Clock 0 is used" << std::endl;
+
+	if (mem.clr0)
+		std::cout << "Clear 0 is used" << std::endl;
+
+	if (mem.ena0)
+		std::cout << "enable 0 is used" << std::endl;
+}
 
 void parseUsedMemories()
 {
 
-	std::ifstream metaData("memInfo.txt");
+	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/randomMemories/memInfo.txt");
 	if (!metaData)
 	{
 		std::cout << "Can not find file  Terminating.... " << std::endl;
@@ -606,12 +657,16 @@ void parseUsedMemories()
 
 	bool first = true;
 
-
+	std::string memName = "";
 	int x = -1; // x location 
 	int y = -1; // y location
 	int operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
+	//int logicalDepth = -1;
+	//int lgoicalWidth = -1;
 	int portADataWidth = -1;
+	int portAUsedDataWidth = 0;
 	int portBDataWidth = -1;
+	int portBUsedDataWidth = 0;
 	int portAAddressWidth = -1;
 	int portBAddressWidth = -1;
 	bool portAWE = false;
@@ -622,6 +677,8 @@ void parseUsedMemories()
 	bool ena0 = false;
 	bool clr0 = false;
 
+	std::string header;
+
 	while (std::getline(metaData, line))
 	{
 		if (line == "*****New Memory*******")
@@ -630,15 +687,63 @@ void parseUsedMemories()
 			// we should check if this is the first mem or not
 			if (!first)
 			{
+				BRAM mem;
+				mem.name = memName;
+				mem.x = x; // x location 
+				mem.y = y; // y location
+				mem.operationMode = operationMode; // mode of the BRAM {dual_port, single port, true dual}
+				mem.portADataWidth = portADataWidth;
+				mem.portBDataWidth = portBDataWidth;
+				mem.portAAddressWidth = portAAddressWidth;
+				mem.portBAddressWidth = portBAddressWidth;
+				mem.portAUsedDataWidth = portAUsedDataWidth;
+				mem.portBUsedDataWidth = portBUsedDataWidth;
+				mem.portAWE = portAWE;
+				mem.portARE = portARE;
+				mem.portBWE = portBWE;
+				mem.portBRE = portBRE;
+				mem.clk0 = clk0;
+				mem.ena0 = ena0;
+				mem.clr0 = clr0;
 
+				printMemory(mem);
+
+				memories.push_back(mem);
+
+				memName = "";
+				x = -1; // x location 
+				y = -1; // y location
+				operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
+										//int logicalDepth = -1;
+										//int lgoicalWidth = -1;
+				portADataWidth = -1;
+				portAUsedDataWidth = 0;
+				portBDataWidth = -1;
+				portBUsedDataWidth = 0;
+				portAAddressWidth = -1;
+				portBAddressWidth = -1;
+				portAWE = false;
+				portARE = false;
+				portBWE = false;
+				portBRE = false;
+				clk0 = false;
+				ena0 = false;
+				clr0 = false;
 
 			}
+
+			// read memory name
+			assert(std::getline(metaData, line));
+			std::stringstream nameStream(line);
+			nameStream >> memName;
+
 			// read memory loc
 			assert(std::getline(metaData, line));
 			std::stringstream loc(line);
 			loc >> x >> y;
-			std::cout << "Xloc " << x << std::endl;
-			std::cout << "yloc " << y << std::endl;
+
+		//	std::cout << "Xloc " << x << std::endl;
+		//	std::cout << "yloc " << y << std::endl;
 
 			// read memory mode
 			assert(std::getline(metaData, line));
@@ -663,27 +768,139 @@ void parseUsedMemories()
 				std::cout << modeLine << " is not a known mode!! Terminating" << std::endl;
 				assert(true);
 			}
-			std::cout << "mode " << operationMode;
+
+		//	std::cout << "mode " << operationMode;
 
 			// read logical depth
 			assert(std::getline(metaData, line));
-			std::stringstream logicalDepth(line);
+			std::stringstream logicalDepthStream(line);
+			logicalDepthStream >> header;
+		//	logicalDepthStream >> logicalDepth;
+			// for now ignore the logical depth reported in this file as I have seome incorrect values, should get it from the VQM file.
+
+	/*		if (!logicalDepthStream.eof())
+			{
+				if (logicalDepthStream.peek() == (int)'K')
+				{
+					logicalDepth = logicalDepth * 1024;
+				}
+				else
+				{
+
+				}
+
+			
+			}*/
+
+			// read logical width
+			assert(std::getline(metaData, line));
+			std::stringstream logicalWidthStream(line);
+			logicalWidthStream >> header;
+			// for now ignore the logical depth reported in this file as I have seome incorrect values, should get it from the VQM file.
+
+			// read port a address width
+			assert(std::getline(metaData, line));
+			std::stringstream portAaddressWidthStream(line);
+			portAaddressWidthStream >> header;
+			portAaddressWidthStream >> portAAddressWidth;
 
 
+			// read port a data width
+			assert(std::getline(metaData, line));
+			std::stringstream portADataWidthStream(line);
+			portADataWidthStream >> header;
+			portADataWidthStream >> portADataWidth;
+
+			// read port b address width
+			assert(std::getline(metaData, line));
+			std::stringstream portBaddressWidthStream(line);
+			portBaddressWidthStream >> header;
+			portBaddressWidthStream >> portBAddressWidth;
+
+
+			// read port b data width
+			assert(std::getline(metaData, line));
+			std::stringstream portBDataWidthStream(line);
+			portBDataWidthStream >> header;
+			portBDataWidthStream >> portBDataWidth;
 
 			first = false;
 		}
-		else if (line == "*****Output Ports*******")
+		else if (line == "*****Output Ports*******") // read output ports, to find how many bits are used
 		{
-			std::cout << "lop";
+			while (std::getline(metaData, line))
+			{
+				if (line == "*****Finish Output Ports*******")
+					break;
+			//	assert(std::getline(metaData, line));
+				std::stringstream outputPortStream(line);
+				outputPortStream >> header;
+				std::string port;
+				outputPortStream >> port;
+
+				if (port == "PORTADATAOUT")
+					portAUsedDataWidth++;
+				else if (port == "PORTBDATAOUT")
+					portBUsedDataWidth++;
+				else
+				{
+					std::cout << "Wrong memory output port format from tcl script " << std::endl;
+					assert(true);
+				}
+
+				// read port index
+				assert(std::getline(metaData, line));
+				// for now ignoer port index and will assume that the used ports start from index zero and incrtement by1.
+
+			}
+			
 		}
 		else if (line == "****Input Ports*******")
 		{
-			std::cout << "lop";
+			while (std::getline(metaData, line))
+			{
+				if (line == "****Finish Input Ports*******")
+					break;
+			//	assert(std::getline(metaData, line));
+				std::stringstream inputPortStream(line);
+				inputPortStream >> header;
+				std::string port;
+				inputPortStream >> port;
+				if (port == "PORTAWE")
+					portAWE = true;
+				else if (port == "PORTARE")
+					portARE = true;
+				else if (port == "PORTBWE")
+					portBWE = true;
+				else if (port == "PORTBRE")
+					portBRE = true;
+				else if (port == "ENA0")
+					ena0 = true;
+				else if (port == "CLR0")
+					clr0 = true;
+				else if (port == "CLK0")
+					clk0 = true;
+				else
+				{
+					if (!(port == "PORTADATAIN" || port == "PORTAADDR" || port == "PORTBADDR" || port == "PORTBDATAIN"))
+					{
+						std::cout << "One of the input port to this memory is not what I am used to!!" << std::endl;
+						std::cout << port << std::endl;
+					}
+				}
+
+				assert(std::getline(metaData, line));
+				// for now ignoer port index and will assume that the used ports start from index zero and incrtement by1.
+
+
+			}
 		}
 	}
 
 }
+
+
+
 
 int runiFRoC(int argc, char* argv[])
 {

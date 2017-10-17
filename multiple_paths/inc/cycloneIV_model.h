@@ -213,10 +213,13 @@ class BRAM
 public:
 	int x; // x location 
 	int y; // y location
+	std::string name; // mem name, will be used to track it down in the VQM file
 	int operationMode; // mode of the BRAM {dual_port, single port, true dual}
 	int portADataWidth;
 	int portBDataWidth;
+	int portBUsedDataWidth;
 	int portAAddressWidth;
+	int portAUsedDataWidth;
 	int portBAddressWidth;
 	bool portAWE;
 	bool portARE;
@@ -225,6 +228,7 @@ public:
 	bool clk0;
 	bool ena0;
 	bool clr0;
+
 	// the following are part of the BRAM WYSIWYG but will not be considered initially
 	bool clk1;
 	bool ena1;
