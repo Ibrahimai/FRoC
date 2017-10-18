@@ -228,6 +228,12 @@ public:
 	bool clk0;
 	bool ena0;
 	bool clr0;
+	bool portARegistered;
+	bool portBRegistered;
+	//std::string portAClock;
+	//std::string portBClock;
+	//std::string portAReadDuringWrite;
+	//std::string portBReadDuringWrite;
 
 	// the following are part of the BRAM WYSIWYG but will not be considered initially
 	bool clk1;

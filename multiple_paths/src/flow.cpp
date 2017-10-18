@@ -591,6 +591,12 @@ void helper(std::vector<double>  & pathsImport)
 	}
 }
 
+
+
+///////////////////////////////////////////////////////////
+////////////////// begin should eb aprt of the parser//////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
 // this function prints all information stored in mem
 // used for debugging and development
 void printMemory(BRAM mem)
@@ -901,6 +907,43 @@ void parseUsedMemories()
 
 
 
+// parses the text file genreated from the quartus_sta executable
+// it tells us the regis inside the memory
+void parseRegFileSTA()
+{
+	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/randomMemories/memRegInfo.txt");
+	if (!metaData)
+	{
+		std::cout << "Can not find file  Terminating.... " << std::endl;
+		return;
+	}
+	std::string line;
+	std::string header;
+
+	// read the VQM line by line
+	while (std::getline(metaData, line))
+	{
+		int x, y;
+		std::stringstream lineStream(line);
+		lineStream >> x >> y;
+		// loop over all used memories
+		for (unsigned int i = 0; i < memories.size(); i++)
+		{
+			if (memories[i].x == x && memories[i].y == y)
+			{
+				memories[i].portARegistered = true;
+				memories[i].portBRegistered = true;
+			}
+		}
+		
+	}
+
+}
+
+///////////////////////////////////////////////////////////
+////////////////// end should eb aprt of the parser//////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
 
 int runiFRoC(int argc, char* argv[])
 {
@@ -919,7 +962,7 @@ int runiFRoC(int argc, char* argv[])
 	////////////////////
 	///// New stuff ////
 	parseUsedMemories();
-
+	parseRegFileSTA();
 	return 0;
 
 	//////////////////

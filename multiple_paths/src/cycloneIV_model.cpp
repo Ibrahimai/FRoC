@@ -127,6 +127,12 @@ BRAM::BRAM()
 	clk0 = false;
 	ena0 = false;
 	clr0 = false;
+	portBRegistered = false;
+	portARegistered = false;
+	//portAClock = "";
+	//portBClock = "";
+	//portAReadDuringWrite = "";
+	//portBReadDuringWrite = "";
 	// the following are part of the BRAM WYSIWYG but will not be considered initially
 	clk1 = false;
 	ena1 = false;
