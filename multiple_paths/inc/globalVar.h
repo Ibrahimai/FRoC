@@ -84,4 +84,4 @@ extern int numberOfIgnoredFanouts;
 extern int numberOfImpossibleFanouts;
 
 
-extern std::vector<BRAM> memories;
+//extern std::vector<BRAM> memories;

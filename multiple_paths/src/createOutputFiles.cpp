@@ -2129,7 +2129,7 @@ void create_RCF_file(int bitStreamNumber)
 	int label;
 	std::map<std::string, int> branchLabel;
 	bool foundSource = false;
-        bool addBrace = false;
+    bool addBrace = false;
         
         //reset all reserved fanout placements for the next bitstream
         for(unsigned i = 0; i < FPGAsizeX; i++){
