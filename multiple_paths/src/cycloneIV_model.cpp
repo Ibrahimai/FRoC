@@ -19,6 +19,11 @@ Logic_element::Logic_element()
 	usedInputPorts = 0;
 	usedOutputPorts = 0;
 	CoutFixedDefaultValue = true;
+
+	isBRAM = false;
+	indexMemories = -1;
+	BRAMinputPorts.resize(0);
+	BRAMoutputPorts.resize(0);
 }
 
 Logic_element::Logic_element(int over)
@@ -60,6 +65,46 @@ void Logic_element::add_node(int p, int n, int in, int out)
 		usedOutputPorts = 1;
 	}
 	usedInputPorts = count;
+	Path_logic_component temp(p, n);
+	nodes.push_back(temp);
+
+	// if this is the first node using this ALUT then it is its owner. make sure to update the delete functionality to reflect change of ownership. It could also be itenteresting to see how many times does an ALUT change ownership.
+	if (utilization == 0)
+		owner = temp;
+	utilization++;
+}
+
+
+
+void Logic_element::add_node(int p, int n, std::pair <int, int> BRAMportInputInfo, std::pair <int, int> BRAMportOuputInfo)
+{
+
+	int count = 0;
+	int i,j;
+
+
+	
+	if (BRAMportInputInfo.first >= 0)
+	{
+		BRAMinputPorts[BRAMportInputInfo.first][BRAMportInputInfo.second] = true;
+		for (i = 0; i < BRAMinputPorts.size(); i++)
+			for (j = 0; j < BRAMinputPorts[i].size(); j++)
+				if (BRAMinputPorts[i][j])
+					count++;
+
+		usedInputPorts = count;
+	}
+
+	if (BRAMportOuputInfo.first >= 0)
+	{
+		BRAMoutputPorts[BRAMportOuputInfo.first][BRAMportOuputInfo.second] = true;
+		for (i = 0; i < BRAMoutputPorts.size(); i++)
+			for (j = 0; j < BRAMoutputPorts[i].size(); j++)
+				if (BRAMoutputPorts[i][j])
+					count++;
+		usedOutputPorts = count;
+	}
+
 	Path_logic_component temp(p, n);
 	nodes.push_back(temp);
 

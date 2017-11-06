@@ -378,6 +378,9 @@ int parseIn(std::string metaFileName)
 	pathClockRelation.push_back(0);
 
 	int i, counter, x, y, z, pIn, pOut, edgeType;
+	std::pair <int, int> BRAMportInputInfo;
+	std::pair <int, int> BRAMportOutputInfo;
+
 	int maxOverlap = 0;
 	int  index1 = -1;
 	double tempSlack;
@@ -388,10 +391,23 @@ int parseIn(std::string metaFileName)
 
 	while (std::getline(metaData, line))
 	{
+
 		if (line[0] == 'P')
 		{
 			//if (path > 0)
 			//{
+			// push path to vector of paths
+			// check if the path start or ends at aBRAM
+			if (tempPath.size() > 0)
+			{
+				// check the first node in the path
+				if (fpgaLogic[tempPath[0].x][tempPath[0].y][0].isBRAM)
+					tempPath[0].startsAtBRAM = true;
+
+				// check the last node in the path
+				if (fpgaLogic[tempPath[tempPath.size()-1].x][tempPath[tempPath.size() - 1].y][0].isBRAM)
+					tempPath[0].endsAtBRAM = true;
+			}
 			paths.push_back(tempPath);
 			tempPath.clear();
 			//}
@@ -430,6 +446,9 @@ int parseIn(std::string metaFileName)
 
 			continue;
 		}
+	//	if (paths.size() == 208)
+	//		std::cout << "DEbbug";
+
 		counter = 0;
 		for (i = 0; i < (int)line.size(); i++)
 		{
@@ -464,23 +483,154 @@ int parseIn(std::string metaFileName)
 		}
 		z = stoi(line.substr(index1, i - index1));
 
+		// default BRAM ports to -1
+		BRAMportInputInfo = std::make_pair(-1, -1);
+		BRAMportOutputInfo = std::make_pair(-1, -1);
 
+		// default pIn and Pout are -1
+		pIn = -1;
+		pOut = -1;
 
 		if (!std::getline(metaData, line))
 		{
 			std::cout << "Incorrect file format. Terminating...." << std::endl;
 			return 0;
 		}
+		// Flip flop
 		if (line[0] == 'F')
 		{
 			pIn = FFd;
 			pOut = FFq;
 		}
-		else
+		else if (line[0] == 'L') // LUT
 		{
 			pIn = line[4] - '0';
 			pOut = line[6] - '0';
 		}
+		else if (line[0] == 'M') // memory block
+		{
+
+			std::stringstream lineStream (line);
+
+			// read if it is a start or an end
+
+			// temo string store parts of the string stream
+			std::string temp;
+
+			// temp should store either start or end or startInside
+			lineStream >> temp >> temp;
+
+			if (temp == "start") // path starts at a BRAM
+			{
+				std::string startPort; 
+				int outputIndex;
+				int BRAMOutPortTemp;
+				
+				lineStream >> startPort; // should be either poertadataout or portbdataout
+				if (startPort == "portadataout")
+					BRAMOutPortTemp = BRAMportAout;
+				else if (startPort == "portbdataout")
+					BRAMOutPortTemp = BRAMportBout;
+				else
+				{
+					std::cout << "Error in input meta file. BRAM begin port is " << startPort << std::endl;
+					assert(false);
+
+				}
+				lineStream >> outputIndex;
+
+				// store the output port used by this BRAM
+				BRAMportOutputInfo = std::make_pair(BRAMOutPortTemp, outputIndex);
+
+				// input port of the BRAM is not impoertant here so set it to -1
+				BRAMportInputInfo = std::make_pair(-1, -1);
+
+
+			}
+			else if (temp == "end") // path ends at a BRAM
+			{
+				std::string endPort;
+				int inputIndex = 0;
+				int BRAMInPortTemp;
+
+				lineStream >> endPort; // should be either portadatain or portbdatain or portawe or portbwe or portaaddr ot portbaddr
+
+				if (endPort == "portadatain")
+				{
+					BRAMInPortTemp = BRAMportAData;
+					lineStream >> inputIndex;
+				}
+				else if (endPort == "portbdatain")
+				{
+					BRAMInPortTemp = BRAMportBData;
+					lineStream >> inputIndex;
+				}
+				else if (endPort == "portawe")
+				{
+					BRAMInPortTemp = BRAMportAWE;
+				}
+				else if (endPort == "portbwe")
+				{
+					BRAMInPortTemp = BRAMportBWE;
+				}
+				else if (endPort == "portaaddr")
+				{
+					BRAMInPortTemp = BRAMportAAddress;
+					lineStream >> inputIndex;
+				}
+				else if (endPort == "portbaddr")
+				{
+					BRAMInPortTemp = BRAMportBAddress;
+					lineStream >> inputIndex;
+				}
+				else
+				{
+					std::cout << "Error in input meta file. BRAM input port is " << endPort << std::endl;
+					assert(false);
+				}
+
+				
+
+				// store the input port used by this BRAM
+				BRAMportInputInfo = std::make_pair(BRAMInPortTemp, inputIndex);
+
+				// the output port of the BRAM will be ignored as it is not used in this path
+				BRAMportOutputInfo = std::make_pair(-1, -1);
+
+			}
+			else if (temp == "startInside") // if that's the case we will ignore stuff below and just mark the test the BRAM for testing
+			{
+
+				// this should be the first cell so let's check that
+				assert(tempPath.size() == 0);
+
+				// ignore the three following lines
+				std::getline(metaData, line);
+				std::getline(metaData, line);
+				std::getline(metaData, line);
+				 
+
+			//	BRAMportInputInfo = std::make_pair(0, 0);
+			///	BRAMportOutputInfo = std::make_pair(0, 0);
+				
+				
+				continue;
+			}
+			else
+			{
+				std::cout << "Error in metaFile with memory stuff" << std::endl;
+				assert(false);
+			}
+
+
+
+		}
+		else
+		{
+			std::cout << "Somehting wrong with the input meta file. " << std::endl;
+			assert(false);
+		}
+
 		// inverting behanviour
 		if (!std::getline(metaData, line))
 		{
@@ -496,7 +646,7 @@ int parseIn(std::string metaFileName)
 			invertingSignal = false;
 		}
 
-		// read edge type
+		// read edge type for MC purposes
 		if (!std::getline(metaData, line))
 		{
 			std::cout << "Incorrect file format. Terminating...." << std::endl;
@@ -511,10 +661,20 @@ int parseIn(std::string metaFileName)
 			edgeType++;
 
 
+		if (pIn == -1 || pOut == -1) // it must be a memory so let's check and add this node
+		{
+			assert(fpgaLogic[x][y][0].isBRAM);
+			assert(BRAMportInputInfo.first >= 0 || BRAMportOutputInfo.first >= 0);
+			// have x and y and z stored
+			fpgaLogic[x][y][z].add_node(path, node, BRAMportInputInfo, BRAMportOutputInfo);
 
-
-		// have x and y and z stored
-		fpgaLogic[x][y][z].add_node(path, node, pIn, pOut);
+		}
+		else // not a memory add to fpga logic
+		{
+			// have x and y and z stored
+			fpgaLogic[x][y][z].add_node(path, node, pIn, pOut);
+		}
+		
 		// handle FF with sdata or data
 		if (node!=0 && z%LUTFreq==1) // this is a FF and not a source, it is a sink FF
 		{
@@ -547,11 +707,11 @@ int parseIn(std::string metaFileName)
 
 		assert(x >= 0 && y >= 0 && z >= 0);
 
-		// if its the source reg then add 4 to the dedge typ because source reg has the same Tco delay  
+		// if its the source reg then add 4 to the edge type because source reg has the same Tco delay  
 		if (tempPath.size() == 0)
 			edgeType += 4;
 
-		tempPath.push_back(Path_node(x, y, z, pIn, pOut, invertingSignal,edgeType));
+		tempPath.push_back(Path_node(x, y, z, pIn, pOut, invertingSignal,edgeType, BRAMportInputInfo, BRAMportOutputInfo));
 		for (i = 0; i<(int)fpgaLogic[x][y][z].nodes.size(); i++) // pass through all path nodes that uses this logic element
 		{
 			if (fpgaLogic[x][y][z].nodes[i].path != path) // check if it is used by another path through the same portIn and portOut
@@ -573,6 +733,17 @@ int parseIn(std::string metaFileName)
 		node++;
 	}
 	// push last path to list of paths
+	// check if the path start or ends at aBRAM
+	if (tempPath.size() > 0)
+	{
+		// check the first node in the path
+		if (fpgaLogic[tempPath[0].x][tempPath[0].y][0].isBRAM)
+			tempPath[0].startsAtBRAM = true;
+
+		// check the last node in the path
+		if (fpgaLogic[tempPath[tempPath.size() - 1].x][tempPath[tempPath.size() - 1].y][0].isBRAM)
+			tempPath[0].endsAtBRAM = true;
+	}
 	paths.push_back(tempPath);
 	tempPath.clear();
 
@@ -1140,6 +1311,20 @@ int read_routing(std::string routingFile)
 
 				tempConnection.sourcePort = paths[path][node].portOut; // assign the source of this connection to the output port of the node in question
 
+
+				 // BRAM
+				if (fpgaLogic[sourceX][sourceY][sourceZ].isBRAM)
+				{
+					assert(sourceZ == 0);
+					tempConnection.memorySourcePort.first = paths[path][node].BRAMPortOut;
+					tempConnection.memorySourcePort.second = paths[path][node].BRAMPortOutIndex;
+				}
+				else
+				{
+					tempConnection.memorySourcePort.first = -1;
+					tempConnection.memorySourcePort.second = -1;
+				}
+
 				// read the RE delay of this cell, we will store it int the first RE used by this connection
 				// read delay
 				assert(getline(metaData, line));
@@ -1174,15 +1359,79 @@ int read_routing(std::string routingFile)
 				tempConnection.destinationZ = paths[path][node].z;
 				tempConnection.destinationPort = paths[path][node].portIn;
 
+				int xDestLoc = paths[path][node].x;
+				int yDestLoc = paths[path][node].y;
+				int zDestLoc = paths[path][node].z;
+
+
+				// BRAM
+				if (fpgaLogic[xDestLoc][yDestLoc][zDestLoc].isBRAM)
+				{
+					assert(zDestLoc == 0);
+					tempConnection.memoryDestinationPort.first = paths[path][node].BRAMPortIn;
+					tempConnection.memoryDestinationPort.second = paths[path][node].BRAMPortInIndex;
+				}
+				else
+				{
+					tempConnection.memoryDestinationPort.first = -1;
+					tempConnection.memoryDestinationPort.second = -1;
+				}
+
+
 				//// now we have all needed information, we will check if this connection already exists
 				connExists = false;
 				for (i = 0; i < (int)fpgaLogic[sourceX][sourceY][sourceZ].connections.size(); i++) // loop across existing connections
 				{
+
+
+
+
+
 					// checking if this connection exists already
-					if (fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationX == tempConnection.destinationX && fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationY == tempConnection.destinationY && fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationZ == tempConnection.destinationZ && fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationPort == tempConnection.destinationPort && fpgaLogic[sourceX][sourceY][sourceZ].connections[i].sourcePort == tempConnection.sourcePort)
+					// first check if it's from the same source
+					if (fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationX == tempConnection.destinationX
+						&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationY == tempConnection.destinationY
+						&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationZ == tempConnection.destinationZ)
+						//&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].sourcePort == tempConnection.sourcePort)
 					{
-						connExists = true;
-						break;
+						// check if the source is not a memory
+						// then we check if the source port is the same
+						if (!fpgaLogic[sourceX][sourceY][sourceZ].isBRAM
+							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].sourcePort == tempConnection.sourcePort)
+						{
+							connExists = true;
+							break;
+						}
+
+						// check if the source is a memory
+						// then check if the same source port is used
+						if (fpgaLogic[sourceX][sourceY][sourceZ].isBRAM
+							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].memorySourcePort.first == tempConnection.memorySourcePort.first
+							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].memorySourcePort.second== tempConnection.memorySourcePort.second)
+						{
+							connExists = true;
+							break;
+						}
+
+
+						// now check if destination is not to a memory
+						// then check if it's the same destiantion port
+						if (!fpgaLogic[xDestLoc][xDestLoc][xDestLoc].isBRAM 
+							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationPort == tempConnection.destinationPort)
+						{
+							connExists = true;
+							break;
+						}
+
+						// check if it's a memory
+						// then check if it's the same MEMORY destination port
+						if (fpgaLogic[xDestLoc][xDestLoc][xDestLoc].isBRAM
+							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].memoryDestinationPort.first == tempConnection.memoryDestinationPort.first
+							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].memoryDestinationPort.second == tempConnection.memoryDestinationPort.second)
+						{
+							connExists = true;
+							break;
+						}
 					}
 				}
 
@@ -1218,8 +1467,8 @@ int read_routing(std::string routingFile)
 				else
 					assert(line[0] == 'F');
 
-				if (tempKeyRE == "REC4:X49Y15S0I14")
-					std::cout << "lala land" << std::endl;
+			//	if (tempKeyRE == "REC4:X49Y15S0I14")
+			//		std::cout << "lala land" << std::endl;
 
 				// enter the delay into the REsDelay map in addition to the cell re delay this is only inserted in the first routing element (RE)
 				insert_to_REsDelay(tempKeyRE, cellREDelay + REDelay, edgeType);

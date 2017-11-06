@@ -11,6 +11,7 @@
 #include <ctime>
 #include <chrono>
 #include <math.h>  
+#include <sstream> 
 
 #define portA (0)
 #define portB (1)
@@ -56,6 +57,21 @@
 #define addedLatencyToBufferSinks (5)
 #define addedLatencyTorelaxTimingConstraints (6)
 #define orResetShift (8)
+
+
+// BRAM inputs
+#define BRAMinputPortsSize 6
+#define BRAMportAData 0
+#define BRAMportAAddress 1
+#define BRAMportAWE 2
+#define BRAMportBData 3
+#define BRAMportBAddress 4
+#define BRAMportBWE 5
+
+// BRAM outputs
+#define BRAMoutputPortsSize 2
+#define BRAMportAout 0
+#define BRAMportBout 1
 
 
 // FF modes
@@ -118,6 +134,15 @@ public:
 	int destinationPort; // destination port
 	int sourcePort; // source port
 	std::vector<std::string> usedRoutingResources; // vector of strings, each string corresponds to a routing resource used (ex: R4:x*y*...)
+
+	//// New memory stuff ////
+	std::pair <int, int> memoryDestinationPort; // destination to a BRAM
+
+	std::pair <int, int> memorySourcePort;
+
+	
+
+
 	Routing_connection() {};
 	Routing_connection(int xx, int yy, int zz, int destPort, int sourPort)
 	{
@@ -127,6 +152,10 @@ public:
 		destinationZ = zz;
 		destinationPort = destPort;
 		sourcePort = sourPort;
+		memoryDestinationPort.first = -1;
+		memoryDestinationPort.second = -1;
+		memorySourcePort.first = -1;
+		memorySourcePort.second = -1;
 	}
 
 	void clear()
@@ -137,6 +166,10 @@ public:
 		destinationZ = 0;
 		destinationPort = 0;
 		sourcePort = 0;
+		memoryDestinationPort.first = -1;
+		memoryDestinationPort.second = -1;
+		memorySourcePort.first = -1;
+		memorySourcePort.second = -1;
 	}
 
 };
@@ -157,8 +190,20 @@ public:
 	int eqPath; // if redun is true, eqPath stores the most critical path that uses the same node with the same input and output
 	int eqNode; // if redun is true, ewNode stores the node of the eqPath that uses this node equivalently.
 	bool tested; // true when this path si tested, this is only used in the complete netlist
+
+
+	// memory stuff
+
+	bool startsAtBRAM; // true if this path starts at a BRAM
+	bool endsAtBRAM; // true if this path ends at a BRAM
+	int BRAMPortIn; // the bram port in (address a or address b, or data in b or data in a or we a or we b)
+	int BRAMPortInIndex; // the index inside the port 
+	int BRAMPortOut; // bram output port (dataout  a or dataout b)
+	int BRAMPortOutIndex; // the index inside the output port
+
+
 	Path_node() {};
-	Path_node(int xx, int yy, int zz, int in, int out, bool invert, int edge) 
+	Path_node(int xx, int yy, int zz, int in, int out, bool invert, int edge,  std::pair <int, int> BRAMportInputInfo, std::pair <int, int> BRAMportOuputInfo)
 	{
 		x = xx;
 		y = yy;
@@ -173,6 +218,13 @@ public:
 		testPhase = -1; // -1
 		inverting = invert;
 		edgeType = edge;
+		startsAtBRAM = false;
+		endsAtBRAM = false;
+		BRAMPortIn = BRAMportInputInfo.first;
+		BRAMPortInIndex = BRAMportInputInfo.second;
+		BRAMPortOut = BRAMportOuputInfo.first;
+		BRAMPortOutIndex = BRAMportOuputInfo.second;
+	
 	};
 
 
@@ -195,6 +247,15 @@ public:
 	std::vector<Path_logic_component> nodes; // list of nodes representing which path and node use this le
 	std::vector<Routing_connection> connections; // vector of the connections of all fanouts for each logic element
 	std::vector<int> cascadedPaths; // each element in this vector represent a path that starts at FF x. Where the input of x is connected to the output of THIS logic element.
+	
+	////////////////////////////////////////////////
+	//// New parameters added to model memory //////
+	////////////////////////////////////////////////
+
+	bool isBRAM;
+	std::vector < std::vector<bool>> BRAMinputPorts; // 2d array of input ports (array for address, array for data, array for we)
+	std::vector < std::vector<bool>> BRAMoutputPorts;// BRAM output ports (port a and/or port B)
+	int indexMemories; // the corresponding index in the memories data structure (memories stores all info about the used BRAM)
 
 
 	Logic_element();
@@ -204,6 +265,10 @@ public:
 	void add_node(int p, int n, int in, int out);
 	void remove_overlap(int p, std::vector<int> & deleted_nodes);
 //	void remove_overlap_with_fanin(int p, int pIn, std::vector<int> & deleted_nodes);
+
+
+	// memoiry functions
+	void Logic_element::add_node(int p, int n, std::pair <int, int> BRAMportInputInfo, std::pair <int, int> BRAMportOuputInfo);
 };
 
 

@@ -631,7 +631,11 @@ bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode) // retu
 	return false;
 }
 
-bool get_feeder_special(int x, int y, int z, int & feederPath, int & feederNode) // return path and node that feeds the register at x, y and z, difference with the non-special is that it does not check for deleted path. it returns the path even if it is deleted.
+
+// return path and node that feeds the register at x, y and z, 
+//difference with the non-special is that it does not check for deleted path.
+//it returns the path even if it is deleted.
+bool get_feeder_special(int x, int y, int z, int & feederPath, int & feederNode) 
 {
 	if (z % LUTFreq == 0) // ensure that the given cell is a register
 		return false;
@@ -712,8 +716,8 @@ bool check_down_link_edge_transition(int i, int j, int k) // returns true if the
 	return false; // default edge trnasissiton
 }
 
-
-bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederNode) // returns the path and node that feeds element x,y,z through portIn
+// returns the path and node that feeds element x,y,z through portIn
+bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederNode) 
 {
 	int i;
 	if ((z%LUTFreq)!=0) // ensure that the given cell is a LUT
@@ -762,9 +766,77 @@ bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederN
 
 
 
+// finds the path and node that feeds the BRAM from a specific index in a specific port
+// returns true if a feeder was found and false otherwise
+bool get_BRAM_feeder(
+	int x, // x loc
+	int y, // y loc
+	int z, // z loc, should always be zero as it's a BRAM
+	std::pair <int, int> BRAMportInputInfo,  // .first represnts the port, .second is the index
+	int & feederPath,  // the path feeder for the specific pin
+	int & feederNode) // the node feeder for the specific pin
+{
+	// checking that z is zero and that this is a BRAM
+	assert(z == 0);
+	assert(fpgaLogic[x][y][z].isBRAM);
+
+	int i;
 
 
-bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int & feederNode) // returns the path and node that feeds element x,y,z through portIn, it is special as it returns a value even if the feeder cell is deleted, but it checks that it did exist before.
+	if (fpgaLogic[x][y][z].nodes.size() < 1) // make sure that this element is actually used
+		return false;
+
+
+	// ensures that this ports is actually used
+	if (!fpgaLogic[x][y][z].BRAMinputPorts[BRAMportInputInfo.first][BRAMportInputInfo.second]) 
+		return false;
+
+
+	int possibleFeedingPath = -1;
+	int possibleFeedingNode = -1;
+
+	// loop through paths using the questioned element, 
+	//the first non-deleted path feeding the desired input port and pin is used to get the feeder.
+	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++) 
+	{
+		if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortIn == BRAMportInputInfo.first
+			&& paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortInIndex == BRAMportInputInfo.second
+			&& !paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted)
+		{
+			possibleFeedingPath = fpgaLogic[x][y][z].nodes[i].path;
+			possibleFeedingNode = fpgaLogic[x][y][z].nodes[i].node;
+			break;
+		}
+	}
+	if (possibleFeedingNode == -1 || possibleFeedingPath == -1)
+		return false;
+
+	int feederX, feederY, feederZ;
+	feederX = paths[possibleFeedingPath][possibleFeedingNode - 1].x;
+	feederY = paths[possibleFeedingPath][possibleFeedingNode - 1].y;
+	feederZ = paths[possibleFeedingPath][possibleFeedingNode - 1].z;
+
+	// loop through paths using this feeder the first nondeletred one is the name that should be used
+	for (i = 0; i < (int)fpgaLogic[feederX][feederY][feederZ].nodes.size(); i++) 
+	{
+		if (!paths[fpgaLogic[feederX][feederY][feederZ].nodes[i].path][0].deleted)
+		{
+			feederPath = fpgaLogic[feederX][feederY][feederZ].nodes[i].path;
+			feederNode = fpgaLogic[feederX][feederY][feederZ].nodes[i].node;
+
+			assert(feederPath == fpgaLogic[feederX][feederY][feederZ].owner.path);
+			assert(feederNode == fpgaLogic[feederX][feederY][feederZ].owner.node);
+			return true;
+		}
+	}
+	return false;
+
+}
+
+// returns the path and node that feeds element x,y,z through portIn,
+//it is special as it returns a value even if the feeder cell is deleted, but it checks that it did exist before.
+
+bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int & feederNode) 
 {
 	int i;
 	if ((z%LUTFreq) != 0) // ensure that the given cell is a LUT

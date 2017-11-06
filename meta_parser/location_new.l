@@ -11,6 +11,7 @@
 int num_of_elem =0;
 int FLAG = 0;
 int cellFlag = 0;
+int cellCounter = 0;
 
 int clockSkew = 0;
 int pathRelationship = 0;
@@ -33,6 +34,9 @@ int portOut = 999;
 int currentMode = normal;
 int testVectorIndex = 0;
 char *testVec;
+
+char *BRAMPortIn;
+
 int carryChainNum = 0;
 int counter = 0;
 %}
@@ -41,7 +45,11 @@ int counter = 0;
 
 
 %%
-"; "("R"|"F")("R "|"F ")"; CELL ;"[0-9 \t]+";"[A-Z0-9_ \t]+"; "[^; \t]+ {FLAG =1;startRoute=1;
+"; "("R"|"F")("R "|"F ")"; CELL ;"[0-9 \t]+";"[A-Z0-9_ \t]+"; "[^; \t]+ {
+					FLAG =1;
+					startRoute=1;
+					// increment cell counter
+					cellCounter++;
 					int index = 0;
 					cellFlag = 1;
 					for (i=13;i<strlen(yytext);i++)
@@ -69,7 +77,7 @@ int counter = 0;
 					fprintf (loCon," -to \"PATH%dNODE%d\"\n", path,node);
 					fprintf (meta," -to \"PATH%dNODE%d\"\n", path,node);
 					//printf (" -to \"PATH%dNODE%d\"\n", path,node); //debug
-					if (yytext[index]=='F')
+					if (yytext[index]=='F') // flipflop
 					{
 						if (node > 0)
 						{
@@ -90,6 +98,97 @@ int counter = 0;
 						fprintf (meta,"%c",yytext[2]);
 						fprintf (meta,"%c\n",yytext[3]);	
 						REedge = yytext[3];						
+						goto done1;
+					}
+					else if (yytext[index] == 'M') // m9k BRAM 
+					{
+						if (node == 0)// Beginning at a BRAM
+						{
+							fprintf(meta,"M9K start");
+							int indexLast = strlen(yytext) - 1;
+							
+							for (i=indexLast; i>0; i--)
+							{
+								if (yytext[i]=='|')
+								{
+									indexLast = i;
+									break;
+								}
+							}
+							
+							// no| found means it's inside a BRAM
+							if(indexLast == strlen(yytext) - 1)
+							{
+								fprintf (meta,"Inside BRAM");
+							}
+							
+							// print output port used
+							for (i=indexLast+1;i<strlen(yytext);i++)
+							{	
+								// q measn that the path is inside a BRAM
+								if(yytext[indexLast+1]=='q')
+								{
+									fprintf (meta,"Inside BRAM");
+									break;
+								}
+								
+								if(i==indexLast+1)
+									fprintf (meta," ");
+									
+								if(yytext[i]=='[' || yytext[i]==']' )
+									fprintf (meta," ");
+								else
+									fprintf (meta,"%c",yytext[i]);
+						
+							}
+							fprintf(meta,"\n");
+							
+							if (yytext[2]==yytext[3]) // same transition
+								fprintf(meta,"Non-Inv\n");
+							else
+								fprintf(meta,"Inv\n");
+							
+							fprintf (meta,"%c",yytext[2]);
+							fprintf (meta,"%c\n",yytext[3]);
+						}
+						else // edning in a BRAM and starting somewhere else
+						{
+							fprintf(meta,"M9K end ");
+							
+							int indexLast = strlen(BRAMPortIn) - 1;
+							for (i=indexLast; i>0; i--)
+							{
+								if (BRAMPortIn[i]=='|')
+								{
+									indexLast = i;
+									break;
+								}
+							}
+							//if (path == 273)
+							//	printf("In cell port in is %s \n",BRAMPortIn);
+							// print output port used
+							for (i=indexLast+1;i<strlen(BRAMPortIn);i++)
+							{	
+								//fprintf (meta,"%c",BRAMPortIn[i]);
+								
+								if(BRAMPortIn[i]=='[' || BRAMPortIn[i]==']' )
+									fprintf (meta," ");
+								else
+									fprintf (meta,"%c",BRAMPortIn[i]);
+						
+							}
+							fprintf(meta,"\n");
+							
+							if (yytext[2]==yytext[3]) // same transition
+								fprintf(meta,"Non-Inv\n");
+							else
+								fprintf(meta,"Inv\n");
+							
+							fprintf (meta,"%c",yytext[2]);
+							fprintf (meta,"%c\n",yytext[3]);
+							
+						}
+						REedge = yytext[3];	
 						goto done1;
 					}
 
@@ -261,8 +360,14 @@ int counter = 0;
 }
 "Path #"[0-9]+": Setup slack is "("-"?[0-9]+"."?[0-9]+) {	fprintf(loCon,"PATH%d\n",path+1);
 			//ib fprintf(meta,"PATH%d\n",path+1);
-			 fprintf(meta,yytext);
-			 fprintf(meta,"\n",path+1);
+			
+			if (cellCounter <2 && path>0)
+			{
+				fprintf(meta,"**Current path is inside a BRAM** \n");
+			}
+			cellCounter = 0;
+			fprintf(meta,yytext);
+			fprintf(meta,"\n",path+1);
 			path++; carryChainNum = 0;
 		//	free(testVec);
 		//	testVec = (char *)malloc(sizeof(char));
@@ -321,13 +426,64 @@ int counter = 0;
 								fprintf(roCon," ;\n}\n");
 								routingBefore = 0;
 							}
-
+							
+							int isBRAM = 0;
+							
 							for (i=8;i<strlen(yytext);i++)
 							{
 								if (yytext[i]==';')
 									if (yytext[i+2]=='F')
 										goto done;
+									else if (yytext[i+2]=='M')
+										isBRAM = 1;
 
+							}
+							
+							if(isBRAM ==1)
+							{
+								
+								free(BRAMPortIn);
+								BRAMPortIn = NULL;
+								
+								int indexLast = strlen(yytext) -1;
+							
+								for (i=indexLast; i>0; i--)
+								{
+									if (yytext[i]=='|')
+									{
+										indexLast = i;
+										break;
+									}
+								}
+						//		printf("found a bram %d %d \n", indexLast, strlen(yytext));
+						//		printf("%s\n", yytext);
+								
+								BRAMPortIn = (char*)malloc(sizeof(char) * 20 * strlen(yytext));		
+								int sizeBefore = strlen(BRAMPortIn);							
+								strcpy(BRAMPortIn,yytext);//,strlen(yytext));
+								if(strlen(yytext)!=strlen(BRAMPortIn))// || path == 273)
+								{
+									printf("Size mismatch at path %d \n", path);
+									printf("BRAMportInfor has length of %d %d\n",strlen(BRAMPortIn),sizeBefore );
+									printf("BRAM is %s \n", BRAMPortIn);
+									printf("yytext has length of %d \n",strlen(yytext));
+									printf("yytext is %s \n", yytext);
+								}
+							//	BRAMPortIn = (char *)malloc((strlen(yytext)-indexLast-1)*(sizeof(char)));
+								
+						//		printf("BRAMport size %d\n", strlen(BRAMPortIn));
+								// print output port used
+						//		for (i=indexLast+1;i<strlen(yytext);i++)
+						//		{	
+						//			BRAMPortIn[i] = yytext[i];
+						//			printf("yy text %c \n", yytext[i]);
+						//			printf("BRAMPortIn %c \n", BRAMPortIn[i]);
+						//	
+						//		}
+						//		printf("BRAMport size %d\n", strlen(BRAMPortIn));
+						//		printf("%s\n",BRAMPortIn);
+								
+								goto done;
 							}
 
 							
@@ -527,7 +683,7 @@ int counter = 0;
 %%
 
 
-main(argc, argv)
+int main(argc, argv)
 int argc;
 char **argv;
 {

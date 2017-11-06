@@ -9,18 +9,18 @@
 */
 //#define maxPerBitStream
 
-#include "globalVar.h"
+//#include "globalVar.h"
+#include "createOutputFiles.h"
 #include "parseInput.h"
 #include "stats.h" 
 #include "ignore.h"
-#include "createOutputFiles.h"
 #include "dummyExtras.h"
 #include "completeNetlist.h"
 #include "ILPSolver.h"
 #include "MC.h"
 #include "routing_tree.h"
 #include "fanouts.h"
-#include <sstream> 
+
 
 #ifdef CycloneIV
 Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
@@ -229,6 +229,7 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	bool use_MC, 
 	bool ILPform,
 	bool optPerXBitstreams,
+	std::vector<BRAM> memories, // array of used memories in the application, needed to create the WYSIWYG of BRAMs
 	int bitStreamNumber)
 {
 	int i;
@@ -345,23 +346,25 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	std::cout << "total number of edges " << totalTimingEdges << std::endl;
 
 
+
+	// create Output Files
 	create_location_contraint_file(bitStreamNumber);
 	std::cout << "location file created " << std::endl;
-	create_WYSIWYGs_file(bitStreamNumber); // also creates auxillary 
+	create_WYSIWYGs_file(bitStreamNumber, memories); // also creates auxillary 
 	std::cout << "wysiwyg create " << std::endl;
 	//create_controller_module();
-	create_RCF_file(bitStreamNumber);
+	create_RCF_file(bitStreamNumber, memories);
 
-        //add fanout information to verilog and placement files
-        edit_files_for_routing(bitStreamNumber);
-        std:: cout << "number of fanouts modeled: " << numberOfFanouts << std::endl;
-        std:: cout << "number of fanouts placed: " << numberOfPlacedFanouts << std::endl;
-        std:: cout << "number of fanouts that had to be ignored: " << numberOfIgnoredFanouts << std::endl;
-        std:: cout << "number of fanouts that couldn't be placed due to type (e.g. io pins, FF): " << numberOfImpossibleFanouts << std::endl;
-        numberOfFanouts = 0;
-        numberOfPlacedFanouts = 0;
-        numberOfIgnoredFanouts = 0;
-        numberOfImpossibleFanouts = 0;
+	//add fanout information to verilog and placement files (James stuff)
+	edit_files_for_routing(bitStreamNumber);
+	std:: cout << "number of fanouts modeled: " << numberOfFanouts << std::endl;
+	std:: cout << "number of fanouts placed: " << numberOfPlacedFanouts << std::endl;
+	std:: cout << "number of fanouts that had to be ignored: " << numberOfIgnoredFanouts << std::endl;
+	std:: cout << "number of fanouts that couldn't be placed due to type (e.g. io pins, FF): " << numberOfImpossibleFanouts << std::endl;
+	numberOfFanouts = 0;
+	numberOfPlacedFanouts = 0;
+	numberOfIgnoredFanouts = 0;
+	numberOfImpossibleFanouts = 0;
 	std::cout << "rcf created " << std::endl;
 
 	for (i = 1; i < (int)paths.size(); i++)
@@ -782,7 +785,7 @@ void parseUsedMemories(std::vector<BRAM> & memories)
 			else
 			{
 				std::cout << modeLine << " is not a known mode!! Terminating" << std::endl;
-				assert(true);
+				assert(false);
 			}
 
 		//	std::cout << "mode " << operationMode;
@@ -861,7 +864,7 @@ void parseUsedMemories(std::vector<BRAM> & memories)
 				else
 				{
 					std::cout << "Wrong memory output port format from tcl script " << std::endl;
-					assert(true);
+					assert(false);
 				}
 
 				// read port index
@@ -976,249 +979,114 @@ void parseRegFileSTA(std::vector<BRAM> & memories)
 
 
 
-
-
-
-
-void generate_BRAMsWYSYWIGs(std::vector<BRAM> & memories, int bitStreamNumber)
+// sets the the isBRAM member of the FPGA fabric for all BRAMS
+// also sets the sizes of the input and output ports of the BRAMs in the FPGA fabric
+// the port info comes from the parsed memory info
+// should be called after parseUsedmemories or after memories is set
+// xLocsBRAMs is a vector with the x locations of BRAMS --> assuming coloumn like architecture
+void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
 {
-	std::ofstream verilogFile;
-	std::string verilogFileName = "top_BRAM_" + std::to_string(bitStreamNumber) + ".v";
-	verilogFile.open(verilogFileName);
+	// xLocsBram should be {15, 37, 51, 64, 78, 104}
 
-	verilogFile << "module top (" << std::endl;
-
-
-	for (unsigned int i = 0; i < memories.size(); i++)
+	// todo: put this in the CycloneIV model file
+	std::vector<int> xLocsBRAMs = { 15, 37, 51, 64, 78, 104 };
+	int i, j;
+	// set the isBRAM variable to true
+	for (i = 0; i < xLocsBRAMs.size(); i++)
 	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			fpgaLogic[xLocsBRAMs[i]][j][0].isBRAM = true;
+		}
+	}
 
-		
-		/// memoy inputs
+	// set the memory index and the sizes of the in/out ports of the memories
+	for ( int i = 0; i < (int) memories.size(); i++)
+	{
+		int memX = memories[i].x;
+		int memY = memories[i].y;
+
+		// this cell must be of type BRAM
+		assert(fpgaLogic[memX][memY][0].isBRAM);
+
+		// set the index in the corresponding cell in fpgaLogic
+		fpgaLogic[memX][memY][0].indexMemories = i;
+
+		// set the sizes of the input and output ports
+		fpgaLogic[memX][memY][0].BRAMinputPorts.resize(BRAMinputPortsSize);
+		fpgaLogic[memX][memY][0].BRAMoutputPorts.resize(BRAMoutputPortsSize);
+
+		// resize port a data and output
+		// and set them to false 
+		// todo: maybe it's better to use useddatawidth instead of datawidth
+		if (memories[i].portADataWidth > 0)
+		{
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].resize(memories[i].portADataWidth);
+			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].begin(), 
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].end(), false);
+			
+			fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].resize(memories[i].portADataWidth);
+			std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].begin(),
+				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].end(), false);
+
+		}
+
+		// resize port b data and output
+		// and set them to false 
+		// todo: maybe it's better to use useddatawidth instead of datawidth
+		if (memories[i].portBDataWidth > 0)
+		{
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].resize(memories[i].portBDataWidth);
+
+			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].begin(),
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].end(), false);
+
+			fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].resize(memories[i].portBDataWidth);
+
+			std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].begin(),
+				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].end(), false);
+
+		}
+
+
+		// resize port a address
+		// and set them to false
 		if (memories[i].portAAddressWidth > 0)
-			verilogFile << "input " << "[" << memories[i].portAAddressWidth - 1 << ":0] BRAM_" << i << "_a_address," << std::endl;
+		{
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].resize(memories[i].portAAddressWidth);
 
-		if (memories[i].portAUsedDataWidth > 0)
-			verilogFile << "input " << "[" << memories[i].portAUsedDataWidth - 1 << ":0] BRAM_" << i << "_a_datain," << std::endl;
+			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].begin(),
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].end(), false);
+		}
 
-		if (memories[i].portAWE)
-			verilogFile << "input " << "BRAM_" << i << "_a_we," << std::endl;
 
+		// resize port b address
+		// and set them to false
 		if (memories[i].portBAddressWidth > 0)
-			verilogFile << "input " << "[" << memories[i].portBAddressWidth - 1 << ":0] BRAM_" << i << "_b_address," << std::endl;
-
-		if (memories[i].portBUsedDataWidth > 0)
-			// in simple dual mode, B is used in reading so it has no data in
-			if (memories[i].operationMode != simpleDualPort)
-				verilogFile << "input " << "[" << memories[i].portBUsedDataWidth - 1 << ":0] BRAM_" << i << "_b_datain," << std::endl;
-
-		if (memories[i].portBWE)
-			verilogFile << "input " << "BRAM_" << i << "_b_we," << std::endl;
-
-		if (memories[i].clr0)
-			verilogFile << "input " << "BRAM_" << i << "_clear," << std::endl;
-
-
-		/// memoy outputs
-		if (memories[i].portAUsedDataWidth > 0)
 		{
-			// in simple dual mode, A is used in writing so it has no data out
-			if (memories[i].operationMode != simpleDualPort)
-				verilogFile << "output " << "[" << memories[i].portAUsedDataWidth - 1 << ":0] BRAM_" << i << "_a_dataout," << std::endl;
-		}
-		if (memories[i].portBUsedDataWidth > 0)
-			verilogFile << "output " << "[" << memories[i].portBUsedDataWidth - 1 << ":0] BRAM_" << i << "_b_dataout," << std::endl;
-		
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].resize(memories[i].portBAddressWidth);
 
-	}
-
-	verilogFile << ");" << std::endl << std::endl << std::endl;
-
-	verilogFile << "//BRAMs instantiations" << std::endl;
-
-
-	for (unsigned int i = 0; i < memories.size(); i++)
-	{
-		
-		// singals to the BRAM for port A
-
-		verilogFile << "cycloneive_ram_block " << "BRAM_" << i << "_t (" << std::endl;
-		
-		verilogFile << ".clk0(clock)," << std::endl;
-
-		if (memories[i].clr0)
-			verilogFile << ".clr0( BRAM_" << i << "_clear)," << std::endl;
-
-		if (memories[i].portAAddressWidth > 0)
-			verilogFile << ".portaaddr( BRAM_" << i << "_a_address)," << std::endl;
-
-		if (memories[i].portAUsedDataWidth > 0)
-		{
-			verilogFile << ".portadatain( BRAM_" << i << "_a_datain)," << std::endl;
-			// in simple dual mode, A is used in writing so it has no data out
-			if(memories[i].operationMode!=simpleDualPort)
-				verilogFile << ".portadataout( BRAM_" << i << "_a_dataout)," << std::endl;
+			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].begin(),
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].end(), false);
 		}
 
+		// resize port a we
 		if (memories[i].portAWE)
-			verilogFile << ".portawe( BRAM_" << i << "_a_we)," << std::endl;
-
-	
-		// singals to the BRAM for port B
-
-		if (memories[i].portBAddressWidth > 0)
-			verilogFile << ".portbaddr( BRAM_" << i << "_b_address)," << std::endl;
-
-		if (memories[i].portBUsedDataWidth > 0)
 		{
-			// in simple dual mode, B is used in reading so it has no data in
-			if (memories[i].operationMode != simpleDualPort)
-				verilogFile << ".portbdatain( BRAM_" << i << "_b_datain)," << std::endl;
-			verilogFile << ".portbdataout( BRAM_" << i << "_b_dataout)," << std::endl;
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAWE].resize(1);
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAWE][0] = false;
 		}
 
+		// resize port b we
 		if (memories[i].portBWE)
-			verilogFile << ".portbwe( BRAM_" << i << "_b_we)," << std::endl;
-
-
-		// quartus was compaining when a true dual port or a simple dual port memory
-		// has no read enable connection
-		if (memories[i].operationMode == trueDualPort)
 		{
-			verilogFile << ".portbre( 1'b1)," << std::endl;
-			verilogFile << ".portare( 1'b1)," << std::endl;
-		}
-		else
-		{
-			if (memories[i].operationMode == simpleDualPort)
-				verilogFile << ".portbre( 1'b1)," << std::endl;
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBWE].resize(1);
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBWE][0] = false;
 		}
 
-		// BRAM mode and stuff
-		verilogFile << ");" << std::endl;
 
-		verilogFile << "defparam " << "BRAM_" << i << "_t.operation_mode = ";
-		if (memories[i].operationMode == trueDualPort)
-			verilogFile << "\"bidir_dual_port\";" << std::endl;
-		else if (memories[i].operationMode == simpleDualPort)
-			verilogFile << "\"dual_port\";" << std::endl;
-		else
-			verilogFile << "\"single_port\";" << std::endl;
 
-		verilogFile << "defparam " << "BRAM_" << i << "_t.ram_block_type = \"M9K\" ;" << std::endl;
-		verilogFile << "defparam " << "BRAM_" << i << "_t.logical_ram_name = \"BRAM_" << i << "_log \" ;" << std::endl;
-		verilogFile << "defparam " << "BRAM_" << i << "_t.data_interleave_width_in_bits = 1;" << std::endl;
-		verilogFile << "defparam " << "BRAM_" << i << "_t.data_interleave_offset_in_bits = 1;" << std::endl;
-
-		if (memories[i].portAAddressWidth > 0)
-		{
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_logical_ram_depth = " << pow(2, memories[i].portAAddressWidth) << " ;" << std::endl;
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_first_address = 0;" << std::endl;
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_last_address = " << pow(2, memories[i].portAAddressWidth) -1 << " ;" << std::endl;
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_address_width = " << memories[i].portAAddressWidth << " ;" << std::endl;
-		}
-		if (memories[i].portAUsedDataWidth > 0)
-		{
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_logical_ram_width = " << memories[i].portAUsedDataWidth << " ;" << std::endl;
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_first_bit_number = 0;" << std::endl;
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_data_width = " << memories[i].portAUsedDataWidth << " ;" << std::endl;
-		}
-		if (memories[i].clr0)
-		{
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_address_clear = \"clear0\";" << std::endl;
-			// in simple dual mode, A is used in writing so it has no data out
-			if (memories[i].operationMode != simpleDualPort)
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_data_out_clear = \"clear0\";" << std::endl;
-		}
-		else
-		{
-			verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_address_clear = \"none\";" << std::endl;
-			// in simple dual mode, A is used in writing so it has no data out
-			if (memories[i].operationMode != simpleDualPort)
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_data_out_clear = \"none\";" << std::endl;
-		}
-
-		
-		if (memories[i].portARegistered)
-		{
-			// in simple dual mode, A is used in writing so it has no data out
-			if (memories[i].operationMode != simpleDualPort)
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_data_out_clock = \"clock0\";" << std::endl;
-		}
-		else
-		{
-			// in simple dual mode, A is used in writing so it has no data out
-			if (memories[i].operationMode != simpleDualPort)
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_a_data_out_clock = \"none\";" << std::endl;
-		}
-
-		// parameters for port b
-		if (memories[i].operationMode == trueDualPort || memories[i].operationMode == simpleDualPort)
-		{
-			if (memories[i].portBAddressWidth > 0)
-			{
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_logical_ram_depth = " << pow(2, memories[i].portBAddressWidth) << " ;" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_first_address = 0;" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_last_address = " << pow(2, memories[i].portBAddressWidth) - 1 << " ;" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_address_width = " << memories[i].portBAddressWidth << " ;" << std::endl;
-			}
-			if (memories[i].portBUsedDataWidth > 0)
-			{
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_logical_ram_width = " << memories[i].portBUsedDataWidth << " ;" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_first_bit_number = 0;" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_data_width = " << memories[i].portBUsedDataWidth << " ;" << std::endl;
-			}
-			if (memories[i].clr0)
-			{
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_address_clear = \"clear0\";" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_data_out_clear = \"clear0\";" << std::endl;
-			}
-			else
-			{
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_address_clear = \"none\";" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_data_out_clear = \"none\";" << std::endl;
-			}
-
-			// port b must bec clocked with the same clock as port a
-
-			if (memories[i].portBWE)
-			{
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_data_in_clock = \"clock0\";" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_write_enable_clock = \"clock0\";" << std::endl;
-			}
-
-			if (memories[i].portBRegistered)
-			{
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_data_out_clock = \"clock0\";" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_read_enable_clock = \"clock0\";" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_address_clock = \"clock0\";" << std::endl;
-			}
-			else
-			{
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_data_out_clock = \"none\";" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_read_enable_clock = \"clock0\";" << std::endl;
-				verilogFile << "defparam " << "BRAM_" << i << "_t.port_b_address_clock = \"clock0\";" << std::endl;
-			}
-
-		}
 	}
-
-
-
-
-
-
-
-
-
-	verilogFile << "endmodule" << std::endl;
-
-
-	for (unsigned int i = 0; i < memories.size(); i++)
-	{
-		verilogFile << "set_location_assignment M9K_X" << memories[i].x << "_Y" << memories[i].y << "_N0 -to " << "BRAM_" << i << "_t" << std::endl;
-	}
-
-
 }
 
 ///////////////////////////////////////////////////////////
@@ -1248,14 +1116,29 @@ int runiFRoC(int argc, char* argv[])
 	int MCsamplesCount;
 
 	std::vector<BRAM> memories;
-	////////////////////
-	///// New stuff ////
+	///////////////////////////
+	///// New trial  stuff ////
+	///////////////////////////
+
 	parseUsedMemories(memories);
 	parseRegFileSTA(memories);
+	update_FPGA_fabric_with_memory_info(memories);
+	parseIn("D:/PhDResearch/testingGIT/DVS2.0/fils/metaBRAMTrial");
+	read_routing("D:/PhDResearch/testingGIT/DVS2.0/fils/metaRoutingBRAMTrial");
 	generate_BRAMsWYSYWIGs(memories,0);
+	//remove_fanin_higher_than_three();
+	// create Output Files
+	create_location_contraint_file(0);
+	std::cout << "location file created " << std::endl;
+	create_WYSIWYGs_file(0, memories); // also creates auxillary 
+	std::cout << "wysiwyg create " << std::endl;
+	//create_controller_module();
+	create_RCF_file(0, memories);
 	return 0;
 
-	//////////////////
+	///////////////////////////
+	///// Endtrial  stuff ////
+	///////////////////////////
 
 	if (parseOptions(argc, argv, outputName, MCsimulation, readMCsamplesFile, calibBitstreams, ILPform, optPerXBitstreams, var, yld, MCsamplesCount, MCsimFileName) != 1)
 	{
@@ -1263,7 +1146,6 @@ int runiFRoC(int argc, char* argv[])
 		return 0;
 	}
 
-	std::cout << "what the fack fewfwef wrgregt54r" << std::endl;
 	//IgnoredPathStats.open("stats_File.txt");
 
 	std::string temp = outputName;
@@ -1380,7 +1262,8 @@ int runiFRoC(int argc, char* argv[])
 	{
 
 		cycloneIV_stuff(scheduleChanged, pathsSchedule, x, feedbackPaths, remainingPaths, testedTimingEdgesMap, 
-			timingEdgeToPaths, timingEdgesMapComplete, strictCoverage, false, pathsImport, use_MC, ILPform, optPerXBitstreams, num_of_bit_stream);
+			timingEdgeToPaths, timingEdgesMapComplete, strictCoverage, false, pathsImport, use_MC, ILPform, 
+			optPerXBitstreams, memories, num_of_bit_stream);
 		num_of_bit_stream++;
 		get_allPathsTested(remainingPaths);
 		IgnoredPathStats << testedTimingEdgesMap.size() << "\t";
