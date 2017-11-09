@@ -24,7 +24,7 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo);
 
 
 // prints a WYSIWYG for a single BRAM (memoryCell) into the verilogFile
-void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly);
+void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories);
 
 // pritns WysyWigs for all BRAMs, this might be used for testing BRAMs only
 void generate_BRAMsWYSYWIGs(std::vector<BRAM>  memories, int bitStreamNumber);

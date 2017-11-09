@@ -57,8 +57,20 @@ void create_location_contraint_file(int bitStreamNumber) // modified for STratix
 						else // memory
 						{
 							assert(k == 0);
-							LoFile << "set_location_assignment M9K_X" << i << "_Y" <<j << "_N0"
-								<< " -to PATH" << path << "NODE" << node << "_t" << std::endl;
+							if (fpgaLogic[i][j][k].countNumofMem == 1)
+							{
+								LoFile << "set_location_assignment M9K_X" << i << "_Y" << j << "_N0"
+									<< " -to PATH" << path << "NODE" << node << "_t_0" << std::endl;
+							}
+							else
+							{
+								assert(fpgaLogic[i][j][k].countNumofMem == 2);
+								LoFile << "set_location_assignment M9K_X" << i << "_Y" << j << "_N0"
+									<< " -to PATH" << path << "NODE" << node << "_t_0" << std::endl;
+								LoFile << "set_location_assignment M9K_X" << i << "_Y" << j << "_N0"
+									<< " -to PATH" << path << "NODE" << node << "_t_1" << std::endl;
+
+							}
 						}
 #endif
 #ifdef StratixV
@@ -937,6 +949,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 									// find what coud does the feeder of this in gives when it is turned off
 									//	if (!get_feeder(x, y, z, Cin, feederPath, feederNode))
 									//		assert(false);
+									// BRAM stuff todo
 									assert(get_feeder(x, y, z, Cin, feederPath, feederNode));
 									// if the feeder defaults cout to zero
 									//	std::cout << feederNode << std::endl;
@@ -1075,6 +1088,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks, std::vec
 						if (fpgaLogic[x][y][z].inputPorts[Cin] && portIn_t != Cin) // Cin is being used and the curent path is using another input
 						{
 							// find what coud does the feeder of this in gives when it is turned off
+							int impPath, impNode;
 							assert(get_feeder(x, y, z, Cin, feederPath, feederNode));
 							// if the feeder defaults cout to zero
 							if (fpgaLogic[paths[feederPath][feederNode].x][paths[feederPath][feederNode].y][paths[feederPath][feederNode].z].CoutFixedDefaultValue)
@@ -1439,9 +1453,9 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 					else // is a memory
 					{
 						assert(k == 0);
-						int memIndex = fpgaLogic[i][j][k].indexMemories;
+						int memIndex = fpgaLogic[i][j][k].indexMemories[0];
 						//todo: handle source, sink and control signals to BRAMs
-						BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false);
+						BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false, memories);
 					}
 				
 #endif
@@ -1483,7 +1497,8 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 						}
 						else
 						{
-							verilogFile << "	.d(PATH" << pathFeeder << "NODE" << nodeFeeder << ")," << std::endl; // assuming that all sources will share the same input
+							// assuming that all sources will share the same input
+							verilogFile << "	.d(PATH" << pathFeeder << "NODE" << nodeFeeder << ")," << std::endl; 
 
 						}
 						verilogFile << "	.q(PATH" << path << "NODE" << node << "));" << std::endl;
@@ -1565,10 +1580,21 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 
 
 // this may have problems I removed it from location X1;
-void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSignals,int i, int j, int k, std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1, int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting)//, std::vector <Path_logic_component>& cascadedControlSignals)
+void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSignals,int i, int j, int k, 
+	std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, 
+	std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1,
+	int nodeFeederPort1, int  pathFeederPort2, int nodeFeederPort2, bool & inverting)//, std::vector <Path_logic_component>& cascadedControlSignals)
 {
 	int pathFeederPort3, nodeFeederPort3;
 	int port3 = -1;
+
+	int port1Path = -1;
+	int port1PrevNode = -1;
+	int port2Path = -1;
+	int port2PrevNode = -1;
+	int port3Path = -1;
+	int port3PrevNode = -1;
+
 	//std::vector <Path_logic_component>& cascadedControlSignals;
 	bool feedsCascaded = false;
 
@@ -1642,7 +1668,27 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 					}
 					else // port 2 is also used 
 					{
-						verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+						// get the x,y, z for port 2 feeder
+						int feederXPort2 = paths[pathFeederPort2][nodeFeederPort2].x;
+						int feederYPort2 = paths[pathFeederPort2][nodeFeederPort2].y;
+						int feederZPort2 = paths[pathFeederPort2][nodeFeederPort2].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort2][feederYPort2][feederZPort2].isBRAM)
+						{
+							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port2, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 
+								<< BRAMoutputPort << "[" <<  BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+						
 						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout )," << std::endl;
 						if (feedsCascaded)
 						{
@@ -1659,7 +1705,34 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 				else // port 2 is  cin and port 1 must be used
 				{
 					assert(port2>-1);
-					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+
+
+
+					int feederXPort1 = paths[pathFeederPort1][nodeFeederPort1].x;
+					int feederYPort1 = paths[pathFeederPort1][nodeFeederPort1].y;
+					int feederZPort1 = paths[pathFeederPort1][nodeFeederPort1].z;
+
+					// if it'snot a BRAM
+					if (!fpgaLogic[feederXPort1][feederYPort1][feederZPort1].isBRAM)
+					{
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+					}
+					else
+					{
+						int BRAMoutputPortIndex;
+						std::string BRAMoutputPort;
+						assert(get_feederPort_from_BRAM(i, j, k, port1, BRAMoutputPort, BRAMoutputPortIndex));
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1
+							<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+							<< " )," << std::endl;
+
+					}
+
+
+
+
+
+					//verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
 					verilogFile << "	.cin(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << "_Cout )," << std::endl;
 					if (feedsCascaded)
 					{
@@ -1694,9 +1767,64 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 					verilogFile << "	.dataa(PATH" << path << "NODE" << node << "Con)," << std::endl;
 				else
 					verilogFile << "	.dataa(vcc)," << std::endl;
-				verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
-				if (port2>-1)
-					verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+
+				int feederXPort1 = paths[pathFeederPort1][nodeFeederPort1].x;
+				int feederYPort1 = paths[pathFeederPort1][nodeFeederPort1].y;
+				int feederZPort1 = paths[pathFeederPort1][nodeFeederPort1].z;
+
+				// if it'snot a BRAM
+				if (!fpgaLogic[feederXPort1][feederYPort1][feederZPort1].isBRAM)
+				{
+					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+				}
+				else
+				{
+					int BRAMoutputPortIndex;
+					std::string BRAMoutputPort;
+					assert(get_feederPort_from_BRAM(i, j, k, port1, BRAMoutputPort, BRAMoutputPortIndex));
+					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1
+						<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+						<< " )," << std::endl;
+
+				}
+
+
+				//verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+
+
+
+
+
+				if (port2 > -1)
+				{
+
+
+
+					// get the x,y, z for port 2 feeder
+					int feederXPort2 = paths[pathFeederPort2][nodeFeederPort2].x;
+					int feederYPort2 = paths[pathFeederPort2][nodeFeederPort2].y;
+					int feederZPort2 = paths[pathFeederPort2][nodeFeederPort2].z;
+
+					// if it'snot a BRAM
+					if (!fpgaLogic[feederXPort2][feederYPort2][feederZPort2].isBRAM)
+					{
+						verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+					}
+					else
+					{
+						int BRAMoutputPortIndex;
+						std::string BRAMoutputPort;
+						assert(get_feederPort_from_BRAM(i, j, k, port2, BRAMoutputPort, BRAMoutputPortIndex));
+						verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2
+							<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+							<< " )," << std::endl;
+
+					}
+
+
+
+				//	verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+				}
 				else // only one port is used
 					verilogFile << "	.datac(gnd)," << std::endl;
 
@@ -1765,17 +1893,60 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 
 					if (port1 == Cin) // port 1 is Cin
 					{
+
+						// get the x,y, z for port 3 feeder
+						int feederXPort3 = paths[pathFeederPort3][nodeFeederPort3].x;
+						int feederYPort3 = paths[pathFeederPort3][nodeFeederPort3].y;
+						int feederZPort3 = paths[pathFeederPort3][nodeFeederPort3].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort3][feederYPort3][feederZPort3].isBRAM)
+						{
 							verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port3, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3
+								<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+
+						int feederXPort2 = paths[pathFeederPort2][nodeFeederPort2].x;
+						int feederYPort2 = paths[pathFeederPort2][nodeFeederPort2].y;
+						int feederZPort2 = paths[pathFeederPort2][nodeFeederPort2].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort2][feederYPort2][feederZPort2].isBRAM)
+						{
 							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
-							verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout )," << std::endl;
-							if (feedsCascaded)
-							{
-								verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
-							}
-							else
-							{
-								verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
-							}
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port2, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2
+								<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+
+
+						//verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+						//verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout )," << std::endl;
+						if (feedsCascaded)
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F_cascaded )," << std::endl;
+						}
+						else
+						{
+							verilogFile << "	.datad(PATH" << path << "NODE" << node << "F )," << std::endl;
+						}
 							
 							//ib0502verilogFile << "	.datad(vcc )," << std::endl;
 						
@@ -1783,8 +1954,63 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 					else if (port2 == Cin)// port 2 is  cin and port 1 must be used
 					{
 						assert(port2>-1);
-						verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
-						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+
+
+						int feederXPort3 = paths[pathFeederPort3][nodeFeederPort3].x;
+						int feederYPort3 = paths[pathFeederPort3][nodeFeederPort3].y;
+						int feederZPort3 = paths[pathFeederPort3][nodeFeederPort3].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort3][feederYPort3][feederZPort3].isBRAM)
+						{
+							verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port3, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3
+								<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+
+						int feederXPort1 = paths[pathFeederPort1][nodeFeederPort1].x;
+						int feederYPort1 = paths[pathFeederPort1][nodeFeederPort1].y;
+						int feederZPort1 = paths[pathFeederPort1][nodeFeederPort1].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort1][feederYPort1][feederZPort1].isBRAM)
+						{
+							verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port1, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1
+								<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+						//verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+						//verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << "_Cout )," << std::endl;
 						if (feedsCascaded)
 						{
@@ -1800,8 +2026,60 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 					else
 					{
 						assert(port3 == Cin);
-						verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
-						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+
+
+
+
+
+						int feederXPort1 = paths[pathFeederPort1][nodeFeederPort1].x;
+						int feederYPort1 = paths[pathFeederPort1][nodeFeederPort1].y;
+						int feederZPort1 = paths[pathFeederPort1][nodeFeederPort1].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort1][feederYPort1][feederZPort1].isBRAM)
+						{
+							verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port1, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1
+								<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+
+
+
+						int feederXPort2 = paths[pathFeederPort2][nodeFeederPort2].x;
+						int feederYPort2 = paths[pathFeederPort2][nodeFeederPort2].y;
+						int feederZPort2 = paths[pathFeederPort2][nodeFeederPort2].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort2][feederYPort2][feederZPort2].isBRAM)
+						{
+							verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port2, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2
+								<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+
+						
+
+
+
+
+						//verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+						//verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << "_Cout )," << std::endl;
 						if (feedsCascaded)
 						{
@@ -1831,9 +2109,76 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 																				//// instantiate the wysiwyg
 					verilogFile << "cycloneive_lcell_comb PATH" << path << "NODE" << node << "_t (" << std::endl;
 
-					verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
-					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
-					verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+
+
+					int feederXPort1 = paths[pathFeederPort1][nodeFeederPort1].x;
+					int feederYPort1 = paths[pathFeederPort1][nodeFeederPort1].y;
+					int feederZPort1 = paths[pathFeederPort1][nodeFeederPort1].z;
+
+					// if it'snot a BRAM
+					if (!fpgaLogic[feederXPort1][feederYPort1][feederZPort1].isBRAM)
+					{
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+					}
+					else
+					{
+						int BRAMoutputPortIndex;
+						std::string BRAMoutputPort;
+						assert(get_feederPort_from_BRAM(i, j, k, port1, BRAMoutputPort, BRAMoutputPortIndex));
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1
+							<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+							<< " )," << std::endl;
+
+					}
+
+
+
+					int feederXPort2 = paths[pathFeederPort2][nodeFeederPort2].x;
+					int feederYPort2 = paths[pathFeederPort2][nodeFeederPort2].y;
+					int feederZPort2 = paths[pathFeederPort2][nodeFeederPort2].z;
+
+					// if it'snot a BRAM
+					if (!fpgaLogic[feederXPort2][feederYPort2][feederZPort2].isBRAM)
+					{
+						verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+					}
+					else
+					{
+						int BRAMoutputPortIndex;
+						std::string BRAMoutputPort;
+						assert(get_feederPort_from_BRAM(i, j, k, port2, BRAMoutputPort, BRAMoutputPortIndex));
+						verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2
+							<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+							<< " )," << std::endl;
+
+					}
+
+					int feederXPort3 = paths[pathFeederPort3][nodeFeederPort3].x;
+					int feederYPort3 = paths[pathFeederPort3][nodeFeederPort3].y;
+					int feederZPort3 = paths[pathFeederPort3][nodeFeederPort3].z;
+
+					// if it'snot a BRAM
+					if (!fpgaLogic[feederXPort3][feederYPort3][feederZPort3].isBRAM)
+					{
+						verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+					}
+					else
+					{
+						int BRAMoutputPortIndex;
+						std::string BRAMoutputPort;
+						assert(get_feederPort_from_BRAM(i, j, k, port3, BRAMoutputPort, BRAMoutputPortIndex));
+						verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3
+							<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+							<< " )," << std::endl;
+
+					}
+
+
+
+
+					//verilogFile << "	.dataa(PATH" << pathFeederPort3 << "NODE" << nodeFeederPort3 << " )," << std::endl;
+					//verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+					//verilogFile << "	.datac(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
 					
 					if (feedsCascaded)
 					{
@@ -1912,7 +2257,31 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 					}
 					else // port 2 is also used 
 					{
-						verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << ")," << std::endl;
+
+
+						int feederXPort2 = paths[pathFeederPort2][nodeFeederPort2].x;
+						int feederYPort2 = paths[pathFeederPort2][nodeFeederPort2].y;
+						int feederZPort2 = paths[pathFeederPort2][nodeFeederPort2].z;
+
+						// if it'snot a BRAM
+						if (!fpgaLogic[feederXPort2][feederYPort2][feederZPort2].isBRAM)
+						{
+							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+						}
+						else
+						{
+							int BRAMoutputPortIndex;
+							std::string BRAMoutputPort;
+							assert(get_feederPort_from_BRAM(i, j, k, port2, BRAMoutputPort, BRAMoutputPortIndex));
+							verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2
+								<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+								<< " )," << std::endl;
+
+						}
+
+
+
+					//	verilogFile << "	.datab(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << ")," << std::endl;
 						verilogFile << "	.cin(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << "_Cout)," << std::endl;
 						if (feedsCascaded)
 						{
@@ -1928,7 +2297,33 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 				}
 				else // port 2 is  cin and port 1 must be used
 				{
-					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << ")," << std::endl;
+
+
+					int feederXPort1 = paths[pathFeederPort1][nodeFeederPort1].x;
+					int feederYPort1 = paths[pathFeederPort1][nodeFeederPort1].y;
+					int feederZPort1 = paths[pathFeederPort1][nodeFeederPort1].z;
+
+					// if it'snot a BRAM
+					if (!fpgaLogic[feederXPort1][feederYPort1][feederZPort1].isBRAM)
+					{
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+					}
+					else
+					{
+						int BRAMoutputPortIndex;
+						std::string BRAMoutputPort;
+						assert(get_feederPort_from_BRAM(i, j, k, port1, BRAMoutputPort, BRAMoutputPortIndex));
+						verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1
+							<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+							<< " )," << std::endl;
+
+					}
+
+
+
+
+
+				//	verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << ")," << std::endl;
 					verilogFile << "	.cin(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << "_Cout)," << std::endl;
 					if (feedsCascaded)
 					{
@@ -1970,10 +2365,60 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 					assert(get_feeder(i, j, k, port2, pathFeederPort2, nodeFeederPort2)); // get the feeder for port2
 				controlSignals.push_back(Path_logic_component(path, node)); //stores all the nodes requiring control signals
 				verilogFile << "cycloneive_lcell_comb PATH" << path << "NODE" << node << "_t (" << std::endl;
-				//		verilogFile << "	.dataa(PATH" << path << "NODE" << node << "Con)," << std::endl;
-				verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << ")," << std::endl;
-				if (port2>-1) // port 2 exists
-					verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << ")," << std::endl;
+
+				int feederXPort1 = paths[pathFeederPort1][nodeFeederPort1].x;
+				int feederYPort1 = paths[pathFeederPort1][nodeFeederPort1].y;
+				int feederZPort1 = paths[pathFeederPort1][nodeFeederPort1].z;
+
+				// if it'snot a BRAM
+				if (!fpgaLogic[feederXPort1][feederYPort1][feederZPort1].isBRAM)
+				{
+					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << " )," << std::endl;
+				}
+				else
+				{
+					int BRAMoutputPortIndex;
+					std::string BRAMoutputPort;
+					assert(get_feederPort_from_BRAM(i, j, k, port1, BRAMoutputPort, BRAMoutputPortIndex));
+					verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1
+						<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+						<< " )," << std::endl;
+
+				}
+
+
+
+			//	verilogFile << "	.datab(PATH" << pathFeederPort1 << "NODE" << nodeFeederPort1 << ")," << std::endl;
+
+
+
+				if (port2 > -1) // port 2 exists
+				{
+
+					int feederXPort2 = paths[pathFeederPort2][nodeFeederPort2].x;
+					int feederYPort2 = paths[pathFeederPort2][nodeFeederPort2].y;
+					int feederZPort2 = paths[pathFeederPort2][nodeFeederPort2].z;
+
+					// if it'snot a BRAM
+					if (!fpgaLogic[feederXPort2][feederYPort2][feederZPort2].isBRAM)
+					{
+						verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << " )," << std::endl;
+					}
+					else
+					{
+						int BRAMoutputPortIndex;
+						std::string BRAMoutputPort;
+						assert(get_feederPort_from_BRAM(i, j, k, port2, BRAMoutputPort, BRAMoutputPortIndex));
+						verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2
+							<< BRAMoutputPort << "[" << BRAMoutputPortIndex << "]"
+							<< " )," << std::endl;
+
+					}
+
+
+					//verilogFile << "	.dataa(PATH" << pathFeederPort2 << "NODE" << nodeFeederPort2 << ")," << std::endl;
+				}
+
 				//		else // port 2 does not exist tie the other inpu to vcc
 				//			verilogFile << "	.cin(vcc)," << std::endl;  //verilogFile << "	.datab(vcc)," << std::endl; new
 				// cin will control the output
@@ -2076,6 +2521,9 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+
+
+
 //returns a string that will be assigned to the intermediate signal of the BRAM
 // this is used for BRAM as their WYISYWGS are harder
 //example of returned string "{1'b0, 1'b0, PATHxNODEx, etc...}"
@@ -2093,7 +2541,23 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo)
 	std::string interSignal = "";
 	// loop across the pins of the requested port
 
-	for (int i = (int)fpgaLogic[x][y][0].BRAMinputPorts[BRAMportInfo].size() - 1; i >= 0; i--)
+	int last = 0;
+	int begin = (int)fpgaLogic[x][y][0].BRAMinputPorts[BRAMportInfo].size() - 1;
+
+	if (BRAMportInfo == BRAMportAData)
+	{
+		begin = memory.portAUsedDataWidth - 1;
+	}
+	else if (BRAMportInfo == BRAMportBData)
+	{
+		
+		begin = memory.portBUsedDataWidth - 1;
+
+	}
+	last = 0;
+	
+
+	for (int i = begin; i >= last; i--)
 	{
 		if (fpgaLogic[x][y][0].BRAMinputPorts[BRAMportInfo][i])
 		{
@@ -2101,13 +2565,13 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo)
 			assert(get_BRAM_feeder(x, y, 0, std::make_pair(BRAMportInfo, i), pathFeeder, nodeFeeder));
 			interSignal += "PATH" + std::to_string(pathFeeder);
 			interSignal += "NODE" + std::to_string(nodeFeeder);
-			if (i != 0)
+			if (i != last)
 				interSignal += ", ";
 		}
 		else
 		{
 			interSignal += "1'b0";
-			if (i != 0)
+			if (i != last)
 				interSignal += ", ";
 		}
 	}
@@ -2116,230 +2580,463 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo)
 }
 
 
+
+//returns a string that will be assigned to the intermediate signal of the BRAM
+// this is used for BRAM as their WYISYWGS are harder
+//example of returned string "{1'b0, 1'b0, PATHxNODEx, etc...}"
+// the returned string connects thre BRAM to the previous nodes
+// if nothing is connected it defaults it to gnd
+// memIndex is which memory index in the associated BRAM is being used 
+//--> handles the case where more BRAMs are mapped into the same mem
+std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int memIndex, std::vector<BRAM> memoriesList )
+{
+	// this function should only be called for datain
+	assert(BRAMportInfo == BRAMportAData || BRAMportInfo == BRAMportBData);
+	// get the x and y 
+	int x = memory.x;
+	int y = memory.y;
+
+	// check that the memory is set
+	assert(fpgaLogic[x][y][0].isBRAM);
+
+	std::string interSignal = "";
+	// loop across the pins of the requested port
+	
+	int last = -1;
+	int begin = -1;
+
+
+	// if it's a single memory --> normal case
+	if (fpgaLogic[x][y][0].countNumofMem == 0)
+	{
+		// must be a single memory in this x & y
+		assert(memIndex == 0);
+		begin = (int)fpgaLogic[x][y][0].BRAMinputPorts[BRAMportInfo].size() - 1;
+		last = 0;
+	}
+	else
+	{
+		if (memIndex == 0)
+		{
+			if (BRAMportInfo == BRAMportAData)
+			{
+				begin = memoriesList[memIndex].portAUsedDataWidth - 1;
+			}
+			else
+			{
+				assert(BRAMportInfo == BRAMportAData);
+				begin = memoriesList[memIndex].portBUsedDataWidth - 1;
+
+			}
+			last = 0;
+		}
+		else
+		{
+			assert(memIndex == 1);
+			if (BRAMportInfo == BRAMportAData)
+			{
+				//begin = memoriesList[memIndex].portADataWidth - 1;
+				begin = memoriesList[memIndex].portAUsedDataWidth + memoriesList[0].portAUsedDataWidth - 1;
+				last = memoriesList[0].portAUsedDataWidth;
+			}
+			else
+			{
+				assert(BRAMportInfo == BRAMportBData);
+				begin = memoriesList[memIndex].portBUsedDataWidth + memoriesList[0].portBUsedDataWidth - 1;
+				last = memoriesList[0].portBUsedDataWidth;
+
+			}
+			
+
+		}
+
+	}
+
+	for (int i = begin; i >= last; i--)
+	{
+		if (fpgaLogic[x][y][0].BRAMinputPorts[BRAMportInfo][i])
+		{
+			int pathFeeder, nodeFeeder;
+			assert(get_BRAM_feeder(x, y, 0, std::make_pair(BRAMportInfo, i), pathFeeder, nodeFeeder));
+			interSignal += "PATH" + std::to_string(pathFeeder);
+			interSignal += "NODE" + std::to_string(nodeFeeder);
+			if (i != last)
+				interSignal += ", ";
+		}
+		else
+		{
+			interSignal += "1'b0";
+			if (i != last)
+				interSignal += ", ";
+		}
+	}
+
+	return interSignal;
+}
+
 // prints a WYSIWYG for a single BRAM (memoryCell) into the verilogFile
-void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly)
+void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories)
 {
 
 	// double check that this is stored as memory
+	int x = memoryCell.x;
+	int y = memoryCell.y;
 
-	assert(fpgaLogic[memoryCell.x][memoryCell.y][0].isBRAM);
+	assert(fpgaLogic[x][y][0].isBRAM);
 
 	int pathOwner = fpgaLogic[memoryCell.x][memoryCell.y][0].owner.path;
 	int nodeOwner = fpgaLogic[memoryCell.x][memoryCell.y][0].owner.node;
 
 
+	// list of memories sharing the same physical ram
+	std::vector<BRAM> memoriesList;
+
+	for (int i = 0; i < fpgaLogic[x][y][0].indexMemories.size(); i++)
+	{
+		memoriesList.push_back(memories[fpgaLogic[x][y][0].indexMemories[i]]);
+	}
+
+	bool isDoubleMem = fpgaLogic[x][y][0].countNumofMem > 1;
+
 	std::string intermediateSignals = "";
 
 	verilogFile << "//BRAM WYSIWYG " << std::endl << std::endl;
 
-	verilogFile << "cycloneive_ram_block " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t (" << std::endl;
+	
 
-
-	if (memoryCell.clr0)
+	for (int i = 0; i < fpgaLogic[x][y][0].countNumofMem; i++)
 	{
-		// for now just set clr to zero
-		// todo: handle testing it later
-		//verilogFile << ".clr0(" << "PATH" << pathOwner << "NODE" << nodeOwner << "_clear)," << std::endl;
-		verilogFile << ".clr0(1'b0)," << std::endl;
-	}
-	if (memoryCell.portAAddressWidth > 0)
-	{
-		//assign_BRAM_intemediateSignals
-		verilogFile << ".portaaddr( PATH" << pathOwner << "NODE" << nodeOwner << "_a_address)," << std::endl;
+		// at most 2 brams in the same physical
+		assert(i < 2);
 
-		// get the internal connections in string to print later
-		intermediateSignals += "assign PATH" + std::to_string(pathOwner);
-		intermediateSignals += "NODE" + std::to_string(nodeOwner);
-		intermediateSignals += "_a_address = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportAAddress) + "};\n";
-	}
+	//	if (!isDoubleMem)
+	//	{
+	//		verilogFile << "cycloneive_ram_block " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t (" << std::endl;
+	//	}
+	//	else
+	//	{
+			verilogFile << "cycloneive_ram_block " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << "(" << std::endl;
+	//	}
 
-	if (memoryCell.portAUsedDataWidth > 0)
-	{
-		verilogFile << ".portadatain(PATH" << pathOwner << "NODE" << nodeOwner << "_a_datain)," << std::endl;
-
-		// get the internal connections in string to print later
-		intermediateSignals += "assign PATH" + std::to_string(pathOwner);
-		intermediateSignals += "NODE" + std::to_string(nodeOwner);
-		intermediateSignals += "_a_datain = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportAData) + "};\n";
-
-		// in simple dual mode, A is used in writing so it has no data out
-		if (memoryCell.operationMode != simpleDualPort)
-		{
-			verilogFile << ".portadataout( PATH" << pathOwner << "NODE" << nodeOwner << "_a_dataout)," << std::endl;
-		}
-	}
-
-	if (memoryCell.portAWE)
-	{
-		verilogFile << ".portawe( PATH" << pathOwner << "NODE" << nodeOwner << "_a_we)," << std::endl;
-
-		// get the internal connections in string to print later
-		intermediateSignals += "assign PATH" + std::to_string(pathOwner);
-		intermediateSignals += "NODE" + std::to_string(nodeOwner);
-		intermediateSignals += "_a_we = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportAWE) + "};\n";
-	}
-
-	// singals to the BRAM for port B
-
-	if (memoryCell.portBAddressWidth > 0)
-	{
-		verilogFile << ".portbaddr( PATH" << pathOwner << "NODE" << nodeOwner << "_b_address)," << std::endl;
-
-		// get the internal connections in string to print later
-		intermediateSignals += "assign PATH" + std::to_string(pathOwner);
-		intermediateSignals += "NODE" + std::to_string(nodeOwner);
-		intermediateSignals += "_b_address = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportBAddress) + "};\n";
-
-	}
-
-	if (memoryCell.portBUsedDataWidth > 0)
-	{
-		// in simple dual mode, B is used in reading so it has no data in
-		if (memoryCell.operationMode != simpleDualPort)
-		{
-			verilogFile << ".portbdatain( PATH" << pathOwner << "NODE" << nodeOwner << "_b_datain)," << std::endl;
-
-			// get the internal connections in string to print later
-			intermediateSignals += "assign PATH" + std::to_string(pathOwner);
-			intermediateSignals += "NODE" + std::to_string(nodeOwner);
-			intermediateSignals += "_b_datain = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportBData) + "};\n";
-		}
-		verilogFile << ".portbdataout(PATH" << pathOwner << "NODE" << nodeOwner << "_b_dataout)," << std::endl;
-	}
-
-	if (memoryCell.portBWE)
-	{
-		verilogFile << ".portbwe(PATH" << pathOwner << "NODE" << nodeOwner << "_b_we)," << std::endl;
-		// get the internal connections in string to print later
-		intermediateSignals += "assign PATH" + std::to_string(pathOwner);
-		intermediateSignals += "NODE" + std::to_string(nodeOwner);
-		intermediateSignals += "_b_we = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportBWE) + "};\n";
-	}
-
-	// quartus was compaining when a true dual port or a simple dual port memory
-	// has no read enable connection
-	if (memoryCell.operationMode == trueDualPort)
-	{
-		verilogFile << ".portbre( 1'b1)," << std::endl;
-		verilogFile << ".portare( 1'b1)," << std::endl;
-	}
-	else
-	{
-		if (memoryCell.operationMode == simpleDualPort)
-			verilogFile << ".portbre( 1'b1)," << std::endl;
-	}
-
-	verilogFile << ".clk0(CLK)" << std::endl;
-
-	// BRAM mode and stuff
-	verilogFile << ");" << std::endl;
-
-	verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.operation_mode = ";
-	if (memoryCell.operationMode == trueDualPort)
-		verilogFile << "\"bidir_dual_port\";" << std::endl;
-	else if (memoryCell.operationMode == simpleDualPort)
-		verilogFile << "\"dual_port\";" << std::endl;
-	else
-		verilogFile << "\"single_port\";" << std::endl;
-
-	verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.ram_block_type = \"M9K\" ;" << std::endl;
-	verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.logical_ram_name = \"PATH" << pathOwner << "NODE" << nodeOwner << "_log \" ;" << std::endl;
-	verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.data_interleave_width_in_bits = 1;" << std::endl;
-	verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.data_interleave_offset_in_bits = 1;" << std::endl;
-
-	if (memoryCell.portAAddressWidth > 0)
-	{
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_logical_ram_depth = " << pow(2, memoryCell.portAAddressWidth) << " ;" << std::endl;
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_first_address = 0;" << std::endl;
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_last_address = " << pow(2, memoryCell.portAAddressWidth) - 1 << " ;" << std::endl;
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_address_width = " << memoryCell.portAAddressWidth << " ;" << std::endl;
-	}
-	if (memoryCell.portAUsedDataWidth > 0)
-	{
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_logical_ram_width = " << memoryCell.portAUsedDataWidth << " ;" << std::endl;
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_first_bit_number = 0;" << std::endl;
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_data_width = " << memoryCell.portAUsedDataWidth << " ;" << std::endl;
-	}
-	if (memoryCell.clr0)
-	{
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_address_clear = \"clear0\";" << std::endl;
-		// in simple dual mode, A is used in writing so it has no data out
-		if (memoryCell.operationMode != simpleDualPort)
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_data_out_clear = \"clear0\";" << std::endl;
-	}
-	else
-	{
-		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_address_clear = \"none\";" << std::endl;
-		// in simple dual mode, A is used in writing so it has no data out
-		if (memoryCell.operationMode != simpleDualPort)
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_data_out_clear = \"none\";" << std::endl;
-	}
-
-
-	if (memoryCell.portARegistered)
-	{
-		// in simple dual mode, A is used in writing so it has no data out
-		if (memoryCell.operationMode != simpleDualPort)
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_data_out_clock = \"clock0\";" << std::endl;
-	}
-	else
-	{
-		// in simple dual mode, A is used in writing so it has no data out
-		if (memoryCell.operationMode != simpleDualPort)
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_a_data_out_clock = \"none\";" << std::endl;
-	}
-
-	// parameters for port b
-	if (memoryCell.operationMode == trueDualPort || memoryCell.operationMode == simpleDualPort)
-	{
-		if (memoryCell.portBAddressWidth > 0)
-		{
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_logical_ram_depth = " << pow(2, memoryCell.portBAddressWidth) << " ;" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_first_address = 0;" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_last_address = " << pow(2, memoryCell.portBAddressWidth) - 1 << " ;" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_address_width = " << memoryCell.portBAddressWidth << " ;" << std::endl;
-		}
-		if (memoryCell.portBUsedDataWidth > 0)
-		{
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_logical_ram_width = " << memoryCell.portBUsedDataWidth << " ;" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_first_bit_number = 0;" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_data_width = " << memoryCell.portBUsedDataWidth << " ;" << std::endl;
-		}
 		if (memoryCell.clr0)
 		{
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_address_clear = \"clear0\";" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_data_out_clear = \"clear0\";" << std::endl;
+			// for now just set clr to zero
+			// todo: handle testing it later
+			//verilogFile << ".clr0(" << "PATH" << pathOwner << "NODE" << nodeOwner << "_clear)," << std::endl;
+			verilogFile << ".clr0(1'b0)," << std::endl;
 		}
-		else
+		if (memoryCell.portAAddressWidth > 0)
 		{
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_address_clear = \"none\";" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_data_out_clear = \"none\";" << std::endl;
+			//assign_BRAM_intemediateSignals
+		/*	verilogFile << ".portaaddr( PATH" << pathOwner << "NODE" << nodeOwner << "_a_address)," << std::endl;
+
+			if (i == 0)
+			{
+				// get the internal connections in string to print later
+				intermediateSignals += "wire [" + std::to_string(memoryCell.portAAddressWidth - 1) + ":0] "
+					+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+					+ "_a_address; \n";
+				intermediateSignals += "assign PATH" + std::to_string(pathOwner);
+				intermediateSignals += "NODE" + std::to_string(nodeOwner);
+				intermediateSignals += "_a_address = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportAAddress) + "};\n";
+			}
+			*/
+			verilogFile << ".portaaddr({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportAAddress) << "})," << std::endl;
+
 		}
 
-		// port b must bec clocked with the same clock as port a
+		if (memoryCell.portAUsedDataWidth > 0)
+		{
+
+			// new
+			verilogFile << ".portadatain({" << assign_BRAM_intemediateSignals(memoriesList[i], BRAMportAData, i, memoriesList) << "})," << std::endl;
+/*
+			if (!isDoubleMem)
+			{
+				verilogFile << ".portadatain(PATH" << pathOwner << "NODE" << nodeOwner << "_a_datain)," << std::endl;
+			}
+			else
+			{
+				if (i == 0)
+				{
+					verilogFile << ".portadatain(PATH" << pathOwner << "NODE" << nodeOwner << "_a_datain[" 
+						<< memoriesList[0].portAUsedDataWidth -1 << ":0])," << std::endl;
+				}
+				else
+				{
+					verilogFile << ".portadatain(PATH" << pathOwner << "NODE" << nodeOwner << "_a_datain["
+						<< memoriesList[1].portAUsedDataWidth + memoriesList[0].portAUsedDataWidth - 1 << ":" <<  memoriesList[0].portAUsedDataWidth << "])," << std::endl;
+				}
+			}
+			// get the internal connections in string to print later
+			if (i == 0)
+			{
+				if (!isDoubleMem)
+				{
+					intermediateSignals += "wire [" + std::to_string(memoryCell.portAUsedDataWidth - 1) + ":0] "
+						+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+						+ "_a_datain; \n";
+				}
+				else
+				{
+					intermediateSignals += "wire [" + std::to_string(memoriesList[1].portAUsedDataWidth + memoriesList[0].portAUsedDataWidth - 1) + ":0] "
+						+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+						+ "_a_datain; \n";
+				}
+				intermediateSignals += "assign PATH" + std::to_string(pathOwner);
+				intermediateSignals += "NODE" + std::to_string(nodeOwner);
+				intermediateSignals += "_a_datain = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportAData) + "};\n";
+			}
+			*/
+			// in simple dual mode, A is used in writing so it has no data out
+			if (memoryCell.operationMode != simpleDualPort)
+			{
+
+			
+
+				if (!isDoubleMem)
+				{
+					verilogFile << ".portadataout( PATH" << pathOwner << "NODE" << nodeOwner << "_a_dataout)," << std::endl;
+
+					intermediateSignals += "wire [" + std::to_string(memoryCell.portAUsedDataWidth - 1) + ":0] "
+						+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+						+ "_a_dataout; \n";
+				}
+				else
+				{
+					if (i == 0)
+					{
+						verilogFile << ".portadataout(PATH" << pathOwner << "NODE" << nodeOwner << "_a_dataout["
+							<< memoriesList[0].portAUsedDataWidth - 1 << ":0])," << std::endl;
+
+						intermediateSignals += "wire [" + std::to_string(memoriesList[1].portAUsedDataWidth + memoriesList[0].portAUsedDataWidth - 1) + ":0] "
+							+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+							+ "_a_dataout; \n";
+					}
+					else
+					{
+						verilogFile << ".portadataout(PATH" << pathOwner << "NODE" << nodeOwner << "_a_dataout["
+							<< memoriesList[1].portAUsedDataWidth + memoriesList[0].portAUsedDataWidth - 1 << ":"
+							<< memoriesList[0].portAUsedDataWidth << "])," << std::endl;
+					}
+
+				}
+			}
+		}
+
+		if (memoryCell.portAWE)
+		{
+
+			verilogFile << ".portawe({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportAWE) << "})," << std::endl;
+
+			/*
+			verilogFile << ".portawe( PATH" << pathOwner << "NODE" << nodeOwner << "_a_we)," << std::endl;
+
+			if (i == 0)
+			{
+				// get the internal connections in string to print later
+				intermediateSignals += "wire PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+					+ "_a_we; \n";
+				intermediateSignals += "assign PATH" + std::to_string(pathOwner);
+				intermediateSignals += "NODE" + std::to_string(nodeOwner);
+				intermediateSignals += "_a_we = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportAWE) + "};\n";
+			}
+			*/
+		}
+
+		// singals to the BRAM for port B
+
+		if (memoryCell.portBAddressWidth > 0)
+		{
+			verilogFile << ".portbaddr({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBAddress) << "})," << std::endl;
+			/*
+			verilogFile << ".portbaddr( PATH" << pathOwner << "NODE" << nodeOwner << "_b_address)," << std::endl;
+
+			// get the internal connections in string to print later
+
+			intermediateSignals += "wire [" + std::to_string(memoryCell.portBAddressWidth - 1) + ":0] "
+				+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+				+ "_b_address; \n";
+
+			intermediateSignals += "assign PATH" + std::to_string(pathOwner);
+			intermediateSignals += "NODE" + std::to_string(nodeOwner);
+			intermediateSignals += "_b_address = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportBAddress) + "};\n";
+			*/
+		}
+
+		if (memoryCell.portBUsedDataWidth > 0)
+		{
+
+				
+			// in simple dual mode, B is used in reading so it has no data in
+			if (memoryCell.operationMode != simpleDualPort)
+			{
+
+
+				verilogFile << ".portbdatain({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBData) << "})," << std::endl;
+				/*
+				verilogFile << ".portbdatain( PATH" << pathOwner << "NODE" << nodeOwner << "_b_datain)," << std::endl;
+
+				// get the internal connections in string to print later
+
+				intermediateSignals += "wire [" + std::to_string(memoryCell.portBUsedDataWidth - 1) + ":0] "
+					+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+					+ "_b_datain; \n";
+
+				intermediateSignals += "assign PATH" + std::to_string(pathOwner);
+				intermediateSignals += "NODE" + std::to_string(nodeOwner);
+				intermediateSignals += "_b_datain = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportBData) + "};\n";
+				*/
+			}
+
+			
+
+			verilogFile << ".portbdataout(PATH" << pathOwner << "NODE" << nodeOwner << "_b_dataout)," << std::endl;
+
+			intermediateSignals += "wire [" + std::to_string(memoryCell.portBUsedDataWidth - 1) + ":0] "
+				+ "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+				+ "_b_dataout; \n";
+		}
 
 		if (memoryCell.portBWE)
 		{
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_data_in_clock = \"clock0\";" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_write_enable_clock = \"clock0\";" << std::endl;
+			verilogFile << ".portbwe({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBWE) << "})," << std::endl;
+			/*
+			verilogFile << ".portbwe(PATH" << pathOwner << "NODE" << nodeOwner << "_b_we)," << std::endl;
+
+			intermediateSignals += "wire PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+				+ "_b_we; \n";
+			// get the internal connections in string to print later
+			intermediateSignals += "assign PATH" + std::to_string(pathOwner);
+			intermediateSignals += "NODE" + std::to_string(nodeOwner);
+			intermediateSignals += "_b_we = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportBWE) + "};\n";
+			*/
 		}
 
-		if (memoryCell.portBRegistered)
+		// quartus was compaining when a true dual port or a simple dual port memory
+		// has no read enable connection
+		if (memoryCell.operationMode == trueDualPort)
 		{
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_data_out_clock = \"clock0\";" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_read_enable_clock = \"clock0\";" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_address_clock = \"clock0\";" << std::endl;
+			verilogFile << ".portbre( 1'b1)," << std::endl;
+			verilogFile << ".portare( 1'b1)," << std::endl;
 		}
 		else
 		{
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_data_out_clock = \"none\";" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_read_enable_clock = \"clock0\";" << std::endl;
-			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t.port_b_address_clock = \"clock0\";" << std::endl;
+			if (memoryCell.operationMode == simpleDualPort)
+				verilogFile << ".portbre( 1'b1)," << std::endl;
+		}
+
+		verilogFile << ".clk0(CLK)" << std::endl;
+
+		// BRAM mode and stuff
+		verilogFile << ");" << std::endl;
+
+		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".operation_mode = ";
+		if (memoryCell.operationMode == trueDualPort)
+			verilogFile << "\"bidir_dual_port\";" << std::endl;
+		else if (memoryCell.operationMode == simpleDualPort)
+			verilogFile << "\"dual_port\";" << std::endl;
+		else
+			verilogFile << "\"single_port\";" << std::endl;
+
+		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".ram_block_type = \"M9K\" ;" << std::endl;
+		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".logical_ram_name = \"PATH" << pathOwner << "NODE" << nodeOwner << "_log_" << i << " \" ;" << std::endl;
+		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".data_interleave_width_in_bits = 1;" << std::endl;
+		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".data_interleave_offset_in_bits = 1;" << std::endl;
+
+		if (memoryCell.portAAddressWidth > 0)
+		{
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_logical_ram_depth = " << pow(2, memoryCell.portAAddressWidth) << " ;" << std::endl;
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_first_address = 0;" << std::endl;
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_last_address = " << pow(2, memoryCell.portAAddressWidth) - 1 << " ;" << std::endl;
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_address_width = " << memoryCell.portAAddressWidth << " ;" << std::endl;
+		}
+		if (memoryCell.portAUsedDataWidth > 0)
+		{
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_logical_ram_width = " << memoryCell.portAUsedDataWidth << " ;" << std::endl;
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_first_bit_number = 0;" << std::endl;
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_data_width = " << memoryCell.portAUsedDataWidth << " ;" << std::endl;
+		}
+		if (memoryCell.clr0)
+		{
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_address_clear = \"clear0\";" << std::endl;
+			// in simple dual mode, A is used in writing so it has no data out
+			if (memoryCell.operationMode != simpleDualPort)
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_data_out_clear = \"clear0\";" << std::endl;
+		}
+		else
+		{
+			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_address_clear = \"none\";" << std::endl;
+			// in simple dual mode, A is used in writing so it has no data out
+			if (memoryCell.operationMode != simpleDualPort)
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_data_out_clear = \"none\";" << std::endl;
+		}
+
+
+		if (memoryCell.portARegistered)
+		{
+			// in simple dual mode, A is used in writing so it has no data out
+			if (memoryCell.operationMode != simpleDualPort)
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_data_out_clock = \"clock0\";" << std::endl;
+		}
+		else
+		{
+			// in simple dual mode, A is used in writing so it has no data out
+			if (memoryCell.operationMode != simpleDualPort)
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_data_out_clock = \"none\";" << std::endl;
+		}
+
+		// parameters for port b
+		if (memoryCell.operationMode == trueDualPort || memoryCell.operationMode == simpleDualPort)
+		{
+			if (memoryCell.portBAddressWidth > 0)
+			{
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_logical_ram_depth = " << pow(2, memoryCell.portBAddressWidth) << " ;" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_first_address = 0;" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_last_address = " << pow(2, memoryCell.portBAddressWidth) - 1 << " ;" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_address_width = " << memoryCell.portBAddressWidth << " ;" << std::endl;
+			}
+			if (memoryCell.portBUsedDataWidth > 0)
+			{
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_logical_ram_width = " << memoryCell.portBUsedDataWidth << " ;" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_first_bit_number = 0;" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_data_width = " << memoryCell.portBUsedDataWidth << " ;" << std::endl;
+			}
+			if (memoryCell.clr0)
+			{
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_address_clear = \"clear0\";" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_data_out_clear = \"clear0\";" << std::endl;
+			}
+			else
+			{
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_address_clear = \"none\";" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_data_out_clear = \"none\";" << std::endl;
+			}
+
+			// port b must bec clocked with the same clock as port a
+
+			if (memoryCell.portBWE)
+			{
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_data_in_clock = \"clock0\";" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_write_enable_clock = \"clock0\";" << std::endl;
+			}
+
+			if (memoryCell.portBRegistered)
+			{
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_data_out_clock = \"clock0\";" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_read_enable_clock = \"clock0\";" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_address_clock = \"clock0\";" << std::endl;
+			}
+			else
+			{
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_data_out_clock = \"none\";" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_read_enable_clock = \"clock0\";" << std::endl;
+				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_address_clock = \"clock0\";" << std::endl;
+			}
+
 		}
 
 	}
-
-
 	if (!testingBRAMsOnly)
 	{
 		verilogFile << "//Intermediate signals  " << std::endl << std::endl;
@@ -2408,7 +3105,7 @@ void generate_BRAMsWYSYWIGs(std::vector<BRAM>  memories, int bitStreamNumber)
 	for (unsigned int i = 0; i < memories.size(); i++)
 	{
 
-		BRAM_WYSIWYG_cycloneIV(memories[i], verilogFile, false);
+		BRAM_WYSIWYG_cycloneIV(memories[i], verilogFile, false, memories);
 	}
 
 
@@ -2519,6 +3216,14 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 	int nodeDest = -1;
 	int label;
 	std::map<std::string, int> branchLabel;
+
+	// map to store which signal (output) is being routed from the current atom
+	// added this to help with BRAMs having multiple output
+	// so we can't just print connections to the RCF file
+	// we need to figure out whichsignal is it
+	std::unordered_map<std::string, std::string> outputPorts;
+	std::string completeFile;
+
 	bool foundSource = false;
     bool addBrace = false;
         
@@ -2556,14 +3261,56 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 					assert(path == fpgaLogic[i][j][k].owner.path && node == fpgaLogic[i][j][k].owner.node); // check that the owner is correct
 					//there must be path, otherwise utilization should have been 0
 					assert(path > -1);
+
+					// clear outputPorts map
+
+					
+
+
+					outputPorts.clear();
+
+
 					// clear branch map
 					branchLabel.clear();
 					label = 0;
 					bool first_route_found = false;
 					// write source signal
-					for (l = 0; l < (int)fpgaLogic[i][j][k].connections.size(); l++) // loop across all routes in the cell i,j,k
+					// loop across all routes in the cell i,j,k
+					for (l = 0; l < (int)fpgaLogic[i][j][k].connections.size(); l++) 
 					{
-						if (fpgaLogic[i][j][k].connections[l].usedRoutingResources.size() == 0) // so there is a connection but without any used resources, this must be a connection betwee a LUT and a FF that are in the same LE. So I am gonna check that
+
+						// newBRAM stuff
+
+						std::string tempKey;
+
+						if (!fpgaLogic[i][j][k].isBRAM)
+						{
+							tempKey = "notBRAM";
+						}
+						else
+						{
+							assert(k == 0);
+							// if it's a BRAM let's get the key for this specific port
+							tempKey = "BRAM" + std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first) + "_"
+								+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first);
+							// siince this is a new signal
+							first_route_found = false;
+						}
+
+						// check if this port was used before
+						auto iterOutputPorts = outputPorts.find(tempKey);
+
+						// this port was not seen before, so let's create a new entry in the map
+						if (iterOutputPorts == outputPorts.end())
+						{
+							outputPorts.insert(std::pair<std::string, std::string>(tempKey, ""));
+							iterOutputPorts = outputPorts.find(tempKey);
+							assert(iterOutputPorts != outputPorts.end());
+						}
+						// so there is a connection but without any used resources, 
+						//this must be a connection betwee a LUT and a FF that are in the same LE.
+						//So I am gonna check that
+						if (fpgaLogic[i][j][k].connections[l].usedRoutingResources.size() == 0) 
 						{
 							int destinX = fpgaLogic[i][j][k].connections[l].destinationX;
 							int destinY = fpgaLogic[i][j][k].connections[l].destinationY;
@@ -2578,44 +3325,62 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 
 							// if this was the last connection, we need to close the routing signal with a brace
 							// We only have to close if it is not the only connection
-							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && l!=0)
+							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && l != 0)
+							{
 								RoFile << "}" << std::endl;
+								(iterOutputPorts->second) += "}";
+							}
 
 							continue;
 						}
 						if (fpgaLogic[i][j][k].connections[l].destinationX == -1)
 						{ 
-							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && first_route_found) 
+							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && first_route_found)
+							{
 								RoFile << "}" << std::endl;
+								(iterOutputPorts->second) += "}";
+							}
 							continue;
 						}
 						
+
+
+
+
+
 						if (!first_route_found)//if (l == 0)
 						{
 							// if the source is not a BRAM
 							if (!fpgaLogic[i][j][k].isBRAM)
 							{
-								RoFile << "signal_name = PATH" << path << "NODE" << node << " {" << std::endl;
+								RoFile << "} \n signal_name = PATH" << path << "NODE" << node << " {" << std::endl;
+								(iterOutputPorts->second) += "} \n signal_name = PATH" + std::to_string(path) + "NODE" + std::to_string(node) + " {\n";
 							}
 							else // source is a BRAM
 							{
 								assert(k == 0);
-								RoFile << "signal_name = PATH" << path << "NODE" << node;
-
+								RoFile << "} \n signal_name = PATH" << path << "NODE" << node;
+								(iterOutputPorts->second) += "} \n signal_name = PATH" + std::to_string(path) + "NODE" + std::to_string(node);
 								// uses port A
-								if (paths[path][node].BRAMPortOut == BRAMportAout)
+								if (fpgaLogic[i][j][k].connections[l].memorySourcePort.first == BRAMportAout)
 								{
-									RoFile << "_a_dataout[" << paths[path][node].BRAMPortOutIndex << "] {"  << std::endl;
+									RoFile << "_a_dataout[" << fpgaLogic[i][j][k].connections[l].memorySourcePort.second << "] {"  << std::endl;
+									(iterOutputPorts->second) += "_a_dataout["
+										+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
+										+ "] {\n";
 								}
 								else // uses BRAM port B
 								{
-									if (paths[path][node].BRAMPortOut != BRAMportBout)
+									if (fpgaLogic[i][j][k].connections[l].memorySourcePort.first != BRAMportBout)
 									{
 										std::cout << "Path " << path << " node " << node << std::endl;
 										std::cout << " Shit is " << paths[path][node].BRAMPortOut << std::endl;
  									}
-									assert(paths[path][node].BRAMPortOut == BRAMportBout);
-									RoFile << "_b_dataout[" << paths[path][node].BRAMPortOutIndex << "] {" << std::endl;
+									assert(fpgaLogic[i][j][k].connections[l].memorySourcePort.first == BRAMportBout);
+									RoFile << "_b_dataout[" << fpgaLogic[i][j][k].connections[l].memorySourcePort.second << "] {" << std::endl;
+									(iterOutputPorts->second) += "_b_dataout["
+										+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
+										+ "] {\n";
 
 								}
 
@@ -2634,11 +3399,19 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 							{
 								assert(iter == branchLabel.end());
 								// write the connection to the rcf
-								RoFile << "\tlabel = label_" << label << "_" << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" << std::endl;
+								RoFile << "\tlabel = label_" << label << "_" 
+									<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", "
+									<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" 
+									<< std::endl;
+
+								(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
+									+ (fpgaLogic[i][j][k].connections[l].usedRoutingResources[x]) + ", "
+									+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
+
 								// insert the label
                                                                 
                                                                 
- //*****                                                        //either mark as used, or look for label
+ //*****                        //either mark as used, or look for label
                                                                 
                                                                 
 								branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
@@ -2651,14 +3424,19 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 								if (x == 0) // the first routing resource was not used before, so the source is not a label
 								{
 									// write the connection to the rcf
-									RoFile << "\tlabel = label_" << label << "_" << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" << std::endl;
+									RoFile << "\tlabel = label_" << label << "_" 
+										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", "
+										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" 
+										<< std::endl;
+
+									(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
+										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ", "
+										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
+
 									// insert the label
                                                                         
                                                                         
-                                                                        //either mark as used or look for label
-                                                                        
-                                                                        
-                                                                        
+                                    //either mark as used or look for label
 									branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
 									label++;
 									foundSource = true;
@@ -2670,12 +3448,21 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 									assert(iter != branchLabel.end());
 									// start from the routing resource before the current (that was definetly used before)
 									RoFile << "\tbranch_point = label_" << iter->second << "_" << iter->first << "; " << std::endl;
-									RoFile << "\tlabel = label_" << label << "_" << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " << fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" << std::endl;
+
+									(iterOutputPorts->second) += "\tbranch_point = label_" + std::to_string(iter->second) + "_"
+										+ iter->first + ";\n";
+
+									RoFile << "\tlabel = label_" << label << "_" 
+										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " 
+										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" 
+										<< std::endl;
+
+									(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
+										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ", "
+										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
 									
-                                                                        //either mark as used or look for label
-                                                                        
-                                                                        
-                                                                        branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
+                                    //either mark as used or look for label                                                  
+                                    branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
 									label++;
 									foundSource = true;
 
@@ -2683,10 +3470,6 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 								}
 
 							}
-							//		else
-							//	{
-							//	std::cout << "Something wrong woith the source connection of the route" << std::endl;
-							//	}
 
 
 						}
@@ -2697,6 +3480,8 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 							assert(iter != branchLabel.end());
 							// start from the routing resource before the current (that was definetly used before)
 							RoFile << "\tbranch_point = label_" << iter->second << "_" << iter->first << "; " << std::endl;
+							(iterOutputPorts->second) += "\tbranch_point = label_" + std::to_string(iter->second) + "_" 
+								+ iter->first + ";\n";
 						}
 
 						// write last line dest = {...}, ....; but first we have to find who owns the destination LUT
@@ -2717,6 +3502,10 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 						assert(pathDest == fpgaLogic[destX][destY][destZ].owner.path && nodeDest == fpgaLogic[destX][destY][destZ].owner.node); // check that the owner is correct
 						assert(pathDest > -1);
 						RoFile << "\t" << "dest = (";
+						(iterOutputPorts->second) += "\tdest = (";
+
+						bool specialBRAMPortIn = false;
+
 						if (destZ%LUTFreq != 0) // FF
 						{
 							if (fpgaLogic[destX][destY][destZ].FFMode != sData)
@@ -2728,6 +3517,7 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 							else
 							{
 								RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", D ), route_port = ";
+								(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + ", D ), route_port = ";
 							}
 						}
 						// BRAM
@@ -2735,13 +3525,37 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 						{
 							assert(destZ == 0);
 							RoFile << "PATH" << pathDest << "NODE" << nodeDest << "_";
-							if (memories[fpgaLogic[destX][destY][destZ].indexMemories].operationMode == simpleDualPort) // the output is only port b
+							(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + "_";
+							if (memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].operationMode == simpleDualPort) // the output is only port b
 							{
 								RoFile << "b_dataout[0], ";
+								(iterOutputPorts->second) += "b_dataout[0], ";
 							}
 							else
 							{
-								RoFile << "a_dataout[0], ";
+								// if it's not a double memory or if the destination port is not data in then common case
+								if (fpgaLogic[destX][destY][destZ].countNumofMem == 0 || (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.first != BRAMportAData))
+								{
+									RoFile << "a_dataout[0], ";
+									(iterOutputPorts->second) += "a_dataout[0], ";
+								}
+								else
+								{
+									// double memories and destination port is data in
+									// larger than first memory width
+									if (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second >= memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth) 
+									{
+										RoFile << "a_dataout[" << memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth << "], ";
+										(iterOutputPorts->second) += "a_dataout[" + std::to_string(memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth) + "], ";
+										specialBRAMPortIn = true;
+									}
+									else
+									{
+										RoFile << "a_dataout[0], ";
+										(iterOutputPorts->second) += "a_dataout[0], ";
+									}
+
+								}
 							}
 
 							// now print the exact input port and index
@@ -2749,28 +3563,60 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 							switch (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.first)
 							{
 							case BRAMportAData:
-								RoFile << "PORTADATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
-									<< "] );" << std::endl << std::endl;
+								if (!specialBRAMPortIn)
+								{
+									RoFile << "PORTADATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
+										<< "] );" << std::endl << std::endl;
+
+									(iterOutputPorts->second) += "PORTADATAIN["
+										+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+										+ "] );\n\n";
+								}
+								else
+								{
+									RoFile << "PORTADATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second 
+										- memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth
+										<< "] );" << std::endl << std::endl;
+
+									(iterOutputPorts->second) += "PORTADATAIN["
+										+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second 
+											- memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth)
+										+ "] );\n\n";
+								}
 								break;
 							case BRAMportAAddress:
 								RoFile << "PORTAADDR[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
 									<< "] );" << std::endl << std::endl;
+
+								(iterOutputPorts->second) +=  "PORTAADDR["
+									+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+									+ "] );\n\n";
 								break;
 
 							case BRAMportBData:
 								RoFile << "PORTBDATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
 									<< "] );" << std::endl << std::endl;
+
+								(iterOutputPorts->second) += "PORTBDATAIN["
+									+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+									+ "] );\n\n";
 								break;
 							case BRAMportBAddress:
 								RoFile << "PORTBADDR[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
 									<< "] );" << std::endl << std::endl;
+
+								(iterOutputPorts->second) += "PORTBADDR["
+									+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+									+ "] );\n\n";
 								break;
 
 							case BRAMportAWE:
 								RoFile << "PORTAWE );" << std::endl << std::endl;
+								(iterOutputPorts->second) += "PORTAWE );\n\n";
 								break;
 							case BRAMportBWE:
 								RoFile << "PORTBWE);" << std::endl << std::endl;
+								(iterOutputPorts->second) += "PORTBWE);\n\n";
 								break;
 
 							default:
@@ -2785,6 +3631,8 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 						else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 2) // 2 output ports are used then name the destination signal as if it was combout
 						{
 							RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
+							(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + ", DATAB ), route_port = ";
+							
                                                         std:: stringstream LUTName;
                                                         LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
                                                         terminal_LUTS[LUTName.str()] = true;
@@ -2794,12 +3642,16 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 							if (fpgaLogic[destX][destY][destZ].outputPorts[Combout - 5]) // combout is th eonly output
 							{
 								RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
+								(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" 
+									+ std::to_string(nodeDest) + ", DATAB ), route_port = ";
 							//	if (pathDest == 2 && nodeDest == 9)
 						///			std::cout << "Debugging" << std::endl;
 							}
 							else // cout is the output
 							{
 								RoFile << "PATH" << pathDest << "NODE" << nodeDest << "_Cout, DATAB ), route_port = ";
+								(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) 
+									+ "NODE" + std::to_string(nodeDest) + "_Cout, DATAB ), route_port = ";
 							}
                                                         std:: stringstream LUTName;
                                                         LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
@@ -2816,15 +3668,19 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 							{
 							case portA:
 								RoFile << "DATAA ;" << std::endl << std::endl;
+								(iterOutputPorts->second) += "DATAA ;\n\n";
 								break;
 							case portB:
 								RoFile << "DATAB ;" << std::endl << std::endl;
+								(iterOutputPorts->second) += "DATAB ;\n\n";
 								break;
 							case portC:
 								RoFile << "DATAC ;" << std::endl << std::endl;
+								(iterOutputPorts->second) += "DATAC ;\n\n";
 								break;
 							case portD:
 								RoFile << "DATAD ;" << std::endl << std::endl;
+								(iterOutputPorts->second) += "DATAD ;\n\n";
 								break;
 							default:
 								if (destZ%LUTFreq == 0 || fpgaLogic[destX][destY][destZ].FFMode != sData)
@@ -2838,13 +3694,25 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 								break;
 							}
 						}
-
+						// if this was the last connection, we need to close the routing signal with a brace
+					//	if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 )//&& l != 0)
+					//	{
+					//		RoFile << "}" << std::endl;
+					//		(iterOutputPorts->second) += "}\n";
+					//	}
 						if (l == (int)fpgaLogic[i][j][k].connections.size() - 1){
-							RoFile << std::endl;
+							
                                                         addBrace = true;
                                                 }
 					}
                                         
+
+					// print the connection of i, j, k to file
+
+					for (auto it = outputPorts.begin(); it != outputPorts.end(); ++it)
+					{
+						completeFile += it->second;
+					}
                                         if(addBrace){
                                             //At the end of a net's routing, add missing fanouts to the net
                                             std:: string resource_name;
@@ -2868,7 +3736,8 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
                                                 add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
                                             }
                                             //finish the file with a brace
-                                            RoFile << "}" << std::endl;
+                                         //   RoFile << "}" << std::endl;
+											
                                             addBrace = false;
                                         }
 				}
@@ -2876,9 +3745,12 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 			}
 		}
 	}
-        
-        
-
+	std::ofstream RoFileTest;
+	std::string RoFileNameTest = "RCF_File_test_" + std::to_string(bitStreamNumber) + ".txt";
+	std::string fileBraceRemoved = completeFile.substr(1, completeFile.size() - 1);
+	fileBraceRemoved += "\n } \n";
+	RoFileTest.open(RoFileNameTest);
+	RoFileTest << fileBraceRemoved;
 }
 
 #endif

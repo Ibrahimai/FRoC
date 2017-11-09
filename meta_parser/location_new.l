@@ -122,6 +122,8 @@ int counter = 0;
 								fprintf (meta,"Inside BRAM");
 							}
 							
+							int indexExists = 0;
+							
 							// print output port used
 							for (i=indexLast+1;i<strlen(yytext);i++)
 							{	
@@ -138,9 +140,35 @@ int counter = 0;
 								if(yytext[i]=='[' || yytext[i]==']' )
 									fprintf (meta," ");
 								else
+								{
 									fprintf (meta,"%c",yytext[i]);
+									indexExists = 1;
+								}
 						
 							}
+							fprintf(meta," ");
+							
+							if(indexExists == 1)
+							{
+								int ramNumberExists = 0; 
+							// print the number right before the 
+								for (i=indexLast-1;i>-1;i--)
+								{
+									// is a digit
+									if (yytext[i]-'0'<10 && yytext[i]-'0'>-1)
+									{
+										fprintf (meta,"%c",yytext[i]);
+										ramNumberExists = 1;									
+									}
+									else
+									   break;
+									
+								}
+								
+								if(ramNumberExists==0)
+								  fprintf (meta,"%c",'0');
+							}
+							
 							fprintf(meta,"\n");
 							
 							if (yytext[2]==yytext[3]) // same transition
@@ -153,6 +181,7 @@ int counter = 0;
 						}
 						else // edning in a BRAM and starting somewhere else
 						{
+						
 							fprintf(meta,"M9K end ");
 							
 							int indexLast = strlen(BRAMPortIn) - 1;
@@ -164,19 +193,49 @@ int counter = 0;
 									break;
 								}
 							}
-							//if (path == 273)
-							//	printf("In cell port in is %s \n",BRAMPortIn);
-							// print output port used
+							
+							
+							int indexExists = 0;
 							for (i=indexLast+1;i<strlen(BRAMPortIn);i++)
 							{	
 								//fprintf (meta,"%c",BRAMPortIn[i]);
 								
 								if(BRAMPortIn[i]=='[' || BRAMPortIn[i]==']' )
+								{
 									fprintf (meta," ");
+									indexExists = 1;
+								}
 								else
+								{
 									fprintf (meta,"%c",BRAMPortIn[i]);
+									
+								}
 						
 							}
+							fprintf(meta," ");
+							
+							
+							if(indexExists == 1)
+							{
+								int ramNumberExists = 0; 
+							// print the number right before the 
+								for (i=indexLast-1;i>-1;i--)
+								{
+									// is a digit
+									if (BRAMPortIn[i]-'0'<10 && BRAMPortIn[i]-'0'>-1)
+									{
+										fprintf (meta,"%c",BRAMPortIn[i]);
+										ramNumberExists = 1;									
+									}
+									else
+									   break;
+									
+								}
+								
+								if(ramNumberExists==0)
+								  fprintf (meta,"%c",'0');
+							}
+							
 							fprintf(meta,"\n");
 							
 							if (yytext[2]==yytext[3]) // same transition

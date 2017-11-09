@@ -537,10 +537,35 @@ int parseIn(std::string metaFileName)
 					assert(false);
 
 				}
+				int outputIndexOffset;
+
 				lineStream >> outputIndex;
+				// offset to handle two BRAM in the same BRAM (BRAMs>18 bit port)
+				lineStream >> outputIndexOffset;
+
+
+				// check that nothing failed
+				assert(!lineStream.fail());
+
+				// reverse the offset as we have printed it in the reverse order
+				outputIndexOffset = reverseNumber(outputIndexOffset);
+
+				int realOffset = 0;
+
+				// only add an offset if there were two mems 
+				// in theat BRAM
+				if (fpgaLogic[x][y][z].countNumofMem < 2)
+					realOffset = 0;
+				else
+				{
+					realOffset = outputIndexOffset / 18;
+					realOffset = realOffset % 2;
+					realOffset *= 18;
+				}
+
 
 				// store the output port used by this BRAM
-				BRAMportOutputInfo = std::make_pair(BRAMOutPortTemp, outputIndex);
+				BRAMportOutputInfo = std::make_pair(BRAMOutPortTemp, outputIndex + realOffset);
 
 				// input port of the BRAM is not impoertant here so set it to -1
 				BRAMportInputInfo = std::make_pair(-1, -1);
@@ -554,16 +579,26 @@ int parseIn(std::string metaFileName)
 				int BRAMInPortTemp;
 
 				lineStream >> endPort; // should be either portadatain or portbdatain or portawe or portbwe or portaaddr ot portbaddr
+				int inputIndexOffset = 0;
+				int realOffset = 0;
 
 				if (endPort == "portadatain")
 				{
 					BRAMInPortTemp = BRAMportAData;
 					lineStream >> inputIndex;
+					// offset to handle two BRAM in the same BRAM (BRAMs>18 bit port)
+					lineStream >> inputIndexOffset;
+					// check that nothing failed
+					assert(!lineStream.fail());
 				}
 				else if (endPort == "portbdatain")
 				{
 					BRAMInPortTemp = BRAMportBData;
 					lineStream >> inputIndex;
+					// offset to handle two BRAM in the same BRAM (BRAMs>18 bit port)
+					lineStream >> inputIndexOffset;
+					// check that nothing failed
+					assert(!lineStream.fail());
 				}
 				else if (endPort == "portawe")
 				{
@@ -588,11 +623,19 @@ int parseIn(std::string metaFileName)
 					std::cout << "Error in input meta file. BRAM input port is " << endPort << std::endl;
 					assert(false);
 				}
-
-				
+				if (fpgaLogic[x][y][z].countNumofMem < 2)
+					realOffset = 0;
+				else
+				{
+					// reverse the offset as we have printed it in the reverse order
+					inputIndexOffset = reverseNumber(inputIndexOffset);
+					realOffset = inputIndexOffset / 18;
+					realOffset = realOffset % 2;
+					realOffset *= 18;
+				}
 
 				// store the input port used by this BRAM
-				BRAMportInputInfo = std::make_pair(BRAMInPortTemp, inputIndex);
+				BRAMportInputInfo = std::make_pair(BRAMInPortTemp, inputIndex + realOffset);
 
 				// the output port of the BRAM will be ignored as it is not used in this path
 				BRAMportOutputInfo = std::make_pair(-1, -1);

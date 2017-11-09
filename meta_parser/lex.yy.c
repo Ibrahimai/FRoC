@@ -923,6 +923,8 @@ YY_RULE_SETUP
 								fprintf (meta,"Inside BRAM");
 							}
 							
+							int indexExists = 0;
+							
 							// print output port used
 							for (i=indexLast+1;i<strlen(yytext);i++)
 							{	
@@ -939,9 +941,35 @@ YY_RULE_SETUP
 								if(yytext[i]=='[' || yytext[i]==']' )
 									fprintf (meta," ");
 								else
+								{
 									fprintf (meta,"%c",yytext[i]);
+									indexExists = 1;
+								}
 						
 							}
+							fprintf(meta," ");
+							
+							if(indexExists == 1)
+							{
+								int ramNumberExists = 0; 
+							// print the number right before the 
+								for (i=indexLast-1;i>-1;i--)
+								{
+									// is a digit
+									if (yytext[i]-'0'<10 && yytext[i]-'0'>-1)
+									{
+										fprintf (meta,"%c",yytext[i]);
+										ramNumberExists = 1;									
+									}
+									else
+									   break;
+									
+								}
+								
+								if(ramNumberExists==0)
+								  fprintf (meta,"%c",'0');
+							}
+							
 							fprintf(meta,"\n");
 							
 							if (yytext[2]==yytext[3]) // same transition
@@ -954,6 +982,7 @@ YY_RULE_SETUP
 						}
 						else // edning in a BRAM and starting somewhere else
 						{
+						
 							fprintf(meta,"M9K end ");
 							
 							int indexLast = strlen(BRAMPortIn) - 1;
@@ -965,19 +994,49 @@ YY_RULE_SETUP
 									break;
 								}
 							}
-							//if (path == 273)
-							//	printf("In cell port in is %s \n",BRAMPortIn);
-							// print output port used
+							
+							
+							int indexExists = 0;
 							for (i=indexLast+1;i<strlen(BRAMPortIn);i++)
 							{	
 								//fprintf (meta,"%c",BRAMPortIn[i]);
 								
 								if(BRAMPortIn[i]=='[' || BRAMPortIn[i]==']' )
+								{
 									fprintf (meta," ");
+									indexExists = 1;
+								}
 								else
+								{
 									fprintf (meta,"%c",BRAMPortIn[i]);
+									
+								}
 						
 							}
+							fprintf(meta," ");
+							
+							
+							if(indexExists == 1)
+							{
+								int ramNumberExists = 0; 
+							// print the number right before the 
+								for (i=indexLast-1;i>-1;i--)
+								{
+									// is a digit
+									if (BRAMPortIn[i]-'0'<10 && BRAMPortIn[i]-'0'>-1)
+									{
+										fprintf (meta,"%c",BRAMPortIn[i]);
+										ramNumberExists = 1;									
+									}
+									else
+									   break;
+									
+								}
+								
+								if(ramNumberExists==0)
+								  fprintf (meta,"%c",'0');
+							}
+							
 							fprintf(meta,"\n");
 							
 							if (yytext[2]==yytext[3]) // same transition
@@ -1162,7 +1221,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 361 "location_new.l"
+#line 420 "location_new.l"
 {	fprintf(loCon,"PATH%d\n",path+1);
 			//ib fprintf(meta,"PATH%d\n",path+1);
 			
@@ -1218,7 +1277,7 @@ YY_RULE_SETUP
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 413 "location_new.l"
+#line 472 "location_new.l"
 {
 							if (routingBefore == 1)
 							{
@@ -1340,7 +1399,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 538 "location_new.l"
+#line 597 "location_new.l"
 {
 										int index = 0;
 										if(clockSkew==1)
@@ -1370,7 +1429,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 566 "location_new.l"
+#line 625 "location_new.l"
 {
 												int index = 0;
 												
@@ -1402,7 +1461,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 596 "location_new.l"
+#line 655 "location_new.l"
 {
 										if (cellFlag == 1) // CELL was seen before this RE so ignore it, it is not really a routing element
 										{
@@ -1490,21 +1549,21 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 681 "location_new.l"
+#line 740 "location_new.l"
 ;
 	YY_BREAK
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-#line 682 "location_new.l"
+#line 741 "location_new.l"
 ;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 683 "location_new.l"
+#line 742 "location_new.l"
 ECHO;
 	YY_BREAK
-#line 1507 "lex.yy.c"
+#line 1566 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2509,7 +2568,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 683 "location_new.l"
+#line 742 "location_new.l"
 
 
 

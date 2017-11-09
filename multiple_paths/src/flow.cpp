@@ -1010,24 +1010,51 @@ void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
 		assert(fpgaLogic[memX][memY][0].isBRAM);
 
 		// set the index in the corresponding cell in fpgaLogic
-		fpgaLogic[memX][memY][0].indexMemories = i;
+		fpgaLogic[memX][memY][0].indexMemories.push_back(i);
+		fpgaLogic[memX][memY][0].countNumofMem++;
+		// at most only 2 BRAMs can b mapped to the same physical ram
+		assert(fpgaLogic[memX][memY][0].countNumofMem < 3);
+
+		bool secondMem = false;
 
 		// set the sizes of the input and output ports
-		fpgaLogic[memX][memY][0].BRAMinputPorts.resize(BRAMinputPortsSize);
-		fpgaLogic[memX][memY][0].BRAMoutputPorts.resize(BRAMoutputPortsSize);
+		// 1st mem mapped to this
+		if (fpgaLogic[memX][memY][0].countNumofMem == 1)
+		{
+			fpgaLogic[memX][memY][0].BRAMinputPorts.resize(BRAMinputPortsSize);
+			fpgaLogic[memX][memY][0].BRAMoutputPorts.resize(BRAMoutputPortsSize);
+		}
+		else // another mem is mapped here
+		{
+			assert(fpgaLogic[memX][memY][0].countNumofMem == 2);
+			secondMem = true;
 
+		}
 		// resize port a data and output
 		// and set them to false 
 		// todo: maybe it's better to use useddatawidth instead of datawidth
 		if (memories[i].portADataWidth > 0)
 		{
-			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].resize(memories[i].portADataWidth);
-			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].begin(), 
-				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].end(), false);
-			
-			fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].resize(memories[i].portADataWidth);
-			std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].begin(),
-				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].end(), false);
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].resize(memories[i].portADataWidth);
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].end(), false);
+
+				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].resize(memories[i].portADataWidth);
+				std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].begin(),
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].end(), false);
+			}
+			else // if it's the second BRAM then add to the vec
+			{
+				for (int tempCount = 0; tempCount < memories[i].portADataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].push_back(false);
+
+				for (int tempCount = 0; tempCount < memories[i].portADataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].push_back(false);
+
+
+			}
 
 		}
 
@@ -1036,15 +1063,26 @@ void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
 		// todo: maybe it's better to use useddatawidth instead of datawidth
 		if (memories[i].portBDataWidth > 0)
 		{
-			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].resize(memories[i].portBDataWidth);
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].resize(memories[i].portBDataWidth);
 
-			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].begin(),
-				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].end(), false);
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].end(), false);
 
-			fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].resize(memories[i].portBDataWidth);
+				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].resize(memories[i].portBDataWidth);
 
-			std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].begin(),
-				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].end(), false);
+				std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].begin(),
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].end(), false);
+			}
+			else
+			{
+				for (int tempCount = 0; tempCount < memories[i].portBDataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].push_back(false);
+
+				for (int tempCount = 0; tempCount < memories[i].portBDataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].push_back(false);
+			}
 
 		}
 
@@ -1053,10 +1091,17 @@ void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
 		// and set them to false
 		if (memories[i].portAAddressWidth > 0)
 		{
-			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].resize(memories[i].portAAddressWidth);
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].resize(memories[i].portAAddressWidth);
 
-			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].begin(),
-				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].end(), false);
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].end(), false);
+			}
+			else
+			{
+				assert(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].size() == memories[i].portAAddressWidth);
+			}
 		}
 
 
@@ -1064,15 +1109,24 @@ void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
 		// and set them to false
 		if (memories[i].portBAddressWidth > 0)
 		{
-			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].resize(memories[i].portBAddressWidth);
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].resize(memories[i].portBAddressWidth);
 
-			std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].begin(),
-				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].end(), false);
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].end(), false);
+			}
+			else
+			{
+				assert(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].size() == memories[i].portBAddressWidth);
+			}
 		}
+
 
 		// resize port a we
 		if (memories[i].portAWE)
 		{
+
 			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAWE].resize(1);
 			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAWE][0] = false;
 		}

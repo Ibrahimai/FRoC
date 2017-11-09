@@ -21,9 +21,10 @@ Logic_element::Logic_element()
 	CoutFixedDefaultValue = true;
 
 	isBRAM = false;
-	indexMemories = -1;
+	indexMemories.resize(0);
 	BRAMinputPorts.resize(0);
 	BRAMoutputPorts.resize(0);
+	countNumofMem = 0;
 }
 
 Logic_element::Logic_element(int over)

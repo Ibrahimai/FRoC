@@ -583,9 +583,11 @@ int delete_ALUT_port_stratix(int x, int y, int z, int port) // deletes all paths
 }
 #endif
 
-bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode) // return path and node that feeds the register at x, y and z
+// return path and node that feeds the register at x, y and z
+bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode) 
 {
-	if (z % LUTFreq == 0) // ensure that the given cell is a register
+	// ensure that the given cell is a register
+	if (z % LUTFreq == 0 && !fpgaLogic[x][y][z].isBRAM) 
 		return false;
 
 	if (fpgaLogic[x][y][z].nodes.size() < 1) // make sure that this element is actually used
@@ -610,7 +612,9 @@ bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode) // retu
 
 	int feederX, feederY, feederZ;
 
-	/// gets the element that feeds the given element through the first path using this node. Even if this path is deleted the feeder x, y and z would be the same, it is imposisble for two different cells to feed the same register
+	// gets the element that feeds the given element through the first path using this node.
+	// Even if this path is deleted the feeder x, y and z would be the same, 
+	// it is imposisble for two different cells to feed the same register
 	// [corected now it works with no assumptions]  (old note) --> these assumes the absence of cascaded paths. IT assumes that any node at location x, y, z will  have the same feeder, but what if this register is a source and a sink.{casc}
 	feederX = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].x;
 	feederY = paths[fpgaLogic[x][y][z].nodes[nodeIndex].path][fpgaLogic[x][y][z].nodes[nodeIndex].node - 1].y;
@@ -619,7 +623,8 @@ bool get_feeder(int x, int y, int z, int & feederPath, int & feederNode) // retu
 	feederNode = -1;
 //	int i;
 
-	for (i = 0; i < (int)fpgaLogic[feederX][feederY][feederZ].nodes.size(); i++) // loop through paths using this feeder the first nondeletred one is the name that should be used
+// loop through paths using this feeder the first nondeletred one is the name that should be used
+	for (i = 0; i < (int)fpgaLogic[feederX][feederY][feederZ].nodes.size(); i++) 
 	{
 		if (!paths[fpgaLogic[feederX][feederY][feederZ].nodes[i].path][0].deleted)
 		{
@@ -717,6 +722,8 @@ bool check_down_link_edge_transition(int i, int j, int k) // returns true if the
 }
 
 // returns the path and node that feeds element x,y,z through portIn
+// currPath and currNode will store the values of the path and node in the feeder that feeds x,y, z in portIn
+// they are added to determine which BRAM port is feeding
 bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederNode) 
 {
 	int i;
@@ -726,15 +733,16 @@ bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederN
 	if (fpgaLogic[x][y][z].nodes.size() < 1) // make sure that this element is actually used
 		return false;
 
-
-
 	if (!fpgaLogic[x][y][z].inputPorts[portIn]) // ensures that this ports is actually used
 		return false;
 	int possibleFeedingPath = -1;
 	int possibleFeedingNode = -1;
-	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++) // loop through paths using the questioned element, the first non-deleted path feeding the desired input port is used to get the feeder.
+	// loop through paths using the questioned element, 
+	// the first non-deleted path feeding the desired input port is used to get the feeder.
+	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++) 
 	{
-		if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].portIn == portIn && !paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted)
+		if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].portIn == portIn 
+			&& !paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted)
 		{
 			possibleFeedingPath = fpgaLogic[x][y][z].nodes[i].path;
 			possibleFeedingNode = fpgaLogic[x][y][z].nodes[i].node;
@@ -743,6 +751,7 @@ bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederN
 	}
 	if (possibleFeedingNode == -1 || possibleFeedingPath == -1)
 		return false;
+
 
 	int feederX, feederY, feederZ;
 	feederX = paths[possibleFeedingPath][possibleFeedingNode - 1].x;
@@ -764,7 +773,52 @@ bool get_feeder(int x, int y, int z, int portIn, int & feederPath, int & feederN
 	return false;
 }
 
+// find which port of the BRAM is used to feed x, y, z from portIn
+//BRAMoutputport is either port a or b
+bool get_feederPort_from_BRAM(int x, int y, int z, int portIn, std::string & BRAMoutputPort, int & BRAMoutputPortIndex)
+{
 
+	int feederPath;
+	int feederNode;
+	assert(get_feeder(x, y, z, portIn, feederPath, feederNode));
+	
+
+	int feederX = paths[feederPath][feederNode].x;
+	int feederY = paths[feederPath][feederNode].y;
+	int feederZ = paths[feederPath][feederNode].z;
+	// check that the feeder is a BRAM
+	assert(fpgaLogic[feederX][feederY][feederZ].isBRAM);
+
+	int possibleFeedingPath = -1;
+	int possibleFeedingNode = -1;
+
+	// loop through paths using the questioned element, 
+	// the first non-deleted path feeding the desired input port is used to get the feeder port.
+	for (int i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].portIn == portIn
+			&& !paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted)
+		{
+			possibleFeedingPath = fpgaLogic[x][y][z].nodes[i].path;
+			possibleFeedingNode = fpgaLogic[x][y][z].nodes[i].node;
+			break;
+		}
+	}
+
+	assert(possibleFeedingNode > 0);
+
+	BRAMoutputPortIndex = paths[possibleFeedingPath][possibleFeedingNode - 1].BRAMPortOutIndex;
+	if (paths[possibleFeedingPath][possibleFeedingNode - 1].BRAMPortOut == BRAMportAout)
+	{
+		BRAMoutputPort = "_a_dataout";
+	}
+	else
+	{
+		assert(paths[possibleFeedingPath][possibleFeedingNode - 1].BRAMPortOut == BRAMportBout);
+		BRAMoutputPort = "_b_dataout";
+	}
+	return true;
+}
 
 // finds the path and node that feeds the BRAM from a specific index in a specific port
 // returns true if a feeder was found and false otherwise
@@ -881,4 +935,24 @@ bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int &
 //		}
 	}
 	return false; // this is what makes it special
+}
+
+
+
+int reverseNumber(int n)
+{
+	int reversedNumber = 0, remainder;
+
+
+	while (n != 0)
+	{
+		remainder = n % 10;
+		reversedNumber = reversedNumber * 10 + remainder;
+		n /= 10;
+	}
+
+	//cout << "Reversed Number = " << reversedNumber;
+
+	return reversedNumber;
+
 }
