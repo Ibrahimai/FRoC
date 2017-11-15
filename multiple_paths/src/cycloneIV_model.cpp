@@ -24,6 +24,8 @@ Logic_element::Logic_element()
 	indexMemories.resize(0);
 	BRAMinputPorts.resize(0);
 	BRAMoutputPorts.resize(0);
+	portAInputCount = 0;
+	portBInputCount = 0;
 	countNumofMem = 0;
 }
 
@@ -89,9 +91,23 @@ void Logic_element::add_node(int p, int n, std::pair <int, int> BRAMportInputInf
 	{
 		BRAMinputPorts[BRAMportInputInfo.first][BRAMportInputInfo.second] = true;
 		for (i = 0; i < BRAMinputPorts.size(); i++)
+		{
 			for (j = 0; j < BRAMinputPorts[i].size(); j++)
+			{
 				if (BRAMinputPorts[i][j])
+				{
 					count++;
+					if (i <= BRAMportAWE) // then it's port A related
+					{
+						portAInputCount++;
+					}
+					else
+					{
+						portBInputCount++;
+					}
+				}
+			}
+		}
 
 		usedInputPorts = count;
 	}

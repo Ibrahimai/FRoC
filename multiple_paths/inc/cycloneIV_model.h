@@ -256,6 +256,8 @@ public:
 	std::vector < std::vector<bool>> BRAMinputPorts; // 2d array of input ports (array for address, array for data, array for we)
 	std::vector < std::vector<bool>> BRAMoutputPorts;// BRAM output ports (port a and/or port B)
 	std::vector <int> indexMemories; // the corresponding index in the memories data structure (memories stores all info about the used BRAM)
+	int portAInputCount;
+	int portBInputCount;
 	int countNumofMem; // num of memories mapped to this BRAM, used bcoz of mapping multiple brams to same cell by q
 
 

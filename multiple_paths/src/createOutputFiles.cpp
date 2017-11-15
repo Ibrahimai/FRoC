@@ -107,7 +107,14 @@ void create_location_contraint_file(int bitStreamNumber) // modified for STratix
 }
 
 
-void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> CoutSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals, std::ifstream& verilogFileSecondPart, int bitStreamNumber) // to be merged with the WYSIWYGs file to complete the source file.
+void create_auxil_file(std::vector <Path_logic_component> sinks, 
+	std::vector <Path_logic_component> controlSignals, 
+	std::vector <Path_logic_component> CoutSignals,
+	std::vector <Path_logic_component> sources,
+	std::vector <Path_logic_component> cascadedControlSignals,
+	std::ifstream& verilogFileSecondPart, 
+	int bitStreamNumber,
+	std::vector <Path_logic_component> memorySinks) // to be merged with the WYSIWYGs file to complete the source file.
 {
 	std::ofstream verilogFile;
 	std::ofstream LoFile;
@@ -287,6 +294,69 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 	if (cascadedControlSignals.size() > 0)
 		verilogFile << "}), ";
 
+
+	// memors sinks begin
+	int memPath, memNode;
+	if (memorySinks.size() > 0)
+	{
+		memPath = memorySinks[i].path;
+		memNode = memorySinks[i].node;
+		int memX, memY, memZ;
+		memX = paths[memPath][memNode].x;
+		memY = paths[memPath][memNode].y;
+		memZ = paths[memPath][memNode].z;
+		assert(memZ == 0 && fpgaLogic[memX][memY][memZ].isBRAM);
+		verilogFile << ".memorySink({ cascaded_selector_path" << memorySinks[0].path << "_node" << memorySinks[0].node;
+		if (fpgaLogic[memX][memY][memZ].portAInputCount > 0)
+		{
+			assert(fpgaLogic[memX][memY][memZ].portBInputCount == 0);
+			verilogFile << ".memorySink({ PATH" << memPath << "NODE" << memNode << "_a_dataout[0]";
+		}
+		else
+		{
+			assert(fpgaLogic[memX][memY][memZ].portAInputCount == 0);
+			verilogFile << ".memorySink({ PATH" << memPath << "NODE" << memNode << "_b_dataout[0]";
+
+		}
+
+	}
+
+	
+	for (i = 1; i < (int)memorySinks.size(); i++)
+	{
+		memPath = memorySinks[i].path;
+		memNode = memorySinks[i].node;
+		int memX, memY, memZ;
+		memX = paths[memPath][memNode].x;
+		memY = paths[memPath][memNode].y;
+		memZ = paths[memPath][memNode].z;
+		assert(memZ == 0 && fpgaLogic[memX][memY][memZ].isBRAM);
+
+		// check which BRAM port is used
+		// currently only testing address in for read able port
+		// todo: extend this to cover all ports
+		if (fpgaLogic[memX][memY][memZ].portAInputCount > 0)
+		{
+			assert(fpgaLogic[memX][memY][memZ].portBInputCount == 0);
+			verilogFile << ", PATH" << memPath << "NODE" << memNode << "_a_dataout[0]";
+		}
+		else
+		{
+			assert(fpgaLogic[memX][memY][memZ].portAInputCount == 0);
+			verilogFile << ", PATH" << memPath << "NODE" << memNode << "_b_dataout[0]";
+
+		}
+
+		//verilogFile << ", cascaded_selector_path" << cascPath << "_node" << cascNode;
+	}
+	if (memorySinks.size() > 0)
+		verilogFile << "}), ";
+
+
+
+
+	// memory sinks end
+
 	verilogFile << ".finished_one_iteration(fuck)";
 	if (sources.size() > 0)
 		verilogFile << ",.set_source_registers(set_source_registers));" << std::endl;
@@ -312,7 +382,12 @@ void create_auxil_file(std::vector <Path_logic_component> sinks, std::vector <Pa
 
 
 
-void create_controller_module(std::vector <Path_logic_component> sinks, std::vector <Path_logic_component> controlSignals, std::vector <Path_logic_component> sources, std::vector <Path_logic_component> cascadedControlSignals, int bitStreamNumber)
+void create_controller_module(std::vector <Path_logic_component> sinks,
+	std::vector <Path_logic_component> controlSignals, 
+	std::vector <Path_logic_component> sources,
+	std::vector <Path_logic_component> cascadedControlSignals,
+	int bitStreamNumber,
+	std::vector <Path_logic_component> memorySinks)
 {
 
 	std::ofstream controllerFile;
@@ -1394,6 +1469,12 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 	int node = -1;
 	std::vector <Path_logic_component> sources; // stores source flipflops
 	std::vector <Path_logic_component> sinks; // stores the output signals of the tested paths;
+
+	// stores the sinks of memories
+	// whenever a path ends at a BRAM we will need to check it's output
+	// so we need to add this signal as an input to the controller
+	std::vector <Path_logic_component> memorySinks; 
+
 	std::vector <Path_logic_component> controlSignals; // stores the control signals of the tested paths;
 	std::vector <Path_logic_component> cascadedControlSignals; // stores the control signals of LUTs feeding a cascaded register;
 	std::vector <Path_logic_component> CoutSignals;
@@ -1455,7 +1536,7 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 						assert(k == 0);
 						int memIndex = fpgaLogic[i][j][k].indexMemories[0];
 						//todo: handle source, sink and control signals to BRAMs
-						BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false, memories);
+						BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false, memories, memorySinks);
 					}
 				
 #endif
@@ -1568,10 +1649,22 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 	// open the same file again as input
 	std::ifstream verilogFileSecondPart;
 	verilogFileSecondPart.open("VerilogFile.txt");
-	create_auxil_file(sinks, controlSignals, CoutSignals, sources, cascadedControlSignals, verilogFileSecondPart, bitStreamNumber);
+	create_auxil_file(sinks,
+		controlSignals,
+		CoutSignals, 
+		sources, 
+		cascadedControlSignals, 
+		verilogFileSecondPart,
+		bitStreamNumber,
+		memorySinks);
 
 	// comment out for BRAM testing checking
-	//create_controller_module(sinks, controlSignals, sources, cascadedControlSignals, bitStreamNumber);
+	create_controller_module(sinks, 
+		controlSignals,
+		sources, 
+		cascadedControlSignals, 
+		bitStreamNumber, 
+		memorySinks);
 
 
 }
@@ -1579,7 +1672,7 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 
 
 
-// this may have problems I removed it from location X1;
+
 void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSignals,int i, int j, int k, 
 	std::ofstream& verilogFile, int port1, int port2, std::vector <Path_logic_component>& CoutSignals, 
 	std::vector <Path_logic_component>& controlSignals, int path, int node, int pathFeederPort1,
@@ -2529,7 +2622,7 @@ void LUT_WYSIWYG_CycloneIV(std::vector <Path_logic_component>& cascadedControlSi
 //example of returned string "{1'b0, 1'b0, PATHxNODEx, etc...}"
 // the returned string connects thre BRAM to the previous nodes
 // if nothing is connected it defaults it to gnd
-std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo)
+std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, bool & portUsed)
 {
 	// get the x and y 
 	int x = memory.x;
@@ -2540,6 +2633,8 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo)
 
 	std::string interSignal = "";
 	// loop across the pins of the requested port
+
+	portUsed = false;
 
 	int last = 0;
 	int begin = (int)fpgaLogic[x][y][0].BRAMinputPorts[BRAMportInfo].size() - 1;
@@ -2565,6 +2660,7 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo)
 			assert(get_BRAM_feeder(x, y, 0, std::make_pair(BRAMportInfo, i), pathFeeder, nodeFeeder));
 			interSignal += "PATH" + std::to_string(pathFeeder);
 			interSignal += "NODE" + std::to_string(nodeFeeder);
+			portUsed = true;
 			if (i != last)
 				interSignal += ", ";
 		}
@@ -2588,7 +2684,7 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo)
 // if nothing is connected it defaults it to gnd
 // memIndex is which memory index in the associated BRAM is being used 
 //--> handles the case where more BRAMs are mapped into the same mem
-std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int memIndex, std::vector<BRAM> memoriesList )
+std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int memIndex, std::vector<BRAM> memoriesList, bool portUsed )
 {
 	// this function should only be called for datain
 	assert(BRAMportInfo == BRAMportAData || BRAMportInfo == BRAMportBData);
@@ -2605,6 +2701,8 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 	int last = -1;
 	int begin = -1;
 
+
+	portUsed = false;
 
 	// if it's a single memory --> normal case
 	if (fpgaLogic[x][y][0].countNumofMem == 0)
@@ -2660,6 +2758,7 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 			assert(get_BRAM_feeder(x, y, 0, std::make_pair(BRAMportInfo, i), pathFeeder, nodeFeeder));
 			interSignal += "PATH" + std::to_string(pathFeeder);
 			interSignal += "NODE" + std::to_string(nodeFeeder);
+			portUsed = true;
 			if (i != last)
 				interSignal += ", ";
 		}
@@ -2675,7 +2774,7 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 }
 
 // prints a WYSIWYG for a single BRAM (memoryCell) into the verilogFile
-void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories)
+void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories, std::vector <Path_logic_component> & memorySinks)
 {
 
 	// double check that this is stored as memory
@@ -2701,8 +2800,10 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 	std::string intermediateSignals = "";
 
 	verilogFile << "//BRAM WYSIWYG " << std::endl << std::endl;
-
 	
+
+	// true if 
+	bool portUsedBefore = false;
 
 	for (int i = 0; i < fpgaLogic[x][y][0].countNumofMem; i++)
 	{
@@ -2741,16 +2842,35 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 				intermediateSignals += "_a_address = {" + assign_BRAM_intemediateSignals(memoryCell, BRAMportAAddress) + "};\n";
 			}
 			*/
-			verilogFile << ".portaaddr({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportAAddress) << "})," << std::endl;
+			bool portUsed;
+			verilogFile << ".portaaddr({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportAAddress, portUsed) << "})," << std::endl;
 
+			// if a port is used before then the current port must not be used
+			// this assures that we test one port of the BRAM at a time
+			if (i == 0)
+			{
+				assert(!(portUsedBefore & portUsed));
+				portUsedBefore = portUsed;
+			}
 		}
 
 		if (memoryCell.portAUsedDataWidth > 0)
 		{
 
 			// new
-			verilogFile << ".portadatain({" << assign_BRAM_intemediateSignals(memoriesList[i], BRAMportAData, i, memoriesList) << "})," << std::endl;
-/*
+
+			bool portUsed;
+
+			verilogFile << ".portadatain({" << assign_BRAM_intemediateSignals(memoriesList[i], BRAMportAData, i, memoriesList, portUsed) << "})," << std::endl;
+
+			// if a port is used before then the current port must not be used
+			// this assures that we test one port of the BRAM at a time
+			if (i == 0)
+			{
+				assert(!(portUsedBefore & portUsed));
+				portUsedBefore = portUsed;
+			}
+			/*
 			if (!isDoubleMem)
 			{
 				verilogFile << ".portadatain(PATH" << pathOwner << "NODE" << nodeOwner << "_a_datain)," << std::endl;
@@ -2826,9 +2946,15 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 
 		if (memoryCell.portAWE)
 		{
-
-			verilogFile << ".portawe({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportAWE) << "})," << std::endl;
-
+			bool portUsed;
+			verilogFile << ".portawe({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportAWE, portUsed) << "})," << std::endl;
+			// if a port is used before then the current port must not be used
+			// this assures that we test one port of the BRAM at a time
+			if (i == 0)
+			{
+				assert(!(portUsedBefore & portUsed));
+				portUsedBefore = portUsed;
+			}
 			/*
 			verilogFile << ".portawe( PATH" << pathOwner << "NODE" << nodeOwner << "_a_we)," << std::endl;
 
@@ -2848,7 +2974,15 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 
 		if (memoryCell.portBAddressWidth > 0)
 		{
-			verilogFile << ".portbaddr({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBAddress) << "})," << std::endl;
+			bool portUsed;
+			verilogFile << ".portbaddr({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBAddress, portUsed) << "})," << std::endl;
+			// if a port is used before then the current port must not be used
+			// this assures that we test one port of the BRAM at a time
+			if (i == 0)
+			{
+				assert(!(portUsedBefore & portUsed));
+				portUsedBefore = portUsed;
+			}
 			/*
 			verilogFile << ".portbaddr( PATH" << pathOwner << "NODE" << nodeOwner << "_b_address)," << std::endl;
 
@@ -2872,8 +3006,15 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 			if (memoryCell.operationMode != simpleDualPort)
 			{
 
-
-				verilogFile << ".portbdatain({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBData) << "})," << std::endl;
+				bool portUsed;
+				verilogFile << ".portbdatain({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBData, portUsed) << "})," << std::endl;
+				// if a port is used before then the current port must not be used
+				// this assures that we test one port of the BRAM at a time
+				if (i == 0)
+				{
+					assert(!(portUsedBefore & portUsed));
+					portUsedBefore = portUsed;
+				}
 				/*
 				verilogFile << ".portbdatain( PATH" << pathOwner << "NODE" << nodeOwner << "_b_datain)," << std::endl;
 
@@ -2900,7 +3041,15 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 
 		if (memoryCell.portBWE)
 		{
-			verilogFile << ".portbwe({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBWE) << "})," << std::endl;
+			bool portUsed;
+			verilogFile << ".portbwe({" << assign_BRAM_intemediateSignals(memoryCell, BRAMportBWE, portUsed) << "})," << std::endl;
+			// if a port is used before then the current port must not be used
+			// this assures that we test one port of the BRAM at a time
+			if (i == 0)
+			{
+				assert(!(portUsedBefore & portUsed));
+				portUsedBefore = portUsed;
+			}
 			/*
 			verilogFile << ".portbwe(PATH" << pathOwner << "NODE" << nodeOwner << "_b_we)," << std::endl;
 
@@ -3042,6 +3191,11 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 		verilogFile << "//Intermediate signals  " << std::endl << std::endl;
 		verilogFile << intermediateSignals << std::endl << std::endl;
 	}
+
+	if (portUsedBefore)
+	{
+		memorySinks.push_back(Path_logic_component(pathOwner, nodeOwner));
+	}
 }
 
 
@@ -3123,7 +3277,7 @@ void generate_BRAMsWYSYWIGs(std::vector<BRAM>  memories, int bitStreamNumber)
 
 ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
-//////////// New BRAM stuff ////////////////////////////////////
+//////////// End BRAM stuff ////////////////////////////////////
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
@@ -3238,12 +3392,15 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
         
         terminal_LUTS.clear();
         
-	for (i = 0; i < FPGAsizeX; i++) // loop across all LUTs
+	for (i = 0; i < FPGAsizeX; i++) // loop across all cells
 	{
 		for (j = 0; j < FPGAsizeY; j++)
 		{
 			for (k = 0; k < FPGAsizeZ; k++)
 			{
+				if (i == 77 && j == 69 && k == 31)
+					std::cout << "DEbug double BRAM Address 0" << std::endl;
+
 				if (fpgaLogic[i][j][k].utilization>0) // this cell is used, so lets check its fanouts
 				{
 					path = -1;

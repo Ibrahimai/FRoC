@@ -1397,6 +1397,8 @@ int read_routing(std::string routingFile)
 				node = stoi(line.substr(index1, i - index1));
 
 
+
+
 				tempConnection.destinationX = paths[path][node].x;
 				tempConnection.destinationY = paths[path][node].y;
 				tempConnection.destinationZ = paths[path][node].z;
@@ -1420,6 +1422,8 @@ int read_routing(std::string routingFile)
 					tempConnection.memoryDestinationPort.second = -1;
 				}
 
+				if (sourceX == 77 && sourceY == 69 && sourceZ == 31)
+					std::cout << "DEbug double BRAM Address 0" << std::endl;
 
 				//// now we have all needed information, we will check if this connection already exists
 				connExists = false;
@@ -1437,9 +1441,10 @@ int read_routing(std::string routingFile)
 						&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationZ == tempConnection.destinationZ)
 						//&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].sourcePort == tempConnection.sourcePort)
 					{
-						// check if the source is not a memory
+						// check if the source and destination is not a memory
 						// then we check if the source port is the same
 						if (!fpgaLogic[sourceX][sourceY][sourceZ].isBRAM
+							&& !fpgaLogic[xDestLoc][yDestLoc][zDestLoc].isBRAM
 							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].sourcePort == tempConnection.sourcePort)
 						{
 							connExists = true;
@@ -1459,7 +1464,7 @@ int read_routing(std::string routingFile)
 
 						// now check if destination is not to a memory
 						// then check if it's the same destiantion port
-						if (!fpgaLogic[xDestLoc][xDestLoc][xDestLoc].isBRAM 
+						if (!fpgaLogic[xDestLoc][yDestLoc][zDestLoc].isBRAM 
 							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].destinationPort == tempConnection.destinationPort)
 						{
 							connExists = true;
@@ -1468,12 +1473,27 @@ int read_routing(std::string routingFile)
 
 						// check if it's a memory
 						// then check if it's the same MEMORY destination port
-						if (fpgaLogic[xDestLoc][xDestLoc][xDestLoc].isBRAM
+						if (fpgaLogic[xDestLoc][yDestLoc][zDestLoc].isBRAM
 							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].memoryDestinationPort.first == tempConnection.memoryDestinationPort.first
 							&& fpgaLogic[sourceX][sourceY][sourceZ].connections[i].memoryDestinationPort.second == tempConnection.memoryDestinationPort.second)
 						{
-							connExists = true;
-							break;
+							// we will add an exception for address port a, pin 0 
+							// when there is 2 BRAMs mapped to the same physical ram
+							//in that case we will add the other connection and route the signal
+							// using the two different connections and c chich one will work
+							// todo: fix this very bad solution
+							if (fpgaLogic[xDestLoc][yDestLoc][zDestLoc].countNumofMem > 1		// two BRAMs mapped into the same one
+								&& tempConnection.memoryDestinationPort.first == BRAMportAAddress // if it's BRAM port a address
+								&& tempConnection.memoryDestinationPort.second == 0)			// pin 0 of address a
+							{
+								continue;
+							}
+							else
+							{
+								connExists = true;
+								break;
+							}
+							
 						}
 					}
 				}
