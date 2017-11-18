@@ -113,8 +113,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	std::vector <Path_logic_component> sources,
 	std::vector <Path_logic_component> cascadedControlSignals,
 	std::ifstream& verilogFileSecondPart, 
-	int bitStreamNumber,
-	std::vector <Path_logic_component> memorySinks) // to be merged with the WYSIWYGs file to complete the source file.
+	int bitStreamNumber ) // to be merged with the WYSIWYGs file to complete the source file.
 {
 	std::ofstream verilogFile;
 	std::ofstream LoFile;
@@ -270,12 +269,73 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	verilogFile << " PATH" << controlSignals[i].path << "NODE" << controlSignals[i].node << "Con, ";
 	verilogFile << " PATH" << controlSignals[i].path << "NODE" << controlSignals[i].node << "F}), ";
 	verilogFile << ".sinks({";
+
+	int memX, memY, memZ;
 	// paths should be like this as sinks[0] should be sink(0)
 	for (i = ((int)sinks.size()) - 1; i > 0; i--)
 	{
-		verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << ", ";
+		// check if this sink corresponds to a memory
+		memX = paths[sinks[i].path][sinks[i].node].x;
+		memY = paths[sinks[i].path][sinks[i].node].y;
+		memZ = paths[sinks[i].path][sinks[i].node].z;
+
+		// this is a memory block that we need to test it's address bit
+		// address from a read capable port
+		if (fpgaLogic[memX][memY][memZ].isBRAM)
+		{
+			// port A used
+			if (fpgaLogic[memX][memY][memZ].portAInputCount > 0)
+			{
+				assert(fpgaLogic[memX][memY][memZ].portBInputCount == 0);
+				verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "_a_dataout[0], ";
+			}
+			else
+			{
+				// port B used
+				assert(fpgaLogic[memX][memY][memZ].portAInputCount == 0);
+				verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "_b_dataout[0], ";
+
+			}
+		}
+		else
+		{
+			verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << ", ";
+		}
+		
 	}
-	verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "}), ";
+
+	// the last sink
+	// check if this sink corresponds to a memory
+	memX = paths[sinks[i].path][sinks[i].node].x;
+	memY = paths[sinks[i].path][sinks[i].node].y;
+	memZ = paths[sinks[i].path][sinks[i].node].z;
+
+	// this is a memory block that we need to test it's address bit
+	// address from a read capable port
+	if (fpgaLogic[memX][memY][memZ].isBRAM)
+	{
+		// port A used
+		if (fpgaLogic[memX][memY][memZ].portAInputCount > 0)
+		{
+			assert(fpgaLogic[memX][memY][memZ].portBInputCount == 0);
+			verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "_a_dataout[0], }),";
+		}
+		else
+		{
+			// port B used
+			assert(fpgaLogic[memX][memY][memZ].portAInputCount == 0);
+			verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "_b_dataout[0] }),";
+
+		}
+	}
+	else
+	{
+		verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "}), ";
+	}
+
+
+
+	
 
 
 
@@ -294,7 +354,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	if (cascadedControlSignals.size() > 0)
 		verilogFile << "}), ";
 
-
+/*
 	// memors sinks begin
 	int memPath, memNode;
 	if (memorySinks.size() > 0)
@@ -320,7 +380,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 		}
 
 	}
-
+	
 	
 	for (i = 1; i < (int)memorySinks.size(); i++)
 	{
@@ -356,6 +416,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 
 
 	// memory sinks end
+	*/
 
 	verilogFile << ".finished_one_iteration(fuck)";
 	if (sources.size() > 0)
@@ -386,8 +447,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	std::vector <Path_logic_component> controlSignals, 
 	std::vector <Path_logic_component> sources,
 	std::vector <Path_logic_component> cascadedControlSignals,
-	int bitStreamNumber,
-	std::vector <Path_logic_component> memorySinks)
+	int bitStreamNumber)
 {
 
 	std::ofstream controllerFile;
@@ -409,6 +469,10 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 
 	for (i = 1; i < (int)paths.size(); i++)
 	{
+		// path buried in a BRAM
+		if (paths[i].size() <= 1)
+			continue;
+
 		if (!paths[i][0].deleted)
 			test_structure[paths[i][0].testPhase].push_back(i);
 		else
@@ -430,6 +494,12 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	// finish option 2*/
 	// option 1
 	controllerFile << "input [" << sinks.size() - 1 << ":0] sinks,";
+
+	// memory Sinks
+	//if (memorySinks.size())
+	//	controllerFile << "input [" << memorySinks.size() - 1 << ":0] memorySinks,";
+
+
 	//option 2
 	/*	// sink signals from tested paths
 	for (i = 0; i < sinks.size(); i++)
@@ -447,13 +517,26 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 		controllerFile << "output [" << cascadedControlSignals.size() - 1 << ":0] cascaded_select, ";
 
 
+
+
+
 	controllerFile << "output reg finished_one_iteration );" << std::endl;
 
 	// create reg to hold the buffered values of the sinks, these values will be xored with the values from the sinks to ensure that the value changes every cycle
 	controllerFile << "reg [" << sinks.size() - 1 << ":0] sinks_buff , sinks_buff_buff ;" << std::endl;
 	controllerFile << "reg [" << 2 * controlSignals.size() - 1 << ":0] controlSignals_temp;" << std::endl;
+
+	// create regs to hold the buffered values of memory sinks
+//	if (memorySinks.size() > 0)
+//	{
+//		controllerFile << "reg [" << memorySinks.size() - 1 << ":0] memorySinks_buff , memorySinks_buff_buff ;" << std::endl;
+//		controllerFile << "reg [" << memorySinks.size() - 1 << ":0] memoryErrorVec;" << std::endl;
+//	}
+
 	if (cascadedControlSignals.size() > 0)
 		controllerFile << "reg [" << cascadedControlSignals.size() - 1 << ":0] cascaded_select_temp; " << std::endl;
+
+
 	controllerFile << "reg [" << sinks.size() - 1 << ":0] errorVec;" << std::endl;
 	controllerFile << "reg error_temp;" << std::endl;
 	// create states
@@ -927,6 +1010,11 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				controllerFile << "\t\tReset_phase_" << i << " : begin" << std::endl;
 			// generate control singnals corresponding to testphase i
 			//option 1
+
+			////////////////////////////////
+			///////// control signals //////
+			////////////////////////////////
+
 			controllerFile << "\t\t\tcontrolSignals_temp <= " << 2 * controlSignals.size() << "'b";
 			for (j = 0; j <(int)controlSignals.size(); j++)
 			{
@@ -1163,7 +1251,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 						if (fpgaLogic[x][y][z].inputPorts[Cin] && portIn_t != Cin) // Cin is being used and the curent path is using another input
 						{
 							// find what coud does the feeder of this in gives when it is turned off
-							int impPath, impNode;
+							//int impPath, impNode;
 							assert(get_feeder(x, y, z, Cin, feederPath, feederNode));
 							// if the feeder defaults cout to zero
 							if (fpgaLogic[paths[feederPath][feederNode].x][paths[feederPath][feederNode].y][paths[feederPath][feederNode].z].CoutFixedDefaultValue)
@@ -1202,7 +1290,9 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 			}
 			controllerFile << " ; " << std::endl;
 
-			//////// cascaded LUTs selector
+			/////////////////////////////////
+			//////// cascaded LUTs selector//
+			/////////////////////////////////
 
 			if (cascadedControlSignals.size()>0)
 				controllerFile << "\t\t\tcascaded_select_temp <= " << cascadedControlSignals.size() << "'b";
@@ -1246,8 +1336,10 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 			if (cascadedControlSignals.size()>0)
 				controllerFile << " ; " << std::endl;
 
+			/////////////////////////////////////
+			///// output set source registers ///
+			/////////////////////////////////////
 
-			///// output set source registers
 			if (sources.size()>0)
 				controllerFile << "\t\t\tset_source_registers <= " << sources.size() << "'b";
 			//	std::cout << "phase " << i << " :";
@@ -1289,26 +1381,52 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				// reset counter output
 				controllerFile << "\t\t\treset_counter <= 1'b0; " << std::endl;
 				controllerFile << "\t\t\treset_counter_reset <= 1'b1;" << std::endl;
-				// error signal todo: zabat el error signal option1) connect them to an or network
-				//	controllerFile << "\t\t\terror_temp <= 1'b0";
-				// new
 				controllerFile << "\t\t\terror_temp <= errorTestPhase[" << testPhaseCount << "];" << std::endl;
 				errorSignalDivision[testPhaseCount].resize(0);
 				// loop across sinks and see which sinks are used at the current test phase
+
+				//////////////////////////////////////////
+				/////// Sinks ////////////////////////////
+				//////////////////////////////////////////
+
 				for (j = 0; j <(int)sinks.size(); j++)
 				{
+					// get x, y, z of this sink
 					x = paths[sinks[j].path][sinks[j].node].x;
 					y = paths[sinks[j].path][sinks[j].node].y;
 					z = paths[sinks[j].path][sinks[j].node].z;
 					currentlyTested = false;
 					// loop across all nodes using this LUT and check if any of them is tested in the current test phase
+
+					/*
+					// check if the sink is a BRAM
+					bool isMem = false;
+					if (fpgaLogic[x][y][z].isBRAM)
+					{
+						assert(z == 0);
+						isMem = true;
+
+					}
+					*/
+
+					// assumption: only testing one port of a memory at each calib bitstreams
+					// so if a one of the sinks is addressport of a BRAM
+					// and a path uses the BRAM then it must be using it from that port 
+
 					for (k = 0; k < (int)fpgaLogic[x][y][z].nodes.size(); k++)
 					{
+						// ensure that the path size is larger than 1 
+						//--> it's less than or equal one if it's buried inside a BRAM
+						if (paths[fpgaLogic[x][y][z].nodes[k].path].size() <= 1)
+							continue;
+
 						if (paths[fpgaLogic[x][y][z].nodes[k].path][0].testPhase == i)
 						{
 							if (fpgaLogic[x][y][z].nodes[k].node == 0) // if this node is a source then we shouldnt be checking the output of this FF for erro. THis only happens in cascaded cases.
 								continue;
+
 							assert(!paths[fpgaLogic[x][y][z].nodes[k].path][0].deleted);
+
 							currentlyTested = true;
 							break;
 						}
@@ -1535,8 +1653,9 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 					{
 						assert(k == 0);
 						int memIndex = fpgaLogic[i][j][k].indexMemories[0];
+
 						//todo: handle source, sink and control signals to BRAMs
-						BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false, memories, memorySinks);
+						BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false, memories, sinks);
 					}
 				
 #endif
@@ -1655,16 +1774,14 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 		sources, 
 		cascadedControlSignals, 
 		verilogFileSecondPart,
-		bitStreamNumber,
-		memorySinks);
+		bitStreamNumber);
 
 	// comment out for BRAM testing checking
 	create_controller_module(sinks, 
 		controlSignals,
 		sources, 
 		cascadedControlSignals, 
-		bitStreamNumber, 
-		memorySinks);
+		bitStreamNumber);
 
 
 }
@@ -2774,7 +2891,9 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 }
 
 // prints a WYSIWYG for a single BRAM (memoryCell) into the verilogFile
-void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories, std::vector <Path_logic_component> & memorySinks)
+// adds the curent BRAM to the sinks if the address port from 
+// a read capable port is to be tested
+void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories, std::vector <Path_logic_component> & sinks)
 {
 
 	// double check that this is stored as memory
@@ -2851,6 +2970,20 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 			{
 				assert(!(portUsedBefore & portUsed));
 				portUsedBefore = portUsed;
+
+				// port A address is used
+				if (portUsed)
+				{
+					// not somple dula mode
+					// this means that we can read from address A
+					if (memoryCell.operationMode != simpleDualPort)
+					{
+						// let's push the sinks of this memory to sinks
+						// so we can test them using the main controller
+						sinks.push_back(Path_logic_component(pathOwner, nodeOwner));
+					}
+
+				}
 			}
 		}
 
@@ -2859,7 +2992,7 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 
 			// new
 
-			bool portUsed;
+			bool portUsed = false;
 
 			verilogFile << ".portadatain({" << assign_BRAM_intemediateSignals(memoriesList[i], BRAMportAData, i, memoriesList, portUsed) << "})," << std::endl;
 
@@ -2911,8 +3044,6 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 			// in simple dual mode, A is used in writing so it has no data out
 			if (memoryCell.operationMode != simpleDualPort)
 			{
-
-			
 
 				if (!isDoubleMem)
 				{
@@ -2982,6 +3113,17 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 			{
 				assert(!(portUsedBefore & portUsed));
 				portUsedBefore = portUsed;
+				// port B address is used
+				// port B always have an output
+				// if port B is used then we must be able to rad from it
+				if (portUsed)
+				{
+
+					// let's push the sinks of this memory to sinks
+					// so we can test them using the main controller
+					sinks.push_back(Path_logic_component(pathOwner, nodeOwner));
+
+				}
 			}
 			/*
 			verilogFile << ".portbaddr( PATH" << pathOwner << "NODE" << nodeOwner << "_b_address)," << std::endl;
@@ -3192,10 +3334,12 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 		verilogFile << intermediateSignals << std::endl << std::endl;
 	}
 
+	/*
 	if (portUsedBefore)
 	{
 		memorySinks.push_back(Path_logic_component(pathOwner, nodeOwner));
 	}
+	*/
 }
 
 
@@ -3255,11 +3399,12 @@ void generate_BRAMsWYSYWIGs(std::vector<BRAM>  memories, int bitStreamNumber)
 
 	verilogFile << "//BRAMs instantiations" << std::endl;
 
+	std::vector <Path_logic_component>  dummySinks;
 
 	for (unsigned int i = 0; i < memories.size(); i++)
 	{
 
-		BRAM_WYSIWYG_cycloneIV(memories[i], verilogFile, false, memories);
+		BRAM_WYSIWYG_cycloneIV(memories[i], verilogFile, false, memories, dummySinks);
 	}
 
 

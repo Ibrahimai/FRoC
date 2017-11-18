@@ -36,6 +36,10 @@ int reduce_due_to_port_e(int x, int y, int z);
 void handle_port_d_shared_with_e(); // handles the case when the created LUT has 6 inputs and one of them is port D from the pin that is also connected to port E (coming from the original circuit). In that case somehting must go because we cannot connect D
 int remove_to_fix_off_path_inputs();
 void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph);// add edges to the PRG to handle cascaded paths
+
+// add edges for BRAMs
+void add_edges_for_BRAMs(std::vector < std::vector <int> > & pathRelationGraph);
+
 int  remove_to_toggle_source();
 void remove_feedback_paths();
 int remove_LUT_or_FF_in_LE();

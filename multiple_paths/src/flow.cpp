@@ -666,7 +666,7 @@ void printMemory(BRAM mem)
 void parseUsedMemories(std::vector<BRAM> & memories)
 {
 
-	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/randomMemories/memInfo.txt");
+	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addresInBram/memInfo.txt");
 	if (!metaData)
 	{
 		std::cout << "Can not find file  Terminating.... " << std::endl;
@@ -948,7 +948,7 @@ void parseUsedMemories(std::vector<BRAM> & memories)
 // it tells us the regis inside the memory
 void parseRegFileSTA(std::vector<BRAM> & memories)
 {
-	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/randomMemories/memRegInfo.txt");
+	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addresInBRAM/memRegInfo.txt");
 	if (!metaData)
 	{
 		std::cout << "Can not find file  Terminating.... " << std::endl;
@@ -1182,12 +1182,43 @@ int runiFRoC(int argc, char* argv[])
 	generate_BRAMsWYSYWIGs(memories,0);
 	//remove_fanin_higher_than_three();
 	// create Output Files
+
+	assign_test_phases_ib(false);
 	create_location_contraint_file(0);
 	std::cout << "location file created " << std::endl;
 	create_WYSIWYGs_file(0, memories); // also creates auxillary 
 	std::cout << "wysiwyg create " << std::endl;
 	//create_controller_module();
 	create_RCF_file(0, memories);
+	std::vector <std::vector<int> > test_structure;
+	test_structure.resize(numberOfTestPhases);
+	int i;
+
+	for (i = 1; i < (int)paths.size(); i++)
+	{
+		if (paths[i].size() <= 1)
+			continue;
+
+		if (!paths[i][0].deleted)
+			test_structure[paths[i][0].testPhase].push_back(i);
+		else
+		{
+			assert(paths[i][0].testPhase == -1);
+		}
+	}
+	unsigned int j;
+	std::cout << " test phases look like : " << std::endl;
+	for (i = 0; i < (int)test_structure.size(); i++)
+	{
+		std::cout << "Phase " << i << " has " << test_structure[i].size() << " paths and they are : ";
+		for (j = 0; j < test_structure[i].size(); j++)
+		{
+			std::cout << test_structure[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
+
+
 	return 0;
 
 	///////////////////////////

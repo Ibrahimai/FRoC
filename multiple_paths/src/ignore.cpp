@@ -828,9 +828,17 @@ void assign_test_phases_ib(bool ILPform)
 	if(!ILPform)
 		delete_especial_reconvergent_fanout();
 	
-	generate_pathRelationGraph(pathRelationGraph); //creates the PRG and add edges to ensure that all off path inputs of every tested path is fixed (cannot test 2 oaths with fan-in overlap)
+	//creates the PRG and add edges to ensure that all 
+	// off path inputs of every tested path is fixed 
+	//(cannot test 2 oaths with fan-in overlap)
+	generate_pathRelationGraph(pathRelationGraph);
 
+	// add edges for cascaded paths
 	add_cascaded_edges_to_pathRelationGraph(pathRelationGraph);
+
+	// add edges for BRAM man
+	add_edges_for_BRAMs(pathRelationGraph);
+
 
 	// start assigning phases ////////////////////////// graph coloring, coloring pathRelationGraph, could be improved significantly
 	int i, j;
@@ -848,6 +856,11 @@ void assign_test_phases_ib(bool ILPform)
 		}
 		}
 		paths[i][0].testPhase = minPhase+*/
+
+		// path buried inside a BRAM
+		if (paths[i].size() <= 1)
+			continue;
+
 		if (paths[i][0].deleted)
 			continue;
 
@@ -877,7 +890,8 @@ void assign_test_phases_ib(bool ILPform)
 	numberOfTestPhases = (int)possPhases.size();
 }
 
-void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph)// add edges to the PRG to handle cascaded paths
+// add edges to the PRG to handle cascaded paths
+void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph)
 {
 	
 	int i, j, k, l, m;
@@ -928,6 +942,77 @@ void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > &
 	}
 
 }
+
+
+void add_edges_for_BRAMs(std::vector < std::vector <int> > & pathRelationGraph)
+{
+
+	int x, y, z;
+	// loop across all elements
+	for (x = 0; x < FPGAsizeX; x++)
+	{
+		for (y = 0; y < FPGAsizeY; y++)
+		{
+			for (z = 0; z < FPGAsizeZ; z++)
+			{
+				// check for BRAMs
+				if (fpgaLogic[x][y][z].isBRAM)
+				{
+					assert(z == 0);
+					
+					// loop across paths using this BRAM
+					for (int i = 0; i < fpgaLogic[x][y][z].nodes.size(); i++)
+					{
+						
+						int currentPath = fpgaLogic[x][y][z].nodes[i].path;
+						int currentNode = fpgaLogic[x][y][z].nodes[i].node;
+
+						// this BRAM is the source of the currentPAth, so no need for edges
+						if (currentNode == 0)
+							continue;
+
+						// path inside a BRAM so ignore
+						if (paths[currentPath].size() <= 1)
+							continue;
+
+						for (int j = 0; j < fpgaLogic[x][y][z].nodes.size(); j++)
+						{
+							int tempPath = fpgaLogic[x][y][z].nodes[j].path;
+							int tempNode = fpgaLogic[x][y][z].nodes[j].node;
+
+							// tempPAth is buried inside a BRAM so ignore
+							if (paths[tempPath].size() <= 1)
+								continue;
+
+							// this BRAM is the source of the temppath, so no need for edges
+							if (tempNode == 0)
+								continue;
+
+							if (i == j)
+								continue;
+
+							// if these two paths are using different inputs then we need to add edges
+							if (paths[currentPath][currentNode].BRAMPortIn != paths[tempPath][tempNode].BRAMPortIn
+								|| paths[currentPath][currentNode].BRAMPortInIndex != paths[tempPath][tempNode].BRAMPortInIndex)
+							{
+								// current assumption is: we only test paths ending at the same port in one calib bit stream
+								// so check this
+								assert(paths[currentPath][currentNode].BRAMPortIn == paths[tempPath][tempNode].BRAMPortIn);
+								add_connection(pathRelationGraph, currentPath, tempPath);
+
+							}
+
+
+						}
+					}
+				}
+
+			}
+		}
+	}
+}
+
+
 void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelationGraph)
 {
 	pathRelationGraph.resize(paths.size());
@@ -948,6 +1033,14 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 			tempComponentX = paths[i][j].x;
 			tempComponentY = paths[i][j].y;
 			tempComponentZ = paths[i][j].z;
+
+			// if it's a BRAM ignore this node
+			// I'll handle BRAMs in another function
+			if (fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].isBRAM)
+			{
+				assert(tempComponentZ == 0);
+				continue;
+			}
 
 			for (k = 0; k < (int)fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); k++) // loop across all nodes sharing the LE used by node j in path i
 			{
@@ -1003,7 +1096,9 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 						//			std::cout << "7assal" << std::endl;
 
 					}
-					// the node feeding paths[i][j] is a register, we will check if this is a cascaded register then we must add edges between paths[i][j] and all paths using the LUT feeding this cascaded register
+					// the node feeding paths[i][j] is a register, 
+					//we will check if this is a cascaded register 
+					// then we must add edges between paths[i][j] and all paths using the LUT feeding this cascaded register
 					if (tempComponentZ%LUTFreq != 0) 
 					{
 						if (is_cascaded_reg(tempComponentX, tempComponentY, tempComponentZ)) // if this is a a cascaded register, then must ensure that LUT
@@ -1068,6 +1163,12 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 	//// add edges between cascaded paths
 	for (i = 1; i < (int)paths.size(); i++) // loop over all paths
 	{
+
+		// this is a path buried inside a BRAm
+		if (paths[i].size() <= 1)
+			continue;
+
+
 		if (paths[i][0].deleted)
 			continue;
 		for (j = 0; j < (int)fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes.size(); j++) // loop across nodes using the source of the ith pass
