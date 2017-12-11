@@ -77,6 +77,12 @@
 // FF modes
 #define dInput 0
 #define sData 1
+
+
+// Testing constants
+#define TESTING_LATENCY 3
+
+
 // this class is used to store the corresponding path, node,delay for all paths using a certain RE
 class RE_logic_component
 {

@@ -214,9 +214,18 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 
 	//// input signals to sources
 	verilogFile << std::endl << "//input signal to sources " << std::endl;
-	if (sources.size()>0)
-		verilogFile << "reg [" << sources.size() - 1 << ":0] Xin;" << std::endl;;
-
+	if (sources.size() > 0)
+	{
+		verilogFile << "reg [" << sources.size() - 1 << ":0] Xin;" << std::endl;
+		verilogFile << "wire [" << sources.size() - 1 << ":0] Xin_temp;" << std::endl << std::endl << std::endl;
+		verilogFile << "// latency between toggling inputs is " << TESTING_LATENCY << std::endl;
+		verilogFile << "genvar i;" << std::endl;
+		verilogFile << "generate" << std::endl;
+		verilogFile << "\tfor (i=0; i<" << sources.size() << "; i=i+1) begin: sourceModules" << std::endl;
+		verilogFile << "\t\t sourceExcitation #(.latency(" << TESTING_LATENCY << ")) srcModule (.reset(reset), .clk(CLK), .out(Xin_temp[i]), .outBefore());" << std::endl;
+		verilogFile << "\tend" << std::endl;
+		verilogFile << "endgenerate" << std::endl;
+	}
 	verilogFile << "wire vcc, gnd;" << std::endl;
 	verilogFile << "assign vcc = 1'b1;" << std::endl;
 	verilogFile << "assign gnd = 1'b0;" << std::endl;
@@ -236,7 +245,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 		verilogFile << "\tif (reset) " << std::endl;
 		verilogFile << "\t\tXin <= " << sources.size() << "'b0;" << std::endl;
 		verilogFile << "\telse " << std::endl;
-		verilogFile << "\t\tXin <= ~Xin | set_source_registers;" << std::endl;
+		verilogFile << "\t\tXin <= Xin_temp | set_source_registers;" << std::endl;
 		verilogFile << "end" << std::endl;
 	}
 
@@ -567,6 +576,12 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	controllerFile << "reg reset_counter_reset; // reset counter for reset phase" << std::endl;
 	controllerFile << "wire timer_reached_reset; // timer reached value for reset signal to switch to testing state" << std::endl;
 
+	// enable Error checking
+	controllerFile << "// enable error checking" << std::endl;
+	controllerFile << "wire enableErrorChecking; " << std::endl << std::endl;
+
+
+
 	// always block to get the buffered sinks
 	controllerFile << "always @ (posedge CLK) begin" << std::endl;
 
@@ -583,7 +598,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	controllerFile << "\telse begin" << std::endl;
 	controllerFile << "\t\tsinks_buff <= sinks;" << std::endl;
 	controllerFile << "\t\tsinks_buff_buff <= sinks_buff;" << std::endl;
-	controllerFile << "\t\terrorVec <= ~(sinks_buff^sinks_buff_buff) ; " << std::endl; //  
+	//controllerFile << "\t\terrorVec <= ~(sinks_buff^sinks_buff_buff) ; " << std::endl; //  
+	controllerFile << "\t\terrorVec <= ({"<< sinks.size() <<"{enableErrorChecking}}) & ~(sinks_buff^sinks_buff_buff) ; " << std::endl;
 	controllerFile << "\t\terror <= error_temp;" << std::endl;
 	//	controllerFile << "\t\tcontrolSignals <= controlSignals_temp;" << std::endl;
 	controllerFile << "\tend" << std::endl;
@@ -602,6 +618,21 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	}*/
 	// option 2 finish
 	controllerFile << "end" << std::endl << std::endl << std::endl;
+
+
+	controllerFile << "wire srcIn, srcIn_before;" << std::endl << std::endl;
+
+	controllerFile << "wire srcTgl;" << std::endl << std::endl;
+
+	controllerFile << "// get the time when the toggling of the input source occurs" << std::endl;
+	controllerFile << "sourceExcitation #(.latency(" << TESTING_LATENCY << ")) srcModule (.reset(reset), .clk(CLK), .out(srcIn), .outBefore(srcIn_before));" << std::endl << std::endl;
+
+	controllerFile << "assign srcTgl = srcIn ^ srcIn_before;" << std::endl << std::endl;
+
+
+	controllerFile << "// 5 cycles after the input source toggle, the sink register should toggle" << std::endl;
+	controllerFile << "shift_reg #(.L(5)) shiftRegSrcTgl(.CLK(CLK),.in(srcTgl),.out(enableErrorChecking));" << std::endl << std::endl;
+
 
 	controllerFile << std::endl << "assign controlSignals = controlSignals_temp;" << std::endl;
 
