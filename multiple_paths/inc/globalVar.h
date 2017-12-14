@@ -85,3 +85,7 @@ extern int numberOfImpossibleFanouts;
 
 
 //extern std::vector<BRAM> memories;
+
+/// memory shit
+// memory controllers
+extern std::vector<std::pair <int, int>> memoryControllers[FPGAsizeX][FPGAsizeY];

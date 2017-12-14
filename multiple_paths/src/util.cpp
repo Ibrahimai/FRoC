@@ -956,3 +956,26 @@ int reverseNumber(int n)
 	return reversedNumber;
 
 }
+
+
+std::string portNumbertoName(int BRAMportInfo)
+{
+	if (BRAMportInfo == BRAMportAAddress)
+		return "a_address";
+
+	if (BRAMportInfo == BRAMportAData)
+		return "a_data";
+
+	if (BRAMportInfo == BRAMportAWE)
+		return "a_we";
+
+
+	if (BRAMportInfo == BRAMportBAddress)
+		return "b_address";
+
+	if (BRAMportInfo == BRAMportBData)
+		return "b_data";
+
+	if (BRAMportInfo == BRAMportBWE)
+		return "b_we";
+}

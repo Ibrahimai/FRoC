@@ -231,3 +231,8 @@ BRAM::BRAM(int xLoc, int yLoc)
 
 }
 
+BRAMController::BRAMController()
+{
+	BRAMinputPorts.resize(0);
+	BRAMoutputPorts.resize(0);
+}

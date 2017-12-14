@@ -73,6 +73,9 @@
 #define BRAMportAout 0
 #define BRAMportBout 1
 
+// BRAM controller types
+#define ADDRESS_READ_INCAPABLE_CONTROLLER 21
+
 
 // FF modes
 #define dInput 0
@@ -325,7 +328,16 @@ public:
 };
 
 
+class BRAMController
+{
+public:
+	std::vector < std::vector<bool>> BRAMinputPorts; // 2d array of input ports (array for address, array for data, array for we) true means it needs controlling
+	std::vector < std::vector<bool>> BRAMoutputPorts;// BRAM output ports (port a and/or port B), True means the output is hooked up to the controller
+	int x; // x loc in FPGA
+	int y; // y loc in FPGA
 
+	BRAMController();
+};
 
 
 

@@ -24,7 +24,8 @@
 
 #ifdef CycloneIV
 Logic_element fpgaLogic[FPGAsizeX][FPGAsizeY][FPGAsizeZ]; // size of cyclone IV on DE2 board, got it from chip planner, model the logic elements of the chip
-bool fanoutLUTPlacement[FPGAsizeX][FPGAsizeY][FPGAsizeZ];														 
+bool fanoutLUTPlacement[FPGAsizeX][FPGAsizeY][FPGAsizeZ];		
+std::vector<std::pair <int, int>> memoryControllers[FPGAsizeX][FPGAsizeY];
 //std::vector < std::vector <bool>> testingPhases;
 
 
@@ -666,7 +667,7 @@ void printMemory(BRAM mem)
 void parseUsedMemories(std::vector<BRAM> & memories)
 {
 
-	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addresInBram/memInfo.txt");
+	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addressInReadIncapableBRAM/memInfo.txt");
 	if (!metaData)
 	{
 		std::cout << "Can not find file  Terminating.... " << std::endl;
@@ -948,7 +949,7 @@ void parseUsedMemories(std::vector<BRAM> & memories)
 // it tells us the regis inside the memory
 void parseRegFileSTA(std::vector<BRAM> & memories)
 {
-	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addresInBRAM/memRegInfo.txt");
+	std::ifstream metaData("D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addressInReadIncapableBRAM/memRegInfo.txt");
 	if (!metaData)
 	{
 		std::cout << "Can not find file  Terminating.... " << std::endl;
@@ -984,7 +985,7 @@ void parseRegFileSTA(std::vector<BRAM> & memories)
 // the port info comes from the parsed memory info
 // should be called after parseUsedmemories or after memories is set
 // xLocsBRAMs is a vector with the x locations of BRAMS --> assuming coloumn like architecture
-void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
+void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories)
 {
 	// xLocsBram should be {15, 37, 51, 64, 78, 104}
 
@@ -1005,6 +1006,7 @@ void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
 	{
 		int memX = memories[i].x;
 		int memY = memories[i].y;
+		
 
 		// this cell must be of type BRAM
 		assert(fpgaLogic[memX][memY][0].isBRAM);
@@ -1044,6 +1046,7 @@ void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories )
 				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].resize(memories[i].portADataWidth);
 				std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].begin(),
 					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].end(), false);
+
 			}
 			else // if it's the second BRAM then add to the vec
 			{
@@ -1170,6 +1173,15 @@ int runiFRoC(int argc, char* argv[])
 	int MCsamplesCount;
 
 	std::vector<BRAM> memories;
+
+	// a 2d array of vectors that hold all memory controller
+	// each controller stores a vector of which ports should be controller
+	
+	for (int i = 1; i < FPGAsizeX; i++)
+		for (int j = 1; j < FPGAsizeY; j++)
+			memoryControllers[i][j].resize(0);
+
+
 	///////////////////////////
 	///// New trial  stuff ////
 	///////////////////////////
@@ -1179,7 +1191,7 @@ int runiFRoC(int argc, char* argv[])
 	update_FPGA_fabric_with_memory_info(memories);
 	parseIn("D:/PhDResearch/testingGIT/DVS2.0/fils/metaBRAMTrial");
 	read_routing("D:/PhDResearch/testingGIT/DVS2.0/fils/metaRoutingBRAMTrial");
-	generate_BRAMsWYSYWIGs(memories,0);
+	//generate_BRAMsWYSYWIGs(memories,0);
 	//remove_fanin_higher_than_three();
 	// create Output Files
 

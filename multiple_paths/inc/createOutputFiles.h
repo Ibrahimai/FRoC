@@ -19,8 +19,8 @@ bool check_c_d_shared(int i, int j, int k); //checks if LUT i,j,k shares port C 
 // this is used for BRAM as their WYISYWGS are harder
 //example of returned string "{1'b0, 1'b0, PATHxNODEx, etc...}"
 // the returned string connects thre BRAM to the previous nodes
-// if nothing is connected it defaults it to gnd
-std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, bool & portUsed);
+// if nothing is connected it defaults it to 1 except for WE it defaults to gnd
+std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int memIndex, std::vector<BRAM> memoriesList, bool & portUsed);
 
 
 // prints a WYSIWYG for a single BRAM (memoryCell) into the verilogFile
