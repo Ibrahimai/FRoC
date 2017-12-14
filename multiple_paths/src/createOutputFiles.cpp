@@ -480,7 +480,86 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 }
 
 
+bool isBRAMControllerUsed(int iBRAM, int jBRAM, int testPhase)
+{
+	if (memoryControllers[iBRAM][jBRAM].size() > 0) // memory controller is needed
+	{
+		int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
+		int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
+		bool BRAMCurrentlyTested = false;
 
+		// we will define the controller type abased on what ports need to be controlled
+		// summing the 2^port gives a unique number for each controller type
+		int controllerType = 0;
+		int addressIndex = -1;
+		for (int kBRAM = 0; kBRAM < memoryControllers[iBRAM][jBRAM].size(); kBRAM++)
+		{
+			controllerType += pow(2, memoryControllers[iBRAM][jBRAM][kBRAM].first);
+
+			if (memoryControllers[iBRAM][jBRAM][kBRAM].first == BRAMportBAddress)
+				addressIndex = kBRAM;
+		}
+
+		if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
+		{
+			// this BRAM is tested, so let's check if any path ends there and being tested in the current test phase
+			for (int k = 0; k < (int)fpgaLogic[iBRAM][jBRAM][0].nodes.size(); k++)
+			{
+				// ensure that the path size is larger than 1 
+				//--> it's less than or equal one if it's buried inside a BRAM
+				if (paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path].size() <= 1)
+					continue;
+
+				if (paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][0].testPhase == testPhase)
+				{
+					if (fpgaLogic[iBRAM][jBRAM][0].nodes[k].node == 0) // if this node is a source then we shouldnt be checking the output of this FF for erro. THis only happens in cascaded cases.
+						continue;
+
+					assert(!paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][0].deleted);
+
+					BRAMCurrentlyTested = true;
+					break;
+				}
+			}
+		}
+
+		return BRAMCurrentlyTested;
+	}
+	return false;
+}
+
+
+
+
+bool isBRAMwithController(int i, int j)
+{
+
+	
+	if (memoryControllers[i][j].size() > 0) // memory controller is needed
+	{
+		int BRAMPathOwner = fpgaLogic[i][j][0].owner.path;
+		int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
+		// we will define the controller type abased on what ports need to be controlled
+		// summing the 2^port gives a unique number for each controller type
+		int controllerType = 0;
+		int addressIndex = -1;
+		for (int k = 0; k < memoryControllers[i][j].size(); k++)
+		{
+			controllerType += pow(2, memoryControllers[i][j][k].first);
+			if (memoryControllers[i][j][k].first == BRAMportBAddress)
+				addressIndex = k;
+		}
+
+		if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
+		{
+			return true;
+		}
+	}
+
+	return false;
+
+
+}
 void create_controller_module(std::vector <Path_logic_component> sinks,
 	std::vector <Path_logic_component> controlSignals, 
 	std::vector <Path_logic_component> sources,
@@ -499,7 +578,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	int testPhaseCount = 0;
 	bool inverting_t;
 	bool currentlyTested;
-	std::vector <std::vector<int>> errorSignalDivision; // store error signals of each test phase to be used as input to the or tree network
+	std::vector <std::vector<std::pair <int, int>>> errorSignalDivision; // store error signals of each test phase to be used as input to the or tree network
 	errorSignalDivision.resize(numberOfTestPhases);
 	/// group paths in the same test phase together
 	std::vector <std::vector<int> > test_structure;
@@ -818,6 +897,23 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	///////////////////////////
 	controllerFile << "always @ (*) begin" << std::endl;
 	controllerFile << "\\default values " << std::endl;
+
+	// BRAM start_test and reset_test default values
+
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{			
+			int BRAMPathOwner = fpgaLogic[i][j][0].owner.path;
+			int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
+			if (isBRAMwithController(i, j))
+			{
+				controllerFile << "\treset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n";
+				controllerFile << "\tstart_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n";
+			}		
+		}
+	}
+
 	controllerFile << "\ttimer_reached_sticky_reset <= 1'b0\n";
 	controllerFile << "\tdone_state <= 1'b1;\n";
 	controllerFile << "\tcase (state)" << std::endl;
@@ -1601,11 +1697,73 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 
 					if (currentlyTested)
 					{
-						errorSignalDivision[testPhaseCount].push_back(j);
+						errorSignalDivision[testPhaseCount].push_back(std::make_pair(-1,j));
 						//controllerFile << "| errorVec[" << j << "] ";
 					}
 
 				}
+
+				/////////////////////////////////////////////////////////////
+				///// check for errors from BRAM test controllers ///////////
+				/////////////////////////////////////////////////////////////
+
+				std::vector<std::pair<int, int>> BRAMControllersTestedNow;
+
+				BRAMControllersTestedNow.resize(0);
+
+				for (int iBRAM = 0; iBRAM < FPGAsizeX; iBRAM++)
+				{
+					for (int jBRAM = 0; jBRAM < FPGAsizeY; jBRAM++)
+					{
+						bool BRAMCurrentlyTested = isBRAMControllerUsed( iBRAM, jBRAM, i);
+						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
+						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
+						// if BRAM is currently tested then let's add it to the errorSignalDivision
+						if (BRAMCurrentlyTested)
+						{
+							errorSignalDivision[testPhaseCount].push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
+							BRAMControllersTestedNow.push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
+							//controllerFile << "| errorVec[" << j << "] ";
+						}
+					}
+					
+				}
+
+				// done_state signal for the current test phase
+
+				if (BRAMControllersTestedNow.size() > 0)
+				{
+					controllerFile << "\t\t\tdone_state <= 1'b1 & ";
+				}
+
+				for (int count = 0; count < BRAMControllersTestedNow.size(); count++)
+				{
+					controllerFile << " done_PATH" << BRAMControllersTestedNow[count].first << "NODE" << BRAMControllersTestedNow[count].second << "_BRAM_sticky &";
+
+				}
+
+				if (BRAMControllersTestedNow.size() > 0)
+				{
+					controllerFile << " 1'b1;\n";
+				}
+
+				// start_test signals for BRAM tested now
+
+				for (int count = 0; count < BRAMControllersTestedNow.size(); count++)
+				{
+					controllerFile << "\t\t\tstart_test_PATH" << BRAMControllersTestedNow[count].first << "NODE" << BRAMControllersTestedNow[count].second << "_BRAM <= 1'b1;\n";
+
+				}
+
+				
+
+				/////////////////////////////////////////////////////////////
+				///////// End error from BRAM test controllers //////////////
+				/////////////////////////////////////////////////////////////
+
+
+
+
 				testPhaseCount++;
 				//controllerFile << ";" << std::endl;
 				//controllerFile << "\t\t\terror <= 1'b0; " << std::endl;
@@ -1616,6 +1774,43 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 			}
 			else // reset for  reset phase state
 			{
+				// reset_test for BRAMs
+
+
+				/////////////////////////////////////////////////////////////
+				///// decide on the reset_test from BRAM test controllers ///////////
+				/////////////////////////////////////////////////////////////
+
+				std::vector<std::pair<int, int>> BRAMControllersTestedNow;
+
+				BRAMControllersTestedNow.resize(0);
+
+				for (int iBRAM = 0; iBRAM < FPGAsizeX; iBRAM++)
+				{
+					for (int jBRAM = 0; jBRAM < FPGAsizeY; jBRAM++)
+					{
+						bool BRAMCurrentlyTested = isBRAMControllerUsed(iBRAM, jBRAM, i);
+						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
+						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
+						// if BRAM is currently tested then let's add it to the errorSignalDivision
+						if (BRAMCurrentlyTested)
+						{
+							errorSignalDivision[testPhaseCount].push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
+							BRAMControllersTestedNow.push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
+							//controllerFile << "| errorVec[" << j << "] ";
+						}
+					}
+
+				}
+
+				// start_test signals for BRAM tested now
+
+				for (int count = 0; count < BRAMControllersTestedNow.size(); count++)
+				{
+					controllerFile << "\t\t\treset_test_PATH" << BRAMControllersTestedNow[count].first << "NODE" << BRAMControllersTestedNow[count].second << "_BRAM <= 1'b1;\n";
+
+				}
+
 				// reset counter output
 				controllerFile << "\t\t\treset_counter <= 1'b1; " << std::endl;
 				controllerFile << "\t\t\treset_counter_reset <= 1'b0;" << std::endl;
@@ -1720,9 +1915,27 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 #else
 		controllerFile << "or_tree_" << i << " or_test_phase_" << i << " (.reset(reset_or_network),.CLK(CLK),.out (errorTestPhase[" << i << "]), .in({";
 #endif
-		for (j = 0; j <(int)errorSignalDivision[i].size() - 1; j++)
-			controllerFile << "errorVec[" << errorSignalDivision[i][j] << "],";
-		controllerFile << "errorVec[" << errorSignalDivision[i][j] << "]}));" << std::endl;;
+		for (j = 0; j < (int)errorSignalDivision[i].size() - 1; j++)
+		{
+			if (errorSignalDivision[i][j].first == -1)
+			{
+				controllerFile << "errorVec[" << errorSignalDivision[i][j].second << "],";
+			}
+			else
+			{
+				// this error is coming from a BRAM
+				controllerFile << "error_PATH" << errorSignalDivision[i][j].first << "NODE" << errorSignalDivision[i][j].second << "_BRAM," ;
+			}
+		}
+		if (errorSignalDivision[i][j].first == -1)
+		{
+			controllerFile << "errorVec[" << errorSignalDivision[i][j].second << "]}));" << std::endl;
+		}
+		else
+		{
+			// this error is coming from a BRAM
+			controllerFile << "error_PATH" << errorSignalDivision[i][j].first << "NODE" << errorSignalDivision[i][j].second << "_BRAM}));" << std::endl;
+		}
 	}
 	controllerFile << "endmodule" << std::endl;
 	//create

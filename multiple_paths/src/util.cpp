@@ -978,4 +978,6 @@ std::string portNumbertoName(int BRAMportInfo)
 
 	if (BRAMportInfo == BRAMportBWE)
 		return "b_we";
+
+	return "DEAD_BEEF";
 }
