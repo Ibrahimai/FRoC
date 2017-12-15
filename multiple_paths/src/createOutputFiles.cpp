@@ -115,6 +115,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	std::vector <Path_logic_component> sources,
 	std::vector <Path_logic_component> cascadedControlSignals,
 	std::ifstream& verilogFileSecondPart, 
+	std::vector<BRAM> memories,
 	int bitStreamNumber ) // to be merged with the WYSIWYGs file to complete the source file.
 {
 	std::ofstream verilogFile;
@@ -177,7 +178,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	verilogFile << "PATH" << controlSignals[i].path << "NODE" << controlSignals[i].node /*<< "  synthesis keep ;"*/ << ";" << std::endl; // removed synnthesis keep
 
 
-																																		 // cout signals
+	 // cout signals
 	if (CoutSignals.size() > 0)
 	{
 		for (i = 0; i < (int)CoutSignals.size() - 1; i++)
@@ -228,24 +229,113 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 				int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
 
 
+				// signals between BRAM and BRAM test controller
 				for (int k = 0; k < memoryControllers[i][j].size(); k++)
 				{
 
-					for (int counter = 0; counter < memoryControllers[i][j][k].second; counter++)
+					for (int counter = memoryControllers[i][j][k].second -1 ; counter >= 0; counter--)
 					{
 						verilogFile << "wire PATH" + std::to_string(BRAMPathOwner) + "NODE" + std::to_string(BRAMNodeOwner)
 							+ "_" + portNumbertoName(memoryControllers[i][j][k].first) + "_control_" + std::to_string(counter) + "; \n";
 					}
 				}
+
+				// singals between BRAM test controller and main controller
+				int addressIndex = -1;
+				if (isBRAMwithController(i, j, addressIndex))
+				{
+					verilogFile << "wire error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+					verilogFile << "wire done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+					verilogFile << "wire reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+					verilogFile << "wire start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+					verilogFile << "wire [" << memoryControllers[i][j][addressIndex].second - 1 << ":0] address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+
+				}
+
 			}
 		}
 	}
+
+
+	/////////////////////////////////////////////////
+	///////// create BRAM controllers ///////////////
+	/////////////////////////////////////////////////
+
+	verilogFile << "// Create BRAM controllers\n\n";
+
+
+	// check if there are any address_to_test
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			int BRAMPathOwner = fpgaLogic[i][j][0].owner.path;
+			int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
+			// todo: handle multiple BRAMs in the same BRAM
+			
+			int addressIndex = -1;
+			if (isBRAMwithController(i, j, addressIndex))
+			{
+				int memIndex = fpgaLogic[i][j][0].indexMemories[0];
+				//controllerFile << "reg [" << memoryControllers[i][j][addressIndex].second << " : 0] address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling;\n";
+
+				// we are using a BRAM test controller so let's do this
+
+				verilogFile << "controller_address_writeOnly #(.data_width(" << memories[memIndex].portAUsedDataWidth << "),\n"
+					<< "\t.address_width(" << fpgaLogic[i][j][0].BRAMinputPorts[BRAMportBAddress].size() << "),\n"
+					<< "\t.Latency(" << TESTING_LATENCY << ")) controller_BRAM_" << BRAMPathOwner << "_" << BRAMNodeOwner
+					<< " (.clk(CLK),\n"
+					<< "\t.startTest(start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+					<< "\t.reset(reset),\n"
+					<< "\t.resetTest(reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+					<< "\t.addressToTest(address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+					<< "\t.portb_dataOut(PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_b_dataout),\n"
+					<< "\t.error(error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+					<< "\t.done(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+					for (int k = 0; k < memoryControllers[i][j].size(); k++)
+					{
+						if (memoryControllers[i][j][k].first == BRAMportAData)
+							verilogFile << "\t.porta_dataIn({";
+						else if (memoryControllers[i][j][k].first == BRAMportAWE)
+							verilogFile << "\t.write_enable({";
+						else if (memoryControllers[i][j][k].first == BRAMportBAddress)
+							verilogFile << "\t.portb_address({";
+						else
+						{
+							assert(true);
+						}
+
+						int counter = 0;
+						for (counter = memoryControllers[i][j][k].second - 1; counter >= 1 ; counter--)
+						{
+							verilogFile << "PATH" + std::to_string(BRAMPathOwner) + "NODE" + std::to_string(BRAMNodeOwner)
+								+ "_" + portNumbertoName(memoryControllers[i][j][k].first) + "_control_" + std::to_string(counter) + ",";
+						}
+						verilogFile << "PATH" + std::to_string(BRAMPathOwner) + "NODE" + std::to_string(BRAMNodeOwner)
+							+ "_" + portNumbertoName(memoryControllers[i][j][k].first) + "_control_" + std::to_string(counter) + "})";
+
+						// last iteration
+						if (k == memoryControllers[i][j].size() - 1)
+						{
+							verilogFile << ");\n\n";
+						}
+						else
+						{
+							verilogFile << ",\n";
+						}
+					}
+			}
+		}
+	}
+
+
 
 	//// input signals to sources
 	verilogFile << std::endl << "//input signal to sources " << std::endl;
 	if (sources.size() > 0)
 	{
-		verilogFile << "reg [" << sources.size() - 1 << ":0] Xin;" << std::endl;
+		verilogFile << "wire [" << sources.size() - 1 << ":0] Xin;" << std::endl;
 		verilogFile << "wire [" << sources.size() - 1 << ":0] Xin_temp;" << std::endl << std::endl << std::endl;
 		verilogFile << "// latency between toggling inputs is " << TESTING_LATENCY << std::endl;
 		verilogFile << "genvar i;" << std::endl;
@@ -270,12 +360,14 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	verilogFile << std::endl << "//input signal to sources " << std::endl;
 	if (sources.size() > 0)
 	{
-		verilogFile << "always @ (posedge CLK or posedge reset) begin" << std::endl;
-		verilogFile << "\tif (reset) " << std::endl;
-		verilogFile << "\t\tXin <= " << sources.size() << "'b0;" << std::endl;
-		verilogFile << "\telse " << std::endl;
-		verilogFile << "\t\tXin <= Xin_temp | set_source_registers;" << std::endl;
-		verilogFile << "end" << std::endl;
+		//verilogFile << "always @ (posedge CLK or posedge reset) begin" << std::endl;
+		//verilogFile << "\tif (reset) " << std::endl;
+		//verilogFile << "\t\tXin <= " << sources.size() << "'b0;" << std::endl;
+		//verilogFile << "\telse " << std::endl;
+		//verilogFile << "\t\tXin <= Xin_temp | set_source_registers;" << std::endl;
+		//verilogFile << "end" << std::endl;
+
+		verilogFile << "assign Xin = Xin_temp | set_source_registers;" << std::endl;
 	}
 
 	/// counter to be connected to controller
@@ -287,18 +379,73 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	verilogFile << std::endl << "//cascaded MUXES and tFFs " << std::endl;
 	for (i = 0; i < (int)cascadedControlSignals.size(); i++) // for each cascaded control signal we instantiate a Tff and a 2to1 mux
 	{
-		verilogFile << "t_ff " << "t_" << i << " (.reset(reset), .out( source_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << "), .clk(CLK));" << std::endl;
-		verilogFile << "mux2to1 mux_" << i << "(.in0( source_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << "), .in1( PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F ), .s( cascaded_selector_path" << cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << " ), .out (PATH" << cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F_cascaded)); " << std::endl;
+		verilogFile << "sourceExcitation  #(.latency(" << TESTING_LATENCY
+			<< ")) t_" << i << " (.reset(reset), .out( source_path" << cascadedControlSignals[i].path 
+			<< "_node" << cascadedControlSignals[i].node 
+			<< "), .clk(CLK), .outBefore());" 
+			<< std::endl;
+		verilogFile << "mux2to1 mux_" << i 
+			<< "(.in0( source_path" << cascadedControlSignals[i].path << "_node" 
+			<< cascadedControlSignals[i].node << "), .in1( PATH" 
+			<< cascadedControlSignals[i].path << "NODE" 
+			<< cascadedControlSignals[i].node << "F ), .s( cascaded_selector_path"
+			<< cascadedControlSignals[i].path << "_node" << cascadedControlSignals[i].node << " ), .out (PATH"
+			<< cascadedControlSignals[i].path << "NODE" << cascadedControlSignals[i].node << "F_cascaded)); "
+			<< std::endl;
 
 	}
 	verilogFile << std::endl << std::endl;
 
 
 
+	//////////////////////////////////////////////
+	////////////// Instantiate controller ////////
+	//////////////////////////////////////////////
+
 
 
 	verilogFile << std::endl << "//create the controller " << std::endl;
-	verilogFile << "controller control0(.CLK(CLK),\n\t.start_test(start_test),\n\t.reset(reset),\n\t.error(error),\n\t.timer_reached(timerReached),\n\t.reset_counter(reset_counter),\n\t.controlSignals({";
+	verilogFile << "controller control0(.CLK(CLK),\n"
+		<< "\t.start_test(start_test),\n"
+		<< "\t.reset(reset),\n"
+		<< "\t.error(error),\n"
+		<< "\t.timer_reached(timerReached),\n"
+		<< "\t.reset_counter(reset_counter),\n";
+
+	// signals between the main controller and the BRAM controllers
+
+
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			int BRAMPathOwner = fpgaLogic[i][j][0].owner.path;
+			int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
+			int addressIndex = -1;
+			if (isBRAMwithController(i, j, addressIndex))
+			{
+				verilogFile << "\t.error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+					<<"error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+				verilogFile << "\t.done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+					<< "done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+				verilogFile << "\t.reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+					<< "reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+				verilogFile << "\t.start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+					<< "start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+				verilogFile << "\t.address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+					<< "address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+			}
+		}
+	}
+
+
+	verilogFile << "\t.controlSignals({";
+
 	for (i = 0; i < (int)controlSignals.size() - 1; i++)
 	{
 		verilogFile << " PATH" << controlSignals[i].path << "NODE" << controlSignals[i].node << "Con, ";
@@ -480,7 +627,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 }
 
 
-bool isBRAMControllerUsed(int iBRAM, int jBRAM, int testPhase)
+bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, int & testedAddressPortIndex)
 {
 	if (memoryControllers[iBRAM][jBRAM].size() > 0) // memory controller is needed
 	{
@@ -488,6 +635,8 @@ bool isBRAMControllerUsed(int iBRAM, int jBRAM, int testPhase)
 		int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
 		bool BRAMCurrentlyTested = false;
 
+
+		testedAddressPortIndex = -1;
 		// we will define the controller type abased on what ports need to be controlled
 		// summing the 2^port gives a unique number for each controller type
 		int controllerType = 0;
@@ -517,6 +666,11 @@ bool isBRAMControllerUsed(int iBRAM, int jBRAM, int testPhase)
 
 					assert(!paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][0].deleted);
 
+					// tested must be an address port of port A
+					assert(paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][fpgaLogic[iBRAM][jBRAM][0].nodes[k].node].BRAMPortIn == BRAMportAAddress);
+					// return which pin is being tested
+					testedAddressPortIndex = paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][fpgaLogic[iBRAM][jBRAM][0].nodes[k].node].BRAMPortInIndex;
+
 					BRAMCurrentlyTested = true;
 					break;
 				}
@@ -531,7 +685,7 @@ bool isBRAMControllerUsed(int iBRAM, int jBRAM, int testPhase)
 
 
 
-bool isBRAMwithController(int i, int j)
+bool isBRAMwithController(int i, int j, int & addressIndex)
 {
 
 	
@@ -542,7 +696,7 @@ bool isBRAMwithController(int i, int j)
 		// we will define the controller type abased on what ports need to be controlled
 		// summing the 2^port gives a unique number for each controller type
 		int controllerType = 0;
-		int addressIndex = -1;
+		addressIndex = -1;
 		for (int k = 0; k < memoryControllers[i][j].size(); k++)
 		{
 			controllerType += pow(2, memoryControllers[i][j][k].first);
@@ -668,7 +822,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					controllerFile << "input done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
 					controllerFile << "output reg reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
 					controllerFile << "output reg start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
-					controllerFile << "output reg [" << memoryControllers[i][j][addressIndex].second << " : 0] address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
+					controllerFile << "output reg [" << memoryControllers[i][j][addressIndex].second-1 << ":0] address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
 				}
 			}
 		}
@@ -734,7 +888,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 
 	// sticky module for timer reahed
 	controllerFile << "// sticky modules for timer and done signals from BRAM is they exist\n\n\n";
-	controllerFile << "sticky_register (.clk(CLK), .d(timer_reached), .reset(timer_reached_sticky_reset), .q(timer_reached_sticky));\n\n" << std::endl;
+	controllerFile << "sticky_register timerReachedStickyReg (.clk(CLK), .d(timer_reached), .reset(timer_reached_sticky_reset), .q(timer_reached_sticky));\n\n" << std::endl;
 
 
 
@@ -766,8 +920,10 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
 				{
 					controllerFile << "wire done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_sticky;\n";
-					controllerFile << "sticky_register (.clk(CLK), .d(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner 
-						<< "_BRAM), .reset(timer_reached_sticky_reset), .q(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_sticky));\n" << std::endl;
+					controllerFile << "sticky_register done_sticky_register_PATH" << BRAMPathOwner  << "NODE" 
+						<< BRAMNodeOwner << " (.clk(CLK), .d(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner
+						<< "_BRAM), .reset(timer_reached_sticky_reset), .q(done_PATH" << BRAMPathOwner
+						<< "NODE" << BRAMNodeOwner << "_BRAM_sticky));\n" << std::endl;
 				}
 			}
 		}
@@ -830,8 +986,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	controllerFile << "assign srcTgl = srcIn ^ srcIn_before;" << std::endl << std::endl;
 
 
-	controllerFile << "// 5 cycles after the input source toggle, the sink register should toggle" << std::endl;
-	controllerFile << "shift_reg #(.L(5)) shiftRegSrcTgl(.CLK(CLK),.in(srcTgl),.out(enableErrorChecking));" << std::endl << std::endl;
+	controllerFile << "// 4 cycles after the input source toggle, the sink register should toggle" << std::endl;
+	controllerFile << "shift_reg #(.L(4)) shiftRegSrcTgl(.CLK(CLK),.in(srcTgl),.out(enableErrorChecking));" << std::endl << std::endl;
 
 
 	controllerFile << std::endl << "assign controlSignals = controlSignals_temp;" << std::endl;
@@ -895,8 +1051,25 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	///////////////////////////// 
 	//combinational part of the FSM 
 	///////////////////////////
+
+	// check if there are any address_to_test
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			int BRAMPathOwner = fpgaLogic[i][j][0].owner.path;
+			int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
+			int addressIndex = -1;
+			if (isBRAMwithController(i, j, addressIndex))
+			{
+				controllerFile << "reg [" << memoryControllers[i][j][addressIndex].second << " : 0] address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling;\n";
+			}
+		}
+	}
+
+
 	controllerFile << "always @ (*) begin" << std::endl;
-	controllerFile << "\\default values " << std::endl;
+	controllerFile << "//default values " << std::endl;
 
 	// BRAM start_test and reset_test default values
 
@@ -906,15 +1079,18 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 		{			
 			int BRAMPathOwner = fpgaLogic[i][j][0].owner.path;
 			int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
-			if (isBRAMwithController(i, j))
+			int addressIndex = -1;
+			if (isBRAMwithController(i, j, addressIndex))
 			{
 				controllerFile << "\treset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n";
 				controllerFile << "\tstart_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n";
+				controllerFile << "\taddress_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling <= {" << memoryControllers[i][j][addressIndex].second 
+					<< "{1'b0}};\n";
 			}		
 		}
 	}
 
-	controllerFile << "\ttimer_reached_sticky_reset <= 1'b0\n";
+	controllerFile << "\ttimer_reached_sticky_reset <= 1'b0;\n";
 	controllerFile << "\tdone_state <= 1'b1;\n";
 	controllerFile << "\tcase (state)" << std::endl;
 	controllerFile << "\t\tIdle : begin" << std::endl;
@@ -1272,7 +1448,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 			if (l == 0) // reset phase
 			{
 				// reset the sticky register
-				controllerFile << "\t\t\ttimer_reached_sticky_reset <= 1'b1" << std::endl;
+				controllerFile << "\t\t\ttimer_reached_sticky_reset <= 1'b1;" << std::endl;
 			}
 			////////////////////////////////
 			///////// control signals //////
@@ -1715,7 +1891,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				{
 					for (int jBRAM = 0; jBRAM < FPGAsizeY; jBRAM++)
 					{
-						bool BRAMCurrentlyTested = isBRAMControllerUsed( iBRAM, jBRAM, i);
+						int testedAddressPortIndex = -1;
+						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase( iBRAM, jBRAM, i, testedAddressPortIndex);
 						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
 						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
 						// if BRAM is currently tested then let's add it to the errorSignalDivision
@@ -1723,6 +1900,12 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 						{
 							errorSignalDivision[testPhaseCount].push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
 							BRAMControllersTestedNow.push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
+
+							// set the corresponding test address
+							controllerFile << "\t\t\taddress_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
+								<< "] <= 1'b1;\n";
+							
+
 							//controllerFile << "| errorVec[" << j << "] ";
 						}
 					}
@@ -1789,14 +1972,20 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				{
 					for (int jBRAM = 0; jBRAM < FPGAsizeY; jBRAM++)
 					{
-						bool BRAMCurrentlyTested = isBRAMControllerUsed(iBRAM, jBRAM, i);
+						int testedAddressPortIndex = -1;
+						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase(iBRAM, jBRAM, i, testedAddressPortIndex);
 						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
 						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
 						// if BRAM is currently tested then let's add it to the errorSignalDivision
 						if (BRAMCurrentlyTested)
 						{
-							errorSignalDivision[testPhaseCount].push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
+
 							BRAMControllersTestedNow.push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
+
+							// set the corresponding test address
+							controllerFile << "\t\t\taddress_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
+								<< "] <= 1'b1;\n";
+
 							//controllerFile << "| errorVec[" << j << "] ";
 						}
 					}
@@ -1889,6 +2078,40 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	///// end case
 	controllerFile << "\tendcase" << std::endl;
 	controllerFile << "end" << std::endl;
+
+	// assign address to test mate
+
+	bool alwaysBlockflag = false;
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			int BRAMPathOwner = fpgaLogic[i][j][0].owner.path;
+			int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
+			int addressIndex = -1;
+			if (isBRAMwithController(i, j, addressIndex))
+			{
+				if (!alwaysBlockflag)
+				{
+					controllerFile << "always @ (posedge CLK)\n"
+						<< "begin\n";
+					alwaysBlockflag = true;
+				}
+				controllerFile << "\taddress_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= ("
+					<< "address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM ^ "
+					<< "address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling) | "
+					<< "~address_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling;\n";
+			}
+		}
+	}
+
+	if (alwaysBlockflag)
+	{
+		controllerFile << "end\n\n";
+	}
+
+
+
 	controllerFile << std::endl << "//// instantiate counter for reset phases basically just counter to flush the orTree and relax timing requirments for control signals" << std::endl;
 	// find maximum latenct of or network, i.e max depth of the network. So first find maximum input
 	int max = (int)errorSignalDivision[0].size();
@@ -2154,6 +2377,7 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 		sources, 
 		cascadedControlSignals, 
 		verilogFileSecondPart,
+		memories,
 		bitStreamNumber);
 
 	// comment out for BRAM testing checking

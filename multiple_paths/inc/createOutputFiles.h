@@ -29,3 +29,6 @@ void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool t
 // pritns WysyWigs for all BRAMs, this might be used for testing BRAMs only
 void generate_BRAMsWYSYWIGs(std::vector<BRAM>  memories, int bitStreamNumber);
 
+// returns true if bram in location i and j is used and has a BRAM test controller with it for testing
+bool isBRAMwithController(int i, int j, int & addressIndex);
+
