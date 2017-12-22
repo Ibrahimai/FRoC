@@ -62,19 +62,27 @@
 // BRAM inputs
 #define BRAMinputPortsSize 6
 #define BRAMportAData 0
-#define BRAMportAAddress 1
+#define BRAMportAAddress 1 // done testing
 #define BRAMportAWE 2
 #define BRAMportBData 3
-#define BRAMportBAddress 4
+#define BRAMportBAddress 4 // done testing
 #define BRAMportBWE 5
 
 // BRAM outputs
 #define BRAMoutputPortsSize 2
 #define BRAMportAout 0
 #define BRAMportBout 1
-
-// BRAM controller types
+///////////////////////////////
+// BRAM controller types///////
+///////////////////////////////
+// address in read incapable (address of port a) --> we must control data_in_a, we_a, addr_b
 #define ADDRESS_READ_INCAPABLE_CONTROLLER 21
+// data in read incapable (data in of port a) --> we must control addr_a, we_a, addr_b 
+#define DATAIN_READ_INCAPABLE_CONTROLLER 22
+// data in from read capable (option 1: data in of port a) --> we must control addr_a, we_a
+#define DATAIN_READ_CAPABLE_CONTROLLER_PORTA 6
+// data in from read capable (option 2: data in of port b) --> we must control addr_b, we_b
+#define DATAIN_READ_CAPABLE_CONTROLLER_PORTB 52
 
 
 // FF modes

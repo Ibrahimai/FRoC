@@ -24,11 +24,16 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 
 
 // prints a WYSIWYG for a single BRAM (memoryCell) into the verilogFile
-void BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories, std::vector <Path_logic_component> & sinks);
+std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories, std::vector <Path_logic_component> & sinks);
 
 // pritns WysyWigs for all BRAMs, this might be used for testing BRAMs only
 void generate_BRAMsWYSYWIGs(std::vector<BRAM>  memories, int bitStreamNumber);
 
-// returns true if bram in location i and j is used and has a BRAM test controller with it for testing
-bool isBRAMwithController(int i, int j, int & addressIndex);
+// return true if BRAM at i and j has a controller
+// returnts the controller type and the size of the tested port
+bool isBRAMwithController(int i, int j, int & testedPortSize, int & controllerType, std::vector<BRAM>  memories);
+
+// returns the size of the port port of the BRAM located in x & y
+// ignores the weird case of 2 bram wysiwygs located in the same pgysical BRAM
+int getBRAMPortSize(int x, int y, int BRAMportInfo, std::vector<BRAM>  memories);
 
