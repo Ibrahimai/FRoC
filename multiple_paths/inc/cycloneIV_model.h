@@ -77,6 +77,7 @@
 ///////////////////////////////
 // address in read incapable (address of port a) --> we must control data_in_a, we_a, addr_b
 #define ADDRESS_READ_INCAPABLE_CONTROLLER 21
+
 // data in read incapable (data in of port a) --> we must control addr_a, we_a, addr_b 
 #define DATAIN_READ_INCAPABLE_CONTROLLER 22
 // data in from read capable (option 1: data in of port a) --> we must control addr_a, we_a
@@ -84,6 +85,12 @@
 // data in from read capable (option 2: data in of port b) --> we must control addr_b, we_b
 #define DATAIN_READ_CAPABLE_CONTROLLER_PORTB 52
 
+// WE read incapable (WEof port a) --> we must control addr_a, data_in_a, addr_b 
+#define WE_READ_INCAPABLE_CONTROLLER 19
+// WE from read capable (option 1: WE of port a) --> we must control addr_a, data_in_a
+#define WE_READ_CAPABLE_CONTROLLER_PORTA 3
+// WE from read capable (option 2: WE of port b) --> we must control addr_b, data_in_b
+#define WE_READ_CAPABLE_CONTROLLER_PORTB 24
 
 // FF modes
 #define dInput 0

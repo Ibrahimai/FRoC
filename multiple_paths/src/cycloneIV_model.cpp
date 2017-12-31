@@ -215,7 +215,7 @@ BRAM::BRAM(int xLoc, int yLoc)
 	portBDataWidth = -1;
 	portAAddressWidth = -1;
 	portBAddressWidth = -1;
-	portAWE = -1;
+	portAWE = false;
 	portARE = false;
 	portBWE = false;
 	portBRE = false;

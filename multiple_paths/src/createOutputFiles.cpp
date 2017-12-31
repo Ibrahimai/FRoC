@@ -253,7 +253,13 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 					verilogFile << "wire done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
 					verilogFile << "wire reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
 					verilogFile << "wire start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
-					verilogFile << "wire [" << testedPortSize - 1 << ":0] info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+					if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+						|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+						|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+						|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+					{
+						verilogFile << "wire [" << testedPortSize - 1 << ":0] info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+					}
 
 				}
 
@@ -409,6 +415,82 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						}
 					}
 				}
+
+				// WE controller
+				if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+					|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
+				{
+					if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
+						verilogFile << "controller_WE #(.data_width(" << getBRAMPortSize(i,j, BRAMportBData, memories) << "),\n";
+					else
+						verilogFile << "controller_WE #(.data_width(" << getBRAMPortSize(i, j, BRAMportAData, memories) << "),\n";
+
+					// if BRAM is not registered then say taht to the controller
+					if (!memories[memIndex].portARegistered)
+						verilogFile << "\t.isBRAMReg(0),\n";
+
+
+					if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
+						verilogFile << "\t.address_width(" << fpgaLogic[i][j][0].BRAMinputPorts[BRAMportBAddress].size() << "),\n";
+					else
+						verilogFile << "\t.address_width(" << fpgaLogic[i][j][0].BRAMinputPorts[BRAMportAAddress].size() << "),\n";
+
+					verilogFile << "\t.Latency(" << TESTING_LATENCY << ")) controller_BRAM_" << BRAMPathOwner << "_" << BRAMNodeOwner
+						<< " (.clk(CLK),\n"
+						<< "\t.startTest(start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.reset(reset),\n"
+						<< "\t.resetTest(reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+					if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA)
+						verilogFile << "\t.BRAM_dataOut(PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_a_dataout),\n";
+					else
+						verilogFile << "\t.BRAM_dataOut(PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_b_dataout),\n";
+
+					verilogFile << "\t.error(error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.done(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+
+					for (int k = 0; k < memoryControllers[i][j].size(); k++)
+					{
+						if (memoryControllers[i][j][k].first == BRAMportAWE)
+							assert(false);
+						else if (memoryControllers[i][j][k].first == BRAMportAData)
+							verilogFile << "\t.data_in({";
+						else if (memoryControllers[i][j][k].first == BRAMportBAddress)
+							if (memories[memIndex].operationMode == simpleDualPort)
+								verilogFile << "\t.port_r_address_optional({";
+							else
+								verilogFile << "\t.port_w_address({";
+						else if (memoryControllers[i][j][k].first == BRAMportBData)
+							verilogFile << "\t.data_in({";
+						else if (memoryControllers[i][j][k].first == BRAMportAAddress)
+							verilogFile << "\t.port_w_address({";
+						else
+						{
+							assert(false);
+						}
+
+						int counter = 0;
+						for (counter = memoryControllers[i][j][k].second - 1; counter >= 1; counter--)
+						{
+							verilogFile << "PATH" + std::to_string(BRAMPathOwner) + "NODE" + std::to_string(BRAMNodeOwner)
+								+ "_" + portNumbertoName(memoryControllers[i][j][k].first) + "_control_" + std::to_string(counter) + ",";
+						}
+						verilogFile << "PATH" + std::to_string(BRAMPathOwner) + "NODE" + std::to_string(BRAMNodeOwner)
+							+ "_" + portNumbertoName(memoryControllers[i][j][k].first) + "_control_" + std::to_string(counter) + "})";
+
+						// last iteration
+						if (k == memoryControllers[i][j].size() - 1)
+						{
+							verilogFile << ");\n\n";
+						}
+						else
+						{
+							verilogFile << ",\n";
+						}
+					}
+				}
 			}
 		}
 	}
@@ -521,9 +603,14 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 
 				verilogFile << "\t.start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
 					<< "start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
-
-				verilogFile << "\t.info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
-					<< "info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+					|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+				{
+					verilogFile << "\t.info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+				}
 
 			}
 		}
@@ -713,7 +800,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 }
 
 
-bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, int & testedAddressPortIndex)
+bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, int & testedAddressPortIndex, int & controllerType)
 {
 
 
@@ -729,7 +816,7 @@ bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, in
 		testedAddressPortIndex = -1;
 		// we will define the controller type abased on what ports need to be controlled
 		// summing the 2^port gives a unique number for each controller type
-		int controllerType = 0;
+		controllerType = 0;
 		//int addressIndex = -1;
 		for (int kBRAM = 0; kBRAM < memoryControllers[iBRAM][jBRAM].size(); kBRAM++)
 		{
@@ -742,7 +829,10 @@ bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, in
 		if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
 			|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
-			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+			|| controllerType == WE_READ_INCAPABLE_CONTROLLER
+			|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+			|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
 		{
 			// this BRAM is tested, so let's check if any path ends there and being tested in the current test phase
 			for (int k = 0; k < (int)fpgaLogic[iBRAM][jBRAM][0].nodes.size(); k++)
@@ -801,7 +891,10 @@ bool isBRAMwithController(int i, int j, int & testedPortSize, int & controllerTy
 		if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
 			|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
-			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+			|| controllerType == WE_READ_INCAPABLE_CONTROLLER
+			|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+			|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
 		{
 
 			testedPortSize = -1;
@@ -824,6 +917,9 @@ bool isBRAMwithController(int i, int j, int & testedPortSize, int & controllerTy
 				assert(testedPortSize == -1);
 				testedPortSize = getBRAMPortSize(i, j, BRAMportBData, memories);
 			}
+
+
+
 
 			return true;
 		}
@@ -935,7 +1031,10 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
 					|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
-					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+					|| controllerType == WE_READ_INCAPABLE_CONTROLLER
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
 				{
 					//assert(addressIndex >= 0);
 					controllerFile << "// Control signals to BRAM test controller \n\t";
@@ -1063,7 +1162,10 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
 					|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
-					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+					|| controllerType == WE_READ_INCAPABLE_CONTROLLER
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
 				{
 					controllerFile << "wire done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_sticky;\n";
 					controllerFile << "sticky_register done_sticky_register_PATH" << BRAMPathOwner  << "NODE" 
@@ -1207,11 +1309,19 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 			int BRAMNodeOwner = fpgaLogic[i][j][0].owner.node;
 			int testedPortSize = -1;
 			int controllerType = -1;
+
+			
 			if (isBRAMwithController(i, j, testedPortSize, controllerType, memories))
 			{
+				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+					|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+				{
 
-				controllerFile << "reg [" << testedPortSize - 1 << " : 0] info_to_test_PATH"
-					<< BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling;\n";
+					controllerFile << "reg [" << testedPortSize - 1 << " : 0] info_to_test_PATH"
+						<< BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling;\n";
+				}
 
 			}
 		}
@@ -1236,8 +1346,14 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				controllerFile << "\treset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n";
 				controllerFile << "\tstart_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n";
 
-				controllerFile << "\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling <= {"
-				<< testedPortSize << "{1'b0}};\n";
+				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+					|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+				{
+					controllerFile << "\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling <= {"
+						<< testedPortSize << "{1'b0}};\n";
+				}
 				
 			}		
 		}
@@ -2045,7 +2161,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					for (int jBRAM = 0; jBRAM < FPGAsizeY; jBRAM++)
 					{
 						int testedAddressPortIndex = -1;
-						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase( iBRAM, jBRAM, i, testedAddressPortIndex);
+						int controllerType = -1;
+						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase( iBRAM, jBRAM, i, testedAddressPortIndex, controllerType);
 						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
 						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
 						// if BRAM is currently tested then let's add it to the errorSignalDivision
@@ -2054,9 +2171,15 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 							errorSignalDivision[testPhaseCount].push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
 							BRAMControllersTestedNow.push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
 
-							// set the corresponding test address
-							controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
-								<< "] <= 1'b1;\n";
+							if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+								|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+							{
+								// set the corresponding info to test address or data
+								controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
+									<< "] <= 1'b1;\n";
+							}
 							
 
 							//controllerFile << "| errorVec[" << j << "] ";
@@ -2126,19 +2249,25 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					for (int jBRAM = 0; jBRAM < FPGAsizeY; jBRAM++)
 					{
 						int testedAddressPortIndex = -1;
-						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase(iBRAM, jBRAM, i, testedAddressPortIndex);
+						int controllerType = -1;
+						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase(iBRAM, jBRAM, i, testedAddressPortIndex, controllerType);
 						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
 						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
-						// if BRAM is currently tested then let's add it to the errorSignalDivision
+
 						if (BRAMCurrentlyTested)
 						{
 
 							BRAMControllersTestedNow.push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
-
-							// set the corresponding test address
-							controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
-								<< "] <= 1'b1;\n";
-
+							if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+								|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+								)
+							{
+								// set the corresponding info to test (address or data in)
+								controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
+									<< "] <= 1'b1;\n";
+							}
 							//controllerFile << "| errorVec[" << j << "] ";
 						}
 					}
@@ -3664,9 +3793,11 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 		{
 			bool needsControlling = false;
 			
+			int numOfTestedPorts = 0;
 			// testing the address port 
 			if (isPortTested(x, y, 0, BRAMportAAddress))
 			{
+				numOfTestedPorts++;
 				// memory is simple dual port
 				// testing the address port of the write only port (port A)
 				if (memory.operationMode == simpleDualPort)
@@ -3693,6 +3824,7 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 			// testing the data port 
 			if (isPortTested(x, y, 0, BRAMportBData) || isPortTested(x, y, 0, BRAMportAData))
 			{
+				numOfTestedPorts++;
 				int data_inPort;
 				// assign the correct port
 				if (isPortTested(x, y, 0, BRAMportBData))
@@ -3741,7 +3873,62 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 
 			}
 
+			// write enable testing
+			if (isPortTested(x, y, 0, BRAMportAWE)|| isPortTested(x, y, 0, BRAMportBWE))
+			{
+				numOfTestedPorts++;
+				int data_inPort;
+				// assign the correct port
+				if (isPortTested(x, y, 0, BRAMportBWE))
+					data_inPort = BRAMportBWE;
+				else
+					data_inPort = BRAMportAWE;
+				assert(!needsControlling);
+				// if it's the data in of the corresponding port, address of corresponding port then we need to control it
+				if (BRAMportInfo == data_inPort - 1 || BRAMportInfo == data_inPort - 2)
+				{
+					needsControlling = true;
+					interSignal += "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+						+ "_" + portNumbertoName(BRAMportInfo) + "_control_" + std::to_string(i);
+					if (i != last)
+						interSignal += ", ";
+
+					int controllerIndex = -1;
+					if (!isPortMarked(x, y, BRAMportInfo, controllerIndex))
+						memoryControllers[x][y].push_back(std::make_pair(BRAMportInfo, 1));
+					else
+						(memoryControllers[x][y])[controllerIndex].second++;
+
+				}
+				// if we are testing WE of port A and this memory is simple dual
+				// then port a is write only, so we need to control port B address to read
+				if (isPortTested(x, y, 0, BRAMportAWE) && memory.operationMode == simpleDualPort)
+				{
+
+					if (BRAMportInfo == BRAMportBAddress)
+					{
+						needsControlling = true;
+						interSignal += "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+							+ "_" + portNumbertoName(BRAMportInfo) + "_control_" + std::to_string(i);
+						if (i != last)
+							interSignal += ", ";
+
+						int controllerIndex = -1;
+						if (!isPortMarked(x, y, BRAMportInfo, controllerIndex))
+							memoryControllers[x][y].push_back(std::make_pair(BRAMportInfo, 1));
+						else
+							(memoryControllers[x][y])[controllerIndex].second++;
+
+					}
+
+				}
+
+
+			}
 			
+
+			assert(numOfTestedPorts <= 1);
+
 			// if it doesnot need controlling
 			if (!needsControlling)
 			{
