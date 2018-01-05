@@ -491,6 +491,79 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						}
 					}
 				}
+
+				// dataout
+				if (controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
+				{
+					if (controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA || controllerType == DATAOUT_ROM_CONTROLLER_PORTA)
+						verilogFile << "controller_WE #(.data_width(" << getBRAMPortSize(i, j, BRAMportAData, memories) << "),\n";
+					else
+						verilogFile << "controller_WE #(.data_width(" << getBRAMPortSize(i, j, BRAMportBData, memories) << "),\n";
+
+					// if BRAM is not registered then say taht to the controller
+					if (!memories[memIndex].portARegistered)
+						verilogFile << "\t.isBRAMReg(0),\n";
+
+
+					if (controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA || controllerType == DATAOUT_ROM_CONTROLLER_PORTA)
+						verilogFile << "\t.address_width(" << fpgaLogic[i][j][0].BRAMinputPorts[BRAMportAAddress].size() << "),\n";
+					else
+						verilogFile << "\t.address_width(" << fpgaLogic[i][j][0].BRAMinputPorts[BRAMportBAddress].size() << "),\n";
+
+					verilogFile << "\t.Latency(" << TESTING_LATENCY << ")) controller_BRAM_" << BRAMPathOwner << "_" << BRAMNodeOwner
+						<< " (.clk(CLK),\n"
+						<< "\t.startTest(start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.reset(reset),\n"
+						<< "\t.resetTest(reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+					verilogFile << "\t.checkForErrorsOut(error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.done(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+
+					for (int k = 0; k < memoryControllers[i][j].size(); k++)
+					{
+						
+						if (memoryControllers[i][j][k].first == BRAMportAData)
+							verilogFile << "\t.data_in({";
+						else if (memoryControllers[i][j][k].first == BRAMportBAddress)
+							if (memories[memIndex].operationMode == simpleDualPort)
+								verilogFile << "\t.port_r_address_optional({";
+							else
+								verilogFile << "\t.port_w_address({";
+						else if (memoryControllers[i][j][k].first == BRAMportBData)
+							verilogFile << "\t.data_in({";
+						else if (memoryControllers[i][j][k].first == BRAMportAAddress)
+							verilogFile << "\t.port_w_address({";
+						else
+						{
+							assert(false);
+						}
+
+						int counter = 0;
+						for (counter = memoryControllers[i][j][k].second - 1; counter >= 1; counter--)
+						{
+							verilogFile << "PATH" + std::to_string(BRAMPathOwner) + "NODE" + std::to_string(BRAMNodeOwner)
+								+ "_" + portNumbertoName(memoryControllers[i][j][k].first) + "_control_" + std::to_string(counter) + ",";
+						}
+						verilogFile << "PATH" + std::to_string(BRAMPathOwner) + "NODE" + std::to_string(BRAMNodeOwner)
+							+ "_" + portNumbertoName(memoryControllers[i][j][k].first) + "_control_" + std::to_string(counter) + "})";
+
+						// last iteration
+						if (k == memoryControllers[i][j].size() - 1)
+						{
+							verilogFile << ");\n\n";
+						}
+						else
+						{
+							verilogFile << ",\n";
+						}
+					}
+
+				}
 			}
 		}
 	}
@@ -825,7 +898,8 @@ bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, in
 		//	if (memoryControllers[iBRAM][jBRAM][kBRAM].first == BRAMportBAddress)
 			//	addressIndex = kBRAM;
 		}
-
+		// not checking data out controller as it cannot be a sink
+		// dataout controller are hooked up to BRAMs that are sources to paths
 		if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
 			|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
@@ -894,7 +968,12 @@ bool isBRAMwithController(int i, int j, int & testedPortSize, int & controllerTy
 			|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
 			|| controllerType == WE_READ_INCAPABLE_CONTROLLER
 			|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
-			|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
+			|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+			|| controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+			|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+			|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+			|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+			|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
 		{
 
 			testedPortSize = -1;
@@ -916,6 +995,14 @@ bool isBRAMwithController(int i, int j, int & testedPortSize, int & controllerTy
 			{
 				assert(testedPortSize == -1);
 				testedPortSize = getBRAMPortSize(i, j, BRAMportBData, memories);
+			}
+
+			if (controllerType == WE_READ_INCAPABLE_CONTROLLER
+				|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+				|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
+			{
+				assert(testedPortSize == -1);
+				testedPortSize = 1;
 			}
 
 
@@ -1034,7 +1121,12 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
 					|| controllerType == WE_READ_INCAPABLE_CONTROLLER
 					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
-					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+					|| controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
 				{
 					//assert(addressIndex >= 0);
 					controllerFile << "// Control signals to BRAM test controller \n\t";
@@ -1131,6 +1223,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	// enable Error checking
 	controllerFile << "// enable error checking" << std::endl;
 	controllerFile << "wire enableErrorChecking; " << std::endl << std::endl;
+	controllerFile << " reg [" << sinks.size() - 1 << "] enableErrorCheckingTemp; " << std::endl;
 
 	// sticky module for timer reahed
 	controllerFile << "// sticky modules for timer and done signals from BRAM is they exist\n\n\n";
@@ -1165,7 +1258,12 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
 					|| controllerType == WE_READ_INCAPABLE_CONTROLLER
 					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
-					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB)
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+					|| controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
 				{
 					controllerFile << "wire done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_sticky;\n";
 					controllerFile << "sticky_register done_sticky_register_PATH" << BRAMPathOwner  << "NODE" 
@@ -1203,7 +1301,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	controllerFile << "\t\tsinks_buff <= sinks;" << std::endl;
 	controllerFile << "\t\tsinks_buff_buff <= sinks_buff;" << std::endl;
 	//controllerFile << "\t\terrorVec <= ~(sinks_buff^sinks_buff_buff) ; " << std::endl; //  
-	controllerFile << "\t\terrorVec <= ({"<< sinks.size() <<"{enableErrorChecking}}) & ~(sinks_buff^sinks_buff_buff) ; " << std::endl;
+	//controllerFile << "\t\terrorVec <= ({"<< sinks.size() <<"{enableErrorChecking}}) & ~(sinks_buff^sinks_buff_buff) ; " << std::endl;
+	controllerFile << "\t\terrorVec <= (enableErrorCheckingTemp) & ~(sinks_buff^sinks_buff_buff) ; " << std::endl;
 	controllerFile << "\t\terror <= error_temp;" << std::endl;
 	//	controllerFile << "\t\tcontrolSignals <= controlSignals_temp;" << std::endl;
 	controllerFile << "\tend" << std::endl;
@@ -1358,7 +1457,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 			}		
 		}
 	}
-
+	controllerFile << "\tenableErrorCheckingTemp <= ({ " << sinks.size() << "{enableErrorChecking}})" << std::endl;
 	controllerFile << "\ttimer_reached_sticky_reset <= 1'b0;\n";
 	controllerFile << "\tdone_state <= 1'b1;\n";
 	controllerFile << "\tcase (state)" << std::endl;
@@ -2097,6 +2196,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				/////// Sinks ////////////////////////////
 				//////////////////////////////////////////
 
+				std::vector<std::pair<int, int>> BRAMSources;
+
 				for (j = 0; j <(int)sinks.size(); j++)
 				{
 					// get x, y, z of this sink
@@ -2136,6 +2237,22 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 							assert(!paths[fpgaLogic[x][y][z].nodes[k].path][0].deleted);
 
 							currentlyTested = true;
+
+							// check if the source is a BRAM
+							int testedPath = fpgaLogic[x][y][z].nodes[k].path;
+							int testedNode = fpgaLogic[x][y][z].nodes[k].node;
+							int srcX = paths[testedPath][0].x;
+							int srcY = paths[testedPath][0].y;
+							int srcZ = paths[testedPath][0].z;
+
+							// if the source is a BRAM then adjust the checking for error signal
+							if (fpgaLogic[srcX][srcY][srcZ].isBRAM)
+							{
+								controllerFile << "\t\t\tenableErrorCheckingTemp[" << j << "] <= error_PATH"
+									<< fpgaLogic[srcX][srcY][srcZ].owner.path << "NODE" 
+									<< fpgaLogic[srcX][srcY][srcZ].owner.node << "_BRAM;" << std::endl;
+							}
+
 							break;
 						}
 					}
@@ -3660,7 +3777,7 @@ int getBRAMPortSize(int x, int y, int BRAMportInfo, std::vector<BRAM>  memories)
 	return begin + 1;
 }
 
-// return true if BRAM located in x,y,z uses any pin of input port port
+// return true if BRAM located in x,y,z uses any pin of input port port is tested
 bool isPortTested(int x, int y, int z, int port)
 {
 	assert(z == 0);
@@ -3674,7 +3791,19 @@ bool isPortTested(int x, int y, int z, int port)
 	return false;
 }
 
+// return true if BRAM located in x,y,z uses any pin of output port portOut is tested
+bool isOutPortTested(int x, int y, int z, int portOut)
+{
+	assert(z == 0);
 
+	assert(fpgaLogic[x][y][z].isBRAM);
+
+	for (int i = 0; i < fpgaLogic[x][y][z].BRAMoutputPorts[portOut].size(); i++)
+		if (fpgaLogic[x][y][z].BRAMoutputPorts[portOut][i])
+			return true;
+
+	return false;
+}
 // return true if BRAMportInfor oin lox x, y is alread marked as need to control
 bool isPortMarked(int x, int y, int BRAMportInfo, int & index)
 {
@@ -3925,6 +4054,91 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 
 
 			}
+
+			// output data is being tested
+			if (isOutPortTested(x, y, 0, BRAMportAout) || isOutPortTested(x, y, 0, BRAMportBout))
+			{
+				assert(!needsControlling);
+				numOfTestedPorts++;
+				int data_outPort;
+				// assign the correct port
+				if (isOutPortTested(x, y, 0, BRAMportBout))
+					data_outPort = BRAMportAout;
+				else
+					data_outPort = BRAMportBout;
+
+				
+				if (memory.operationMode == simpleDualPort)
+				{
+					// check that the tested port is port B as A must be a write only
+					assert(data_outPort == BRAMportBout);
+
+					// need to control WE_A, data_in_A, address_A & address_B
+					if (BRAMportInfo == BRAMportAWE || BRAMportInfo == BRAMportAAddress 
+						|| BRAMportInfo == BRAMportAData || BRAMportInfo == BRAMportBAddress)
+					{
+						needsControlling = true;
+						interSignal += "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+							+ "_" + portNumbertoName(BRAMportInfo) + "_control_" + std::to_string(i);
+						if (i != last)
+							interSignal += ", ";
+													int controllerIndex = -1;
+						if (!isPortMarked(x, y, BRAMportInfo, controllerIndex))
+							memoryControllers[x][y].push_back(std::make_pair(BRAMportInfo, 1));
+						else
+							(memoryControllers[x][y])[controllerIndex].second++;
+
+					}
+
+				}
+				else// the tested port can be used for reading and writing
+				{	
+					if (data_outPort == BRAMportAout)
+					{
+						// need to control WE_A, data_in_A, address_A 
+						if (BRAMportInfo == BRAMportAWE || BRAMportInfo == BRAMportAAddress
+							|| BRAMportInfo == BRAMportAData)
+						{
+							needsControlling = true;
+							interSignal += "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+								+ "_" + portNumbertoName(BRAMportInfo) + "_control_" + std::to_string(i);
+							if (i != last)
+								interSignal += ", ";
+							int controllerIndex = -1;
+							if (!isPortMarked(x, y, BRAMportInfo, controllerIndex))
+								memoryControllers[x][y].push_back(std::make_pair(BRAMportInfo, 1));
+							else
+								(memoryControllers[x][y])[controllerIndex].second++;
+
+						}
+					}
+					else
+					{
+						// need to control WE_B, data_in_B, address_B 
+						if (BRAMportInfo == BRAMportBWE || BRAMportInfo == BRAMportBAddress
+							|| BRAMportInfo == BRAMportBData)
+						{
+							needsControlling = true;
+							interSignal += "PATH" + std::to_string(pathOwner) + "NODE" + std::to_string(nodeOwner)
+								+ "_" + portNumbertoName(BRAMportInfo) + "_control_" + std::to_string(i);
+							if (i != last)
+								interSignal += ", ";
+							int controllerIndex = -1;
+							if (!isPortMarked(x, y, BRAMportInfo, controllerIndex))
+								memoryControllers[x][y].push_back(std::make_pair(BRAMportInfo, 1));
+							else
+								(memoryControllers[x][y])[controllerIndex].second++;
+
+						}
+					}
+				
+				}
+
+
+
+
+				
+			}
 			
 
 			assert(numOfTestedPorts <= 1);
@@ -4048,7 +4262,8 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 			// new
 
 			bool portUsed = false;
-
+			// if it's not a ROM then add data in
+			//if(memoryCell.operationMode != ROMPort)
 			verilogFile << ".portadatain({" << assign_BRAM_intemediateSignals(memoriesList[i], BRAMportAData, i, memoriesList, portUsed) << "})," << std::endl;
 
 			// if a port is used before then the current port must not be used

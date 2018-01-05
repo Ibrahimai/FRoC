@@ -783,6 +783,10 @@ void parseUsedMemories(std::vector<BRAM> & memories)
 			{
 				operationMode = trueDualPort;
 			}
+			else if (modeLine == "ROM")
+			{
+				operationMode = singlePort;
+			}
 			else
 			{
 				std::cout << modeLine << " is not a known mode!! Terminating" << std::endl;

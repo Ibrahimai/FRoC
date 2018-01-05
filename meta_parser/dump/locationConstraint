@@ -1,237 +1,307 @@
 PATH1
-set_location_assignment M9K_X15_Y69_N0 -to "PATH1NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH1NODE0"
 PATH2
-set_location_assignment M9K_X15_Y69_N0 -to "PATH2NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH2NODE0"
 PATH3
-set_location_assignment M9K_X15_Y69_N0 -to "PATH3NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH3NODE0"
 PATH4
-set_location_assignment M9K_X15_Y69_N0 -to "PATH4NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH4NODE0"
 PATH5
-set_location_assignment M9K_X15_Y69_N0 -to "PATH5NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH5NODE0"
 PATH6
-set_location_assignment M9K_X15_Y69_N0 -to "PATH6NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH6NODE0"
 PATH7
-set_location_assignment M9K_X15_Y69_N0 -to "PATH7NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH7NODE0"
 PATH8
-set_location_assignment M9K_X15_Y69_N0 -to "PATH8NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH8NODE0"
 PATH9
-set_location_assignment M9K_X51_Y72_N0 -to "PATH9NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH9NODE0"
 PATH10
-set_location_assignment M9K_X51_Y72_N0 -to "PATH10NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH10NODE0"
 PATH11
-set_location_assignment M9K_X51_Y72_N0 -to "PATH11NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH11NODE0"
 PATH12
-set_location_assignment M9K_X51_Y72_N0 -to "PATH12NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH12NODE0"
 PATH13
-set_location_assignment M9K_X51_Y72_N0 -to "PATH13NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH13NODE0"
 PATH14
-set_location_assignment M9K_X51_Y72_N0 -to "PATH14NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH14NODE0"
 PATH15
-set_location_assignment M9K_X51_Y72_N0 -to "PATH15NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH15NODE0"
 PATH16
-set_location_assignment M9K_X51_Y72_N0 -to "PATH16NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH16NODE0"
 PATH17
-set_location_assignment M9K_X37_Y72_N0 -to "PATH17NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH17NODE0"
 PATH18
-set_location_assignment M9K_X37_Y72_N0 -to "PATH18NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH18NODE0"
 PATH19
-set_location_assignment M9K_X37_Y72_N0 -to "PATH19NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH19NODE0"
 PATH20
-set_location_assignment M9K_X37_Y72_N0 -to "PATH20NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH20NODE0"
 PATH21
-set_location_assignment M9K_X37_Y72_N0 -to "PATH21NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH21NODE0"
 PATH22
-set_location_assignment M9K_X37_Y72_N0 -to "PATH22NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH22NODE0"
 PATH23
-set_location_assignment M9K_X37_Y72_N0 -to "PATH23NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH23NODE0"
 PATH24
-set_location_assignment M9K_X37_Y72_N0 -to "PATH24NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH24NODE0"
 PATH25
-set_location_assignment M9K_X15_Y70_N0 -to "PATH25NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH25NODE0"
 PATH26
-set_location_assignment M9K_X15_Y70_N0 -to "PATH26NODE0"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH26NODE0"
 PATH27
-set_location_assignment M9K_X15_Y70_N0 -to "PATH27NODE0"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH27NODE0"
 PATH28
-set_location_assignment M9K_X15_Y70_N0 -to "PATH28NODE0"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH28NODE0"
 PATH29
-set_location_assignment M9K_X15_Y70_N0 -to "PATH29NODE0"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH29NODE0"
 PATH30
-set_location_assignment M9K_X15_Y70_N0 -to "PATH30NODE0"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH30NODE0"
 PATH31
-set_location_assignment M9K_X15_Y70_N0 -to "PATH31NODE0"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH31NODE0"
 PATH32
-set_location_assignment FF_X14_Y70_N9 -to "PATH32NODE0"
-set_location_assignment M9K_X15_Y70_N0 -to "PATH32NODE1"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH32NODE0"
 PATH33
-set_location_assignment FF_X16_Y69_N29 -to "PATH33NODE0"
-set_location_assignment LCCOMB_X16_Y69_N0 -to "PATH33NODE1"
-set_location_assignment FF_X16_Y69_N1 -to "PATH33NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH33NODE0"
 PATH34
-set_location_assignment FF_X14_Y70_N19 -to "PATH34NODE0"
-set_location_assignment LCCOMB_X14_Y70_N8 -to "PATH34NODE1"
-set_location_assignment FF_X14_Y70_N9 -to "PATH34NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH34NODE0"
 PATH35
-set_location_assignment FF_X36_Y72_N13 -to "PATH35NODE0"
-set_location_assignment LCCOMB_X36_Y72_N28 -to "PATH35NODE1"
-set_location_assignment FF_X36_Y72_N29 -to "PATH35NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH35NODE0"
 PATH36
-set_location_assignment FF_X36_Y72_N25 -to "PATH36NODE0"
-set_location_assignment LCCOMB_X36_Y72_N4 -to "PATH36NODE1"
-set_location_assignment FF_X36_Y72_N5 -to "PATH36NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH36NODE0"
 PATH37
-set_location_assignment FF_X36_Y72_N7 -to "PATH37NODE0"
-set_location_assignment LCCOMB_X36_Y72_N26 -to "PATH37NODE1"
-set_location_assignment FF_X36_Y72_N27 -to "PATH37NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH37NODE0"
 PATH38
-set_location_assignment FF_X50_Y72_N19 -to "PATH38NODE0"
-set_location_assignment LCCOMB_X50_Y72_N8 -to "PATH38NODE1"
-set_location_assignment FF_X50_Y72_N9 -to "PATH38NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH38NODE0"
 PATH39
-set_location_assignment FF_X52_Y72_N13 -to "PATH39NODE0"
-set_location_assignment LCCOMB_X52_Y72_N26 -to "PATH39NODE1"
-set_location_assignment FF_X52_Y72_N27 -to "PATH39NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH39NODE0"
+set_location_assignment LCCOMB_X65_Y72_N0 -to "PATH39NODE1"
+set_location_assignment FF_X65_Y72_N1 -to "PATH39NODE2"
 PATH40
-set_location_assignment FF_X14_Y69_N7 -to "PATH40NODE0"
-set_location_assignment LCCOMB_X14_Y69_N26 -to "PATH40NODE1"
-set_location_assignment FF_X14_Y69_N27 -to "PATH40NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH40NODE0"
+set_location_assignment LCCOMB_X65_Y71_N28 -to "PATH40NODE1"
+set_location_assignment FF_X65_Y71_N29 -to "PATH40NODE2"
 PATH41
-set_location_assignment FF_X52_Y72_N19 -to "PATH41NODE0"
-set_location_assignment LCCOMB_X52_Y72_N24 -to "PATH41NODE1"
-set_location_assignment FF_X52_Y72_N25 -to "PATH41NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH41NODE0"
+set_location_assignment LCCOMB_X63_Y72_N0 -to "PATH41NODE1"
+set_location_assignment FF_X63_Y72_N1 -to "PATH41NODE2"
 PATH42
-set_location_assignment FF_X52_Y72_N21 -to "PATH42NODE0"
-set_location_assignment LCCOMB_X52_Y72_N22 -to "PATH42NODE1"
-set_location_assignment FF_X52_Y72_N23 -to "PATH42NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH42NODE0"
+set_location_assignment LCCOMB_X61_Y71_N20 -to "PATH42NODE1"
+set_location_assignment FF_X61_Y71_N21 -to "PATH42NODE2"
 PATH43
-set_location_assignment FF_X52_Y72_N11 -to "PATH43NODE0"
-set_location_assignment LCCOMB_X52_Y72_N8 -to "PATH43NODE1"
-set_location_assignment FF_X52_Y72_N9 -to "PATH43NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH43NODE0"
+set_location_assignment LCCOMB_X60_Y71_N8 -to "PATH43NODE1"
+set_location_assignment FF_X60_Y71_N9 -to "PATH43NODE2"
 PATH44
-set_location_assignment FF_X14_Y69_N25 -to "PATH44NODE0"
-set_location_assignment LCCOMB_X14_Y69_N8 -to "PATH44NODE1"
-set_location_assignment FF_X14_Y69_N9 -to "PATH44NODE2"
+set_location_assignment M9K_X64_Y71_N0 -to "PATH44NODE0"
+set_location_assignment LCCOMB_X63_Y71_N0 -to "PATH44NODE1"
+set_location_assignment FF_X63_Y71_N1 -to "PATH44NODE2"
 PATH45
-set_location_assignment FF_X16_Y69_N19 -to "PATH45NODE0"
-set_location_assignment LCCOMB_X16_Y69_N30 -to "PATH45NODE1"
-set_location_assignment FF_X16_Y69_N31 -to "PATH45NODE2"
+set_location_assignment FF_X96_Y72_N21 -to "PATH45NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH45NODE1"
 PATH46
-set_location_assignment FF_X38_Y72_N19 -to "PATH46NODE0"
-set_location_assignment LCCOMB_X38_Y72_N26 -to "PATH46NODE1"
-set_location_assignment FF_X38_Y72_N27 -to "PATH46NODE2"
+set_location_assignment FF_X98_Y72_N5 -to "PATH46NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH46NODE1"
 PATH47
-set_location_assignment FF_X36_Y72_N19 -to "PATH47NODE0"
-set_location_assignment LCCOMB_X36_Y72_N30 -to "PATH47NODE1"
-set_location_assignment FF_X36_Y72_N31 -to "PATH47NODE2"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH47NODE0"
+set_location_assignment LCCOMB_X77_Y72_N8 -to "PATH47NODE1"
+set_location_assignment FF_X77_Y72_N9 -to "PATH47NODE2"
 PATH48
-set_location_assignment FF_X36_Y72_N17 -to "PATH48NODE0"
-set_location_assignment LCCOMB_X36_Y72_N20 -to "PATH48NODE1"
-set_location_assignment FF_X36_Y72_N21 -to "PATH48NODE2"
+set_location_assignment FF_X77_Y72_N5 -to "PATH48NODE0"
+set_location_assignment LCCOMB_X72_Y72_N4 -to "PATH48NODE1"
+set_location_assignment FF_X72_Y72_N5 -to "PATH48NODE2"
 PATH49
-set_location_assignment FF_X50_Y72_N11 -to "PATH49NODE0"
-set_location_assignment LCCOMB_X50_Y72_N4 -to "PATH49NODE1"
-set_location_assignment FF_X50_Y72_N5 -to "PATH49NODE2"
+set_location_assignment FF_X65_Y72_N29 -to "PATH49NODE0"
+set_location_assignment LCCOMB_X65_Y72_N0 -to "PATH49NODE1"
+set_location_assignment FF_X65_Y72_N1 -to "PATH49NODE2"
 PATH50
-set_location_assignment FF_X14_Y69_N21 -to "PATH50NODE0"
-set_location_assignment LCCOMB_X14_Y69_N28 -to "PATH50NODE1"
-set_location_assignment FF_X14_Y69_N29 -to "PATH50NODE2"
+set_location_assignment FF_X65_Y71_N5 -to "PATH50NODE0"
+set_location_assignment LCCOMB_X65_Y71_N28 -to "PATH50NODE1"
+set_location_assignment FF_X65_Y71_N29 -to "PATH50NODE2"
 PATH51
-set_location_assignment FF_X14_Y69_N19 -to "PATH51NODE0"
-set_location_assignment LCCOMB_X14_Y69_N30 -to "PATH51NODE1"
-set_location_assignment FF_X14_Y69_N31 -to "PATH51NODE2"
+set_location_assignment FF_X90_Y72_N31 -to "PATH51NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH51NODE1"
 PATH52
-set_location_assignment FF_X14_Y69_N13 -to "PATH52NODE0"
-set_location_assignment LCCOMB_X14_Y69_N16 -to "PATH52NODE1"
-set_location_assignment FF_X14_Y69_N17 -to "PATH52NODE2"
+set_location_assignment FF_X60_Y71_N29 -to "PATH52NODE0"
+set_location_assignment LCCOMB_X60_Y71_N8 -to "PATH52NODE1"
+set_location_assignment FF_X60_Y71_N9 -to "PATH52NODE2"
 PATH53
-set_location_assignment FF_X38_Y72_N29 -to "PATH53NODE0"
-set_location_assignment LCCOMB_X38_Y72_N24 -to "PATH53NODE1"
-set_location_assignment FF_X38_Y72_N25 -to "PATH53NODE2"
+set_location_assignment FF_X65_Y72_N29 -to "PATH53NODE0"
+set_location_assignment LCCOMB_X65_Y72_N30 -to "PATH53NODE1"
+set_location_assignment FF_X65_Y72_N31 -to "PATH53NODE2"
 PATH54
-set_location_assignment FF_X36_Y72_N3 -to "PATH54NODE0"
-set_location_assignment LCCOMB_X36_Y72_N10 -to "PATH54NODE1"
-set_location_assignment FF_X36_Y72_N11 -to "PATH54NODE2"
+set_location_assignment FF_X79_Y70_N19 -to "PATH54NODE0"
+set_location_assignment LCCOMB_X79_Y70_N4 -to "PATH54NODE1"
+set_location_assignment FF_X79_Y70_N5 -to "PATH54NODE2"
 PATH55
-set_location_assignment FF_X52_Y72_N3 -to "PATH55NODE0"
-set_location_assignment LCCOMB_X52_Y72_N4 -to "PATH55NODE1"
-set_location_assignment FF_X52_Y72_N5 -to "PATH55NODE2"
+set_location_assignment FF_X90_Y72_N1 -to "PATH55NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH55NODE1"
 PATH56
-set_location_assignment FF_X50_Y72_N29 -to "PATH56NODE0"
-set_location_assignment LCCOMB_X50_Y72_N26 -to "PATH56NODE1"
-set_location_assignment FF_X50_Y72_N27 -to "PATH56NODE2"
+set_location_assignment FF_X77_Y72_N5 -to "PATH56NODE0"
+set_location_assignment LCCOMB_X77_Y72_N8 -to "PATH56NODE1"
+set_location_assignment FF_X77_Y72_N9 -to "PATH56NODE2"
 PATH57
-set_location_assignment FF_X14_Y69_N3 -to "PATH57NODE0"
-set_location_assignment LCCOMB_X14_Y69_N10 -to "PATH57NODE1"
-set_location_assignment FF_X14_Y69_N11 -to "PATH57NODE2"
+set_location_assignment FF_X65_Y71_N5 -to "PATH57NODE0"
+set_location_assignment LCCOMB_X65_Y71_N2 -to "PATH57NODE1"
+set_location_assignment FF_X65_Y71_N3 -to "PATH57NODE2"
 PATH58
-set_location_assignment FF_X50_Y72_N5 -to "PATH58NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH58NODE1"
+set_location_assignment FF_X60_Y71_N31 -to "PATH58NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH58NODE1"
 PATH59
-set_location_assignment FF_X50_Y72_N9 -to "PATH59NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH59NODE1"
+set_location_assignment FF_X85_Y72_N25 -to "PATH59NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH59NODE1"
 PATH60
-set_location_assignment FF_X36_Y72_N5 -to "PATH60NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH60NODE1"
+set_location_assignment FF_X86_Y72_N27 -to "PATH60NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH60NODE1"
 PATH61
-set_location_assignment FF_X14_Y69_N29 -to "PATH61NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH61NODE1"
+set_location_assignment FF_X79_Y70_N5 -to "PATH61NODE0"
+set_location_assignment M9K_X78_Y70_N0 -to "PATH61NODE1"
 PATH62
-set_location_assignment FF_X38_Y72_N25 -to "PATH62NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH62NODE1"
+set_location_assignment FF_X86_Y72_N5 -to "PATH62NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH62NODE1"
 PATH63
-set_location_assignment FF_X16_Y69_N1 -to "PATH63NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH63NODE1"
+set_location_assignment FF_X61_Y71_N15 -to "PATH63NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH63NODE1"
 PATH64
-set_location_assignment FF_X52_Y72_N27 -to "PATH64NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH64NODE1"
+set_location_assignment FF_X63_Y71_N7 -to "PATH64NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH64NODE1"
 PATH65
-set_location_assignment FF_X52_Y72_N25 -to "PATH65NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH65NODE1"
+set_location_assignment FF_X72_Y72_N5 -to "PATH65NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH65NODE1"
 PATH66
-set_location_assignment FF_X50_Y72_N27 -to "PATH66NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH66NODE1"
+set_location_assignment FF_X63_Y71_N29 -to "PATH66NODE0"
+set_location_assignment LCCOMB_X63_Y71_N0 -to "PATH66NODE1"
+set_location_assignment FF_X63_Y71_N1 -to "PATH66NODE2"
 PATH67
-set_location_assignment FF_X38_Y72_N27 -to "PATH67NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH67NODE1"
+set_location_assignment FF_X63_Y71_N29 -to "PATH67NODE0"
+set_location_assignment LCCOMB_X63_Y71_N6 -to "PATH67NODE1"
+set_location_assignment FF_X63_Y71_N7 -to "PATH67NODE2"
 PATH68
-set_location_assignment FF_X36_Y72_N29 -to "PATH68NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH68NODE1"
+set_location_assignment FF_X63_Y72_N29 -to "PATH68NODE0"
+set_location_assignment LCCOMB_X63_Y72_N0 -to "PATH68NODE1"
+set_location_assignment FF_X63_Y72_N1 -to "PATH68NODE2"
 PATH69
-set_location_assignment FF_X14_Y69_N11 -to "PATH69NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH69NODE1"
+set_location_assignment FF_X61_Y71_N29 -to "PATH69NODE0"
+set_location_assignment LCCOMB_X61_Y71_N14 -to "PATH69NODE1"
+set_location_assignment FF_X61_Y71_N15 -to "PATH69NODE2"
 PATH70
-set_location_assignment FF_X36_Y72_N11 -to "PATH70NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH70NODE1"
+set_location_assignment FF_X60_Y71_N29 -to "PATH70NODE0"
+set_location_assignment LCCOMB_X60_Y71_N30 -to "PATH70NODE1"
+set_location_assignment FF_X60_Y71_N31 -to "PATH70NODE2"
 PATH71
-set_location_assignment FF_X36_Y72_N27 -to "PATH71NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH71NODE1"
+set_location_assignment FF_X61_Y71_N29 -to "PATH71NODE0"
+set_location_assignment LCCOMB_X61_Y71_N20 -to "PATH71NODE1"
+set_location_assignment FF_X61_Y71_N21 -to "PATH71NODE2"
 PATH72
-set_location_assignment FF_X14_Y69_N27 -to "PATH72NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH72NODE1"
+set_location_assignment FF_X63_Y72_N29 -to "PATH72NODE0"
+set_location_assignment LCCOMB_X63_Y72_N26 -to "PATH72NODE1"
+set_location_assignment FF_X63_Y72_N27 -to "PATH72NODE2"
 PATH73
-set_location_assignment FF_X52_Y72_N23 -to "PATH73NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH73NODE1"
+set_location_assignment FF_X90_Y72_N29 -to "PATH73NODE0"
+set_location_assignment LCCOMB_X90_Y72_N0 -to "PATH73NODE1"
+set_location_assignment FF_X90_Y72_N1 -to "PATH73NODE2"
 PATH74
-set_location_assignment FF_X14_Y69_N9 -to "PATH74NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH74NODE1"
+set_location_assignment FF_X98_Y72_N19 -to "PATH74NODE0"
+set_location_assignment LCCOMB_X98_Y72_N4 -to "PATH74NODE1"
+set_location_assignment FF_X98_Y72_N5 -to "PATH74NODE2"
 PATH75
-set_location_assignment FF_X14_Y69_N17 -to "PATH75NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH75NODE1"
+set_location_assignment FF_X60_Y72_N19 -to "PATH75NODE0"
+set_location_assignment LCCOMB_X60_Y72_N28 -to "PATH75NODE1"
+set_location_assignment FF_X60_Y72_N29 -to "PATH75NODE2"
 PATH76
-set_location_assignment FF_X52_Y72_N5 -to "PATH76NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH76NODE1"
+set_location_assignment FF_X77_Y72_N19 -to "PATH76NODE0"
+set_location_assignment LCCOMB_X77_Y72_N30 -to "PATH76NODE1"
+set_location_assignment FF_X77_Y72_N31 -to "PATH76NODE2"
 PATH77
-set_location_assignment FF_X16_Y69_N31 -to "PATH77NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH77NODE1"
+set_location_assignment FF_X96_Y72_N19 -to "PATH77NODE0"
+set_location_assignment LCCOMB_X96_Y72_N20 -to "PATH77NODE1"
+set_location_assignment FF_X96_Y72_N21 -to "PATH77NODE2"
 PATH78
-set_location_assignment FF_X14_Y69_N31 -to "PATH78NODE0"
-set_location_assignment M9K_X15_Y69_N0 -to "PATH78NODE1"
+set_location_assignment FF_X36_Y72_N19 -to "PATH78NODE0"
+set_location_assignment LCCOMB_X36_Y72_N8 -to "PATH78NODE1"
+set_location_assignment FF_X36_Y72_N9 -to "PATH78NODE2"
 PATH79
-set_location_assignment FF_X52_Y72_N9 -to "PATH79NODE0"
-set_location_assignment M9K_X51_Y72_N0 -to "PATH79NODE1"
+set_location_assignment FF_X38_Y72_N11 -to "PATH79NODE0"
+set_location_assignment LCCOMB_X38_Y72_N24 -to "PATH79NODE1"
+set_location_assignment FF_X38_Y72_N25 -to "PATH79NODE2"
 PATH80
-set_location_assignment FF_X36_Y72_N31 -to "PATH80NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH80NODE1"
+set_location_assignment FF_X90_Y72_N19 -to "PATH80NODE0"
+set_location_assignment LCCOMB_X90_Y72_N30 -to "PATH80NODE1"
+set_location_assignment FF_X90_Y72_N31 -to "PATH80NODE2"
 PATH81
 set_location_assignment FF_X36_Y72_N21 -to "PATH81NODE0"
-set_location_assignment M9K_X37_Y72_N0 -to "PATH81NODE1"
+set_location_assignment LCCOMB_X36_Y72_N30 -to "PATH81NODE1"
+set_location_assignment FF_X36_Y72_N31 -to "PATH81NODE2"
+PATH82
+set_location_assignment FF_X38_Y72_N19 -to "PATH82NODE0"
+set_location_assignment LCCOMB_X38_Y72_N12 -to "PATH82NODE1"
+set_location_assignment FF_X38_Y72_N13 -to "PATH82NODE2"
+PATH83
+set_location_assignment FF_X36_Y72_N11 -to "PATH83NODE0"
+set_location_assignment LCCOMB_X36_Y72_N12 -to "PATH83NODE1"
+set_location_assignment FF_X36_Y72_N13 -to "PATH83NODE2"
+PATH84
+set_location_assignment FF_X86_Y72_N13 -to "PATH84NODE0"
+set_location_assignment LCCOMB_X86_Y72_N4 -to "PATH84NODE1"
+set_location_assignment FF_X86_Y72_N5 -to "PATH84NODE2"
+PATH85
+set_location_assignment FF_X85_Y72_N19 -to "PATH85NODE0"
+set_location_assignment LCCOMB_X85_Y72_N24 -to "PATH85NODE1"
+set_location_assignment FF_X85_Y72_N25 -to "PATH85NODE2"
+PATH86
+set_location_assignment FF_X86_Y72_N19 -to "PATH86NODE0"
+set_location_assignment LCCOMB_X86_Y72_N26 -to "PATH86NODE1"
+set_location_assignment FF_X86_Y72_N27 -to "PATH86NODE2"
+PATH87
+set_location_assignment FF_X36_Y72_N7 -to "PATH87NODE0"
+set_location_assignment LCCOMB_X36_Y72_N4 -to "PATH87NODE1"
+set_location_assignment FF_X36_Y72_N5 -to "PATH87NODE2"
+PATH88
+set_location_assignment FF_X36_Y72_N25 -to "PATH88NODE0"
+set_location_assignment LCCOMB_X36_Y72_N22 -to "PATH88NODE1"
+set_location_assignment FF_X36_Y72_N23 -to "PATH88NODE2"
+PATH89
+set_location_assignment FF_X38_Y72_N29 -to "PATH89NODE0"
+set_location_assignment LCCOMB_X38_Y72_N26 -to "PATH89NODE1"
+set_location_assignment FF_X38_Y72_N27 -to "PATH89NODE2"
+PATH90
+set_location_assignment FF_X36_Y72_N5 -to "PATH90NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH90NODE1"
+PATH91
+set_location_assignment FF_X36_Y72_N9 -to "PATH91NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH91NODE1"
+PATH92
+set_location_assignment FF_X36_Y72_N13 -to "PATH92NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH92NODE1"
+PATH93
+set_location_assignment FF_X60_Y72_N29 -to "PATH93NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH93NODE1"
+PATH94
+set_location_assignment FF_X77_Y72_N31 -to "PATH94NODE0"
+set_location_assignment M9K_X78_Y72_N0 -to "PATH94NODE1"
+PATH95
+set_location_assignment FF_X65_Y72_N31 -to "PATH95NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH95NODE1"
+PATH96
+set_location_assignment FF_X63_Y72_N27 -to "PATH96NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH96NODE1"
+PATH97
+set_location_assignment FF_X38_Y72_N27 -to "PATH97NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH97NODE1"
+PATH98
+set_location_assignment FF_X38_Y72_N13 -to "PATH98NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH98NODE1"
+PATH99
+set_location_assignment FF_X38_Y72_N25 -to "PATH99NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH99NODE1"
+PATH100
+set_location_assignment FF_X36_Y72_N23 -to "PATH100NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH100NODE1"
+PATH101
+set_location_assignment FF_X36_Y72_N31 -to "PATH101NODE0"
+set_location_assignment M9K_X37_Y72_N0 -to "PATH101NODE1"
+PATH102
+set_location_assignment FF_X65_Y71_N3 -to "PATH102NODE0"
+set_location_assignment M9K_X64_Y72_N0 -to "PATH102NODE1"

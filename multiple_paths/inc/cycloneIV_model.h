@@ -26,6 +26,7 @@
 #define singlePort (0)
 #define simpleDualPort (1)
 #define trueDualPort (2)
+#define ROMPort (3)
 
 
 
@@ -72,6 +73,7 @@
 #define BRAMoutputPortsSize 2
 #define BRAMportAout 0
 #define BRAMportBout 1
+
 ///////////////////////////////
 // BRAM controller types///////
 ///////////////////////////////
@@ -91,6 +93,19 @@
 #define WE_READ_CAPABLE_CONTROLLER_PORTA 3
 // WE from read capable (option 2: WE of port b) --> we must control addr_b, data_in_b
 #define WE_READ_CAPABLE_CONTROLLER_PORTB 24
+
+
+// data out from a simple dual port (data out of port b) --> we must control we_a, addr_a, data_in_a, addr_b 
+#define DATAOUT_SIMPLE_DUAL_CONTROLLER 23
+// data out from read/write port a  --> we must control addr_a, data_in_a, we_a
+#define DATAOUT_NORMAL_CONTROLLER_PORTA 7
+// data out from read/write port b  --> we must control addr_b, data_in_b, we_b (true dual port)
+#define DATAOUT_NORMAL_CONTROLLER_PORTB 56
+// data out from ROM port a --> we must control addr_a
+#define DATAOUT_ROM_CONTROLLER_PORTA 2
+// data out from ROM port b --> we must control addr_b
+#define DATAOUT_ROM_CONTROLLER_PORTB 16
+
 
 // FF modes
 #define dInput 0
