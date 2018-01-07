@@ -292,7 +292,7 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	}
 
 
-	if (remove_LUT_or_FF_in_LE() > 0) // not in ILP
+	if (remove_LUT_or_FF_in_LE() > 0) // not in ILP // new handled BRAM :)
 		scheduleChanged = true;
 
 	std::cout << "after removing LAB/reg in the same LE conflict number of Luts is :";
@@ -300,7 +300,7 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	
 	if (!ILPform)
 	{
-		if (remove_fanin_higher_than_three() > 0) // added to ILP
+		if (remove_fanin_higher_than_three() > 0) // added to ILP // new handled BRAM and deletes paths to BRAM :)
 			scheduleChanged = true;
 
 		std::cout << "after removing fanin higher than three  number of Luts is ,";
@@ -310,7 +310,7 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	check_LE_outputs();
 	if (!ILPform)
 	{
-		if (remove_arithLUT_with_two_inputs_and_no_cin() > 0)
+		if (remove_arithLUT_with_two_inputs_and_no_cin() > 0) // new handled BRAM :)
 			scheduleChanged = true;
 	}
 
@@ -325,10 +325,10 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	if (!ILPform)
 	{
 
-		if(remove_to_fix_off_path_inputs() > 0) // added to ILP
+		if(remove_to_fix_off_path_inputs() > 0) // added to ILP // todo: need to handle memory for this case
 			scheduleChanged = true;
 
-		if(remove_to_toggle_source() > 0) // added to ILP
+		if(remove_to_toggle_source() > 0) // added to ILP // todo: need to handle memory for this case
 			scheduleChanged = true;
 	}
 
@@ -1198,6 +1198,13 @@ int runiFRoC(int argc, char* argv[])
 	//generate_BRAMsWYSYWIGs(memories,0);
 	//remove_fanin_higher_than_three();
 	// create Output Files
+	remove_feedback_paths();
+	remove_LUT_or_FF_in_LE();
+	remove_fanin_higher_than_three();
+	remove_arithLUT_with_two_inputs_and_no_cin();
+	remove_to_match_routing_constraint();
+	remove_to_fix_off_path_inputs();
+	remove_to_toggle_source();
 
 	assign_test_phases_ib(false);
 	create_location_contraint_file(0);

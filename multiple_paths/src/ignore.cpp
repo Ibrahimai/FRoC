@@ -6,6 +6,20 @@
 int free_cell(int x, int y, int z); // deletes all path in cell x,y,z
 int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs); // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based on the importance of the port (the more critical the port the more important it is)
 int reduce_number_of_LUT_inputs_maximize_tested_paths(int x, int y, int z, int excessInputs); // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based ;
+
+
+// delete paths to legalize a BRAM
+int handle_number_of_ports_used_in_BRAM(int i, int j, int k)
+{
+	int totalDeleted = 0;
+
+	// ensure that we are only using a single input port of the BRAM
+	totalDeleted += reduce_number_of_LUT_inputs(i, j, k, 0);
+
+
+
+}
+
 int remove_fanin_higher_than_three() // esnures that he number of inputs + the number of required control signals is <= LUTs inputs
 {
 
@@ -21,6 +35,13 @@ int remove_fanin_higher_than_three() // esnures that he number of inputs + the n
 		{
 			for (k = 0; k < FPGAsizeZ; k++)
 			{
+
+				if (fpgaLogic[i][j][k].isBRAM)
+				{
+					totalIn += handle_number_of_ports_used_in_BRAM(i, j, k);
+					continue;
+				}
+
 				requiredControlSignals = 1;// by default we need at least one control signal to control the edge transition (edge)
 
 
@@ -99,6 +120,9 @@ int remove_LUT_or_FF_in_LE() // checks if there exists a LUT and a reg in the sa
 		{
 			for (k = 0; k < FPGAsizeZ; k+= LUTFreq) // only LUTs
 			{
+				if (fpgaLogic[i][j][k].isBRAM) // not LUT so skip
+					continue;
+
 				if (fpgaLogic[i][j][k].utilization == 0) // not used LUT so skip
 					continue;
 
@@ -141,51 +165,114 @@ int remove_LUT_or_FF_in_LE() // checks if there exists a LUT and a reg in the sa
 	return totalDeleted;
 }
 
-int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs) // deletes path to free "excessInputs" in LUT i,j,k paths are deleted based on the importance of the port (the more critical the port the more important it is)
+// deletes path to free "excessInputs" in LUT i,j,k paths are deleted 
+// based on the importance of the port (the more critical the port the more important it is)
+int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs) 
 {
-	assert(fpgaLogic[x][y][z].usedInputPorts <= LUTinputSize);
+	bool isBRAM = fpgaLogic[x][y][z];
 
+	if(!isBRAM)
+		assert(fpgaLogic[x][y][z].usedInputPorts <= LUTinputSize);
+	else
+	{
+		// if it's a BRAM then we delete everything except for one port
+		excessInputs = fpgaLogic[x][y][z].BRAMinputPorts.size() + fpgaLogic[x][y][z].BRAMoutputPorts.size() - 1;
+	}
 	if (excessInputs < 1) // nothing to delete
 		return 0;
 
 	std::vector <bool> inputsSeen;
-	inputsSeen.resize(LUTinputSize+1); // +1 for cin
+	if (!isBRAM)
+		inputsSeen.resize(LUTinputSize + 1); // +1 for cin
+	else
+		inputsSeen.resize(fpgaLogic[x][y][z].BRAMinputPorts.size() + fpgaLogic[x][y][z].BRAMoutputPorts.size());
+
 	std::fill(inputsSeen.begin(), inputsSeen.end(), false);
 
 	std::vector <std::pair<int, int>> inputImportance;
 	inputImportance.resize(0);
 	int pathsDeleted = 0;
 	int tempPort;
+	int isInput = 0;
 
 	for (int i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
 	{
 		if (paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted) // deleted path so ignore it
 			continue;
 
-		tempPort = paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].portIn;
+		if (!isBRAM)
+			tempPort = paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].portIn;
+		else
+		{
+			isInput = 0;
+			// check if this path uses the BRAM as a source or a sink
+			if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortIn == -1)
+			{
+				assert(paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortOut > -1);
+				tempPort = paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortOut;
+			}
+			else
+			{
+				tempPort = paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortIn;
+				isInput = 1;
+			}
+			
+		}
 
 		if (!inputsSeen[tempPort]) // have not seen this input port before
 		{
 			inputsSeen[tempPort] = true;
-			inputImportance.push_back(std::make_pair(tempPort, fpgaLogic[x][y][z].nodes[i].path));
+			inputImportance.push_back(std::make_pair(tempPort, isInput));
 		}
 	}
 
+	// now let's free the inputs (or outputs incase of the BRAM)
 	for (int i = 0; i < excessInputs; i++)
 	{
 		tempPort = inputImportance[inputImportance.size() - 1 - i].first; // get the least important port
+		isInput = inputImportance[inputImportance.size() - 1 - i].second; // see if this is an input or output port (only for BRAM)
+
 		for (int j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
 		{
 			if (paths[fpgaLogic[x][y][z].nodes[j].path][0].deleted)
 				continue;
 
-			if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].portIn == tempPort)
+			if (!isBRAM)
 			{
-				if (delete_path(fpgaLogic[x][y][z].nodes[j].path))
+				if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].portIn == tempPort)
 				{
-					pathsDeleted++;
+					if (delete_path(fpgaLogic[x][y][z].nodes[j].path))
+					{
+						pathsDeleted++;
+					}
 				}
 			}
+			else
+			{
+				if (isInput)
+				{
+					// this is an input port of the BRAM
+					if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].BRAMPortIn == tempPort)
+					{
+						if (delete_path(fpgaLogic[x][y][z].nodes[j].path))
+						{
+							pathsDeleted++;
+						}
+					}
+				}
+				else
+				{
+					// this is an output pot of the BRAM
+					if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].BRAMPortOut == tempPort)
+					{
+						if (delete_path(fpgaLogic[x][y][z].nodes[j].path))
+						{
+							pathsDeleted++;
+						}
+					}
+				}
+			}
+
 		}
 
 	}
@@ -282,6 +369,9 @@ int remove_arithLUT_with_two_inputs_and_no_cin()
 		{
 			for (k = 0; k < FPGAsizeZ; k++)
 			{
+				if (fpgaLogic[i][j][k].isBRAM)
+					continue;
+
 				if (fpgaLogic[i][j][k].outputPorts[Cout - 5])// cout is used 
 				{
 					if (fpgaLogic[i][j][k].usedInputPorts>1) // more than one fanin
@@ -504,8 +594,12 @@ int remove_to_match_routing_constraint()
 	return total;
 }
 
-
-int remove_to_fix_off_path_inputs() // off path inputs can be fixed using the fix signals. However, this is not enough sometimes you can have reconvergent fanout, this is dealt with in the reconvergent fanout function. This function handles the case when the off-path input is fed by a regiser. It checks if this register can have its output fixed while we test the LUT it is feeding.
+// off path inputs can be fixed using the fix signals. 
+//However, this is not enough sometimes you can have reconvergent fanout, 
+//this is dealt with in the reconvergent fanout function. 
+//This function handles the case when the off-path input is fed by a regiser.
+//It checks if this register can have its output fixed while we test the LUT it is feeding.
+int remove_to_fix_off_path_inputs() 
 {
 	int total = 0;
 
@@ -524,6 +618,10 @@ int remove_to_fix_off_path_inputs() // off path inputs can be fixed using the fi
 			for (int k = 0; k < FPGAsizeZ; k++)
 			{
 				if (k%LUTFreq != 0) // if it's a reg then skip
+					continue;
+
+				// todo: see how to handle BRAM for this case
+				if (fpgaLogic[i][j][k].isBRAM)
 					continue;
 
 				// LUTs only
@@ -578,7 +676,9 @@ int remove_to_fix_off_path_inputs() // off path inputs can be fixed using the fi
 								continue;
 
 							// check if this path feeds the reg
-							if (paths[tempNode.path][tempNode.node + 1].x == feeederX && paths[tempNode.path][tempNode.node + 1].y == feeederY && paths[tempNode.path][tempNode.node + 1].z == feeederZ)
+							if (paths[tempNode.path][tempNode.node + 1].x == feeederX 
+								&& paths[tempNode.path][tempNode.node + 1].y == feeederY 
+								&& paths[tempNode.path][tempNode.node + 1].z == feeederZ)
 							{
 								pathsToReg.push_back(tempNode.path);
 							}
@@ -692,7 +792,8 @@ int  remove_to_toggle_source()
 			}
 		}
 
-		if (!shouldDelete) // path i was not deleted as we can toggle the source reg. But now we will check can we toggle the source reg and at the same time keep all off path-inputs of path i fixed ?
+		if (!shouldDelete) // path i was not deleted as we can toggle the source reg. 
+		//	But now we will check can we toggle the source reg and at the same time keep all off path - inputs of path i fixed ?
 		{
 
 			int destinationX, destinationY, destinationZ;
@@ -757,6 +858,9 @@ void delete_especial_reconvergent_fanout()
 			tempComponentY = paths[i][j].y;
 			tempComponentZ = paths[i][j].z;
 
+			if (fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].isBRAM)
+				continue;
+
 			for (k = 0; k < (int)fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); k++) // loop across all nodes sharing the LE used by node j in path i
 			{
 				tempNode = fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[k];
@@ -774,7 +878,9 @@ void delete_especial_reconvergent_fanout()
 				}
 
 			}
-			////// if we can control the outpuf of an LE then just ensure that all paths using any node before rootNodes are no tested at the same time as path i
+			////// if we can control the outpuf of an LE 
+			//then just ensure that all paths using any node 
+			//before rootNodes are no tested at the same time as path i
 
 			for (k = 0; k < (int)rootNodes.size(); k++)
 			{
@@ -784,10 +890,13 @@ void delete_especial_reconvergent_fanout()
 				tempComponentZ = paths[tempNode.path][tempNode.node - 1].z;
 			//	if (j == 0)
 			//		std::cout << i << " " << j << std::endl;
-				//// trial studd
-				for (kk = 0; kk <(int)fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) // check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this
+
+			//// trial studd
+			// check the presence of the special reconvergent fanout, if it exists then delete the (less critical) path causing this
+				for (kk = 0; kk <(int)fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); kk++) 
 				{
-					if (i == fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path) // this means the fanout is present so we must delete all paths between tempNode.node and tempNode.node - 1 
+					// this means the fanout is present so we must delete all paths between tempNode.node and tempNode.node - 1 
+					if (i == fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[kk].path) 
 					{
 						//paths[tempNode.path][0].deleted = true;
 #ifdef CycloneIV
@@ -826,7 +935,7 @@ void assign_test_phases_ib(bool ILPform)
 	
 	// if we have removed paths using the ILP formulation then we dont have to handel recovergent fanout sepreately
 	if(!ILPform)
-		delete_especial_reconvergent_fanout();
+		delete_especial_reconvergent_fanout(); // new handled BRAM :)
 	
 	//creates the PRG and add edges to ensure that all 
 	// off path inputs of every tested path is fixed 
@@ -1023,6 +1132,8 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 	Path_logic_component tempNode;
 	std::vector < Path_logic_component > rootNodes;
 	std::vector <bool> inputs(InputPortSize, false);
+
+	std::vector<std::vector<bool>> BRAMInputs;
 	//	Logic_element tempCell;
 	for (i = 0; i < (int)paths.size(); i++) // loop across all paths, another (better todo) approach would be to loop across used logic elements
 	{
@@ -1033,13 +1144,26 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 			tempComponentX = paths[i][j].x;
 			tempComponentY = paths[i][j].y;
 			tempComponentZ = paths[i][j].z;
-
+			bool isBRAM = false;
 			// if it's a BRAM ignore this node
 			// I'll handle BRAMs in another function
 			if (fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].isBRAM)
 			{
+				// simialr to inputs but for BRAM
+				BRAMInputs.clear();
+				BRAMInputs.resize(0);
+				BRAMInputs.resize(fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].BRAMinputPorts.size());
+				
+				for (int counterB = 0; counterB < BRAMInputs.size(); counterB++)
+				{
+					BRAMInputs[counterB].resize(0);
+					for (int counterBB = 0; counterBB < fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].BRAMinputPorts[counterB].size(); counterBB++)
+						BRAMInputs[counterB].push_back(false);
+				}
 				assert(tempComponentZ == 0);
-				continue;
+
+				isBRAM = true;
+				//continue;
 			}
 
 			for (k = 0; k < (int)fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes.size(); k++) // loop across all nodes sharing the LE used by node j in path i
@@ -1048,20 +1172,53 @@ void generate_pathRelationGraph(std::vector < std::vector <int> > & pathRelation
 				if (i == tempNode.path) // same path
 					continue;
 				////// trial stuff
-				if (paths[tempNode.path][0].deleted) // if this path is deleted then dont do anything
-					continue;
-				if (paths[i][j].portIn != paths[tempNode.path][tempNode.node].portIn) // diffenent paths and use different inputs
+				if (isBRAM)
 				{
-					if (!inputs[paths[tempNode.path][tempNode.node].portIn]) // first time to see a path using this input
-					{
-						inputs[paths[tempNode.path][tempNode.node].portIn] = true;
-						rootNodes.push_back(tempNode);
-					}
+					int currentPath = tempNode.path;
+					int currentNode = tempNode.node;
 
+					// this BRAM is the source of the currentPAth, so no need for edges
+					if (currentNode == 0)
+						continue;
+
+					// path inside a BRAM so ignore
+					if (paths[currentPath].size() <= 1)
+						continue;
+
+					if (paths[currentPath][0].deleted) // if this path is deleted then dont do anything
+						continue;
+					// if these two paths are using different inputs then we need to add edges
+					if (paths[currentPath][currentNode].BRAMPortIn != paths[i][j].BRAMPortIn
+						|| paths[currentPath][currentNode].BRAMPortInIndex != paths[i][j].BRAMPortInIndex)
+					{
+						if (!BRAMInputs[paths[currentPath][currentNode].BRAMPortIn][paths[currentPath][currentNode].BRAMPortInIndex]) // first time to see a path using this input
+						{
+							BRAMInputs[paths[currentPath][currentNode].BRAMPortIn][paths[currentPath][currentNode].BRAMPortInIndex] = true;
+							rootNodes.push_back(tempNode);
+						}
+					}
 				}
+				else
+				{
+					if (paths[tempNode.path][0].deleted) // if this path is deleted then dont do anything
+						continue;
+					if (paths[i][j].portIn != paths[tempNode.path][tempNode.node].portIn) // diffenent paths and use different inputs
+					{
+						if (!inputs[paths[tempNode.path][tempNode.node].portIn]) // first time to see a path using this input
+						{
+							inputs[paths[tempNode.path][tempNode.node].portIn] = true;
+							rootNodes.push_back(tempNode);
+						}
+
+					}
+				}
+				
 
 			}
-			assert(rootNodes.size() < InputPortSize - 1);
+			if (!isBRAM)
+				assert(rootNodes.size() < InputPortSize - 1);
+			else
+				assert(rootNodes.size() <= (fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].usedInputPorts));
 			////// if we can control the outpuf of an LE then just ensure that all paths using any node before rootNodes are no tested at the same time as path i
 #ifdef ControlLE
 			for (k = 0; k < (int)rootNodes.size(); k++)
