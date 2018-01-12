@@ -16,7 +16,7 @@ int handle_number_of_ports_used_in_BRAM(int i, int j, int k)
 	// ensure that we are only using a single input port of the BRAM
 	totalDeleted += reduce_number_of_LUT_inputs(i, j, k, 0);
 
-
+	return totalDeleted;
 
 }
 
@@ -25,6 +25,7 @@ int remove_fanin_higher_than_three() // esnures that he number of inputs + the n
 
 	int total = 0;
 	int totalIn = 0;
+	int totalBRAMBasedDeletion = 0;
 	int i, j, k;
 	int avoidable = 0;
 	int requiredControlSignals = 1;// by default we need at least one control signal to control the edge transition (edge)
@@ -38,7 +39,7 @@ int remove_fanin_higher_than_three() // esnures that he number of inputs + the n
 
 				if (fpgaLogic[i][j][k].isBRAM)
 				{
-					totalIn += handle_number_of_ports_used_in_BRAM(i, j, k);
+					totalBRAMBasedDeletion += handle_number_of_ports_used_in_BRAM(i, j, k);
 					continue;
 				}
 
@@ -87,9 +88,16 @@ int remove_fanin_higher_than_three() // esnures that he number of inputs + the n
 			}
 		}
 	}
-	std::cout << "total number of LEs requirng to delete inputs to satusfy number of inputs constraint: " << total << std::endl;
-	std::cout << "**********Number of deleted paths due to number of inputs contraint is : " << totalIn << " **********" << std::endl;
-	std::cout << "Number of deleted paths that could be avoided considering that they dont require a control signal : " << avoidable <<  std::endl;
+	std::cout << "total number of LEs requirng to delete inputs to satusfy number of inputs constraint: " 
+		<< total << std::endl;
+	std::cout << "**********Number of deleted paths due to number of inputs contraint is : "
+		<< totalIn << " **********" << std::endl;
+	std::cout << "**********Number of deleted paths due to BRAM number of ports contraint is : " 
+		<< totalBRAMBasedDeletion << " **********" << std::endl;
+	std::cout << "**********Number of deleted paths due to BRAM number of ports contraint and # of inputs combined is : " 
+		<< totalBRAMBasedDeletion + totalIn << " **********" << std::endl;
+	std::cout << "Number of deleted paths that could be avoided considering that they dont require a control signal : "
+		<< avoidable <<  std::endl;
 	IgnoredPathStats << totalIn << "\t";
 	return totalIn;
 
@@ -169,14 +177,14 @@ int remove_LUT_or_FF_in_LE() // checks if there exists a LUT and a reg in the sa
 // based on the importance of the port (the more critical the port the more important it is)
 int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs) 
 {
-	bool isBRAM = fpgaLogic[x][y][z];
+	bool isBRAM = fpgaLogic[x][y][z].isBRAM;
 
 	if(!isBRAM)
 		assert(fpgaLogic[x][y][z].usedInputPorts <= LUTinputSize);
 	else
 	{
 		// if it's a BRAM then we delete everything except for one port
-		excessInputs = fpgaLogic[x][y][z].BRAMinputPorts.size() + fpgaLogic[x][y][z].BRAMoutputPorts.size() - 1;
+		excessInputs = fpgaLogic[x][y][z].BRAMInputPortsUsed + fpgaLogic[x][y][z].BRAMOutputPortsUsed - 1;
 	}
 	if (excessInputs < 1) // nothing to delete
 		return 0;
@@ -225,7 +233,7 @@ int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs)
 			inputImportance.push_back(std::make_pair(tempPort, isInput));
 		}
 	}
-
+	assert(excessInputs < inputImportance.size());
 	// now let's free the inputs (or outputs incase of the BRAM)
 	for (int i = 0; i < excessInputs; i++)
 	{
@@ -546,6 +554,10 @@ int remove_to_match_routing_constraint()
 	{
 		for (j = 0; j < FPGAsizeY; j++) // loop across all LABs and check localinterconnect utilization
 		{
+			// if it is a BRAM continue
+			if (fpgaLogic[i][j][0].isBRAM)
+				continue;
+
 			nodesWithExternalInput = number_of_distinct_inputs_to_lab(i, j, numberOfDistinctInputs);
 			if (numberOfDistinctInputs < ceil(LocalInterconnectThreshold*LocalInterconnect))
 				continue;
@@ -757,6 +769,14 @@ int  remove_to_toggle_source()
 		int sourceRegY = paths[i][0].y;
 		int sourceRegZ = paths[i][0].z;
 
+		// if it's a BRAM then just continue
+		// because right now we make sure that if the source is a BRAM,
+		// no other port uses this BRAM
+		if (fpgaLogic[sourceRegX][sourceRegY][sourceRegZ].isBRAM)
+		{
+			continue;
+		}
+
 		assert(sourceRegZ%LUTFreq != 0);// muts be reg
 
 		if (paths[i][paths[i].size() - 1].x == sourceRegX && paths[i][paths[i].size() - 1].y == sourceRegY && paths[i][paths[i].size() - 1].z == sourceRegZ) // feedback path so ignore it for now
@@ -843,6 +863,12 @@ void delete_especial_reconvergent_fanout()
 	int deletedPaths = 0;
 	Path_logic_component tempNode;
 	std::vector < Path_logic_component > rootNodes;
+
+	/////// debugging
+	std::ofstream debugFile;
+	std::string RoFileName = "dump.txt";
+	debugFile.open(RoFileName);
+	///////////////// finsh debugging
 	//std::vector <bool> inputs(InputPortSize, false);
 	//	Logic_element tempCell;
 	std::cout << "deleteing paths to satisfy reconvergent fanout condition" << std::endl;
@@ -854,6 +880,8 @@ void delete_especial_reconvergent_fanout()
 		//		std::cout << "debug reconvergent fanout" << std::endl;
 			if (paths[i][0].deleted) // this path is deleted then continue to the next path
 				break;
+			if(i==7460 && j == 38)
+				debugFile << i << " " << j << std::endl;
 			tempComponentX = paths[i][j].x;
 			tempComponentY = paths[i][j].y;
 			tempComponentZ = paths[i][j].z;
@@ -884,6 +912,12 @@ void delete_especial_reconvergent_fanout()
 
 			for (k = 0; k < (int)rootNodes.size(); k++)
 			{
+				if (k == 9 && i == 7460 && j == 38)
+				{
+					debugFile << k << std::endl;
+					debugFile << fpgaLogic[tempComponentX][tempComponentY][tempComponentZ].nodes[0].node << std::endl;
+				}
+
 				tempNode = rootNodes[k];
 				tempComponentX = paths[tempNode.path][tempNode.node - 1].x; // get the location of the LE feeding the node in rootNodes
 				tempComponentY = paths[tempNode.path][tempNode.node - 1].y;
@@ -940,13 +974,14 @@ void assign_test_phases_ib(bool ILPform)
 	//creates the PRG and add edges to ensure that all 
 	// off path inputs of every tested path is fixed 
 	//(cannot test 2 oaths with fan-in overlap)
+	// handles also BRAM
 	generate_pathRelationGraph(pathRelationGraph);
 
 	// add edges for cascaded paths
 	add_cascaded_edges_to_pathRelationGraph(pathRelationGraph);
 
 	// add edges for BRAM man
-	add_edges_for_BRAMs(pathRelationGraph);
+	//add_edges_for_BRAMs(pathRelationGraph);
 
 
 	// start assigning phases ////////////////////////// graph coloring, coloring pathRelationGraph, could be improved significantly
@@ -1052,7 +1087,7 @@ void add_cascaded_edges_to_pathRelationGraph(std::vector < std::vector <int> > &
 
 }
 
-
+// BRAMs are handled in the generate_pathRelationGraph
 void add_edges_for_BRAMs(std::vector < std::vector <int> > & pathRelationGraph)
 {
 
@@ -1098,6 +1133,8 @@ void add_edges_for_BRAMs(std::vector < std::vector <int> > & pathRelationGraph)
 								continue;
 
 							if (i == j)
+								continue;
+							if (paths[currentPath][0].deleted) // if this path is deleted then dont do anything
 								continue;
 
 							// if these two paths are using different inputs then we need to add edges

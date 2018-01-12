@@ -26,6 +26,8 @@ Logic_element::Logic_element()
 	BRAMoutputPorts.resize(0);
 	portAInputCount = 0;
 	portBInputCount = 0;
+	BRAMInputPortsUsed = 0;
+	BRAMOutputPortsUsed = 0;
 	countNumofMem = 0;
 }
 
@@ -85,13 +87,16 @@ void Logic_element::add_node(int p, int n, std::pair <int, int> BRAMportInputInf
 	int count = 0;
 	int i,j;
 
-
-	
+	int inputPortCount = 0;
+	int outputPortCount = 0;
+	int portAcount = 0;
+	int portBcount = 0;
 	if (BRAMportInputInfo.first >= 0)
 	{
 		BRAMinputPorts[BRAMportInputInfo.first][BRAMportInputInfo.second] = true;
 		for (i = 0; i < BRAMinputPorts.size(); i++)
 		{
+			int oldCount = count;
 			for (j = 0; j < BRAMinputPorts[i].size(); j++)
 			{
 				if (BRAMinputPorts[i][j])
@@ -99,27 +104,52 @@ void Logic_element::add_node(int p, int n, std::pair <int, int> BRAMportInputInf
 					count++;
 					if (i <= BRAMportAWE) // then it's port A related
 					{
-						portAInputCount++;
+						//portAInputCount++;
+						portAcount++;
 					}
 					else
 					{
-						portBInputCount++;
+						//portBInputCount++;
+						portBcount++;
 					}
 				}
+			}
+
+			if (oldCount != count)
+			{
+				// port i is used so we will increment the number of used input ports
+				assert(count > oldCount);
+				inputPortCount++;
 			}
 		}
 
 		usedInputPorts = count;
+		BRAMInputPortsUsed = inputPortCount;
+		portAInputCount = portAcount;
+		portBInputCount = portBcount;
 	}
 
 	if (BRAMportOuputInfo.first >= 0)
 	{
 		BRAMoutputPorts[BRAMportOuputInfo.first][BRAMportOuputInfo.second] = true;
 		for (i = 0; i < BRAMoutputPorts.size(); i++)
+		{
+			int oldCount = count;
+
 			for (j = 0; j < BRAMoutputPorts[i].size(); j++)
 				if (BRAMoutputPorts[i][j])
 					count++;
+
+			if (oldCount != count)
+			{
+				// port i is used so we will increment the number of used input ports
+				assert(count > oldCount);
+				outputPortCount++;
+			}
+
+		}
 		usedOutputPorts = count;
+		BRAMOutputPortsUsed = outputPortCount;
 	}
 
 	Path_logic_component temp(p, n);

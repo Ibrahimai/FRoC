@@ -1190,6 +1190,7 @@ int runiFRoC(int argc, char* argv[])
 	///// New trial  stuff ////
 	///////////////////////////
 
+
 	parseUsedMemories(memories);
 	parseRegFileSTA(memories);
 	update_FPGA_fabric_with_memory_info(memories);
@@ -1241,7 +1242,7 @@ int runiFRoC(int argc, char* argv[])
 		std::cout << std::endl;
 	}
 
-
+	std::cout << "Done MAte" << std::endl;
 	return 0;
 
 	///////////////////////////

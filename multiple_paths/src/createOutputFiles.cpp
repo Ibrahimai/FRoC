@@ -721,6 +721,13 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 			// port A used
 			if (fpgaLogic[memX][memY][memZ].portAInputCount > 0)
 			{
+				std::cout << "used INput ports " << fpgaLogic[memX][memY][memZ].usedInputPorts << std::endl;
+				std::cout << "BRAMInputPortsUsed " << fpgaLogic[memX][memY][memZ].BRAMInputPortsUsed << std::endl;
+				std::cout << "portBInputCount " << fpgaLogic[memX][memY][memZ].portBInputCount << std::endl;
+				std::cout << "portAInputCount " << fpgaLogic[memX][memY][memZ].portAInputCount << std::endl;
+
+				std::cout << "usedOutputPorts " << fpgaLogic[memX][memY][memZ].usedOutputPorts << std::endl;
+				std::cout << memX << " " << memY << " " << memZ << std::endl;
 				assert(fpgaLogic[memX][memY][memZ].portBInputCount == 0);
 				verilogFile << " PATH" << sinks[i].path << "NODE" << sinks[i].node << "_a_dataout[0], ";
 			}
@@ -1255,6 +1262,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	// enable Error checking
 	controllerFile << "// enable error checking" << std::endl;
 	controllerFile << "wire enableErrorChecking; " << std::endl << std::endl;
+	controllerFile << "wire cycleLateEnableErrorChecking; " << std::endl << std::endl;
+	controllerFile << "wire twoCycleLateEnableErrorChecking; " << std::endl << std::endl;
 	controllerFile << "reg [" << sinks.size() - 1 << ":0] enableErrorCheckingTemp; " << std::endl;
 
 	// sticky module for timer reahed
@@ -1367,6 +1376,12 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 
 	controllerFile << "// 4 cycles after the input source toggle, the sink register should toggle" << std::endl;
 	controllerFile << "shift_reg #(.L(4)) shiftRegSrcTgl(.CLK(CLK),.in(srcTgl),.out(enableErrorChecking));" << std::endl << std::endl;
+
+	controllerFile << "// 5 cycles after the input source toggle, the sink register should toggle" << std::endl;
+	controllerFile << "shift_reg #(.L(5)) shiftRegSrcTglLate(.CLK(CLK),.in(srcTgl),.out(cycleLateEnableErrorChecking));" << std::endl << std::endl;
+
+	controllerFile << "// 5 cycles after the input source toggle, the sink register should toggle" << std::endl;
+	controllerFile << "shift_reg #(.L(6)) shiftRegSrcTglSoLate(.CLK(CLK),.in(srcTgl),.out(twoCycleLateEnableErrorChecking));" << std::endl << std::endl;
 
 
 	controllerFile << std::endl << "assign controlSignals = controlSignals_temp;" << std::endl;
@@ -2269,6 +2284,20 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 							assert(!paths[fpgaLogic[x][y][z].nodes[k].path][0].deleted);
 
 							currentlyTested = true;
+
+							// check if this sink is inside a BRAM
+							// this can only happen if this is a readable address port
+							if (fpgaLogic[x][y][z].isBRAM)
+							{
+								if(memories[fpgaLogic[x][y][z].indexMemories[0]].portARegistered)
+									controllerFile << "\t\t\tenableErrorCheckingTemp[" << j 
+									<< "] <= cycleLateEnableErrorChecking;" << std::endl;
+								//else
+								//	if (memories[fpgaLogic[x][y][z].indexMemories[0]].portARegistered)
+								//		controllerFile << "\t\t\tenableErrorCheckingTemp[" << j
+								//		<< "] <= cycleLateEnableErrorChecking;" << std::endl;
+							}
+							
 
 							// check if the source is a BRAM
 							int testedPath = fpgaLogic[x][y][z].nodes[k].path;
@@ -4543,6 +4572,8 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 			verilogFile << "\"bidir_dual_port\";" << std::endl;
 		else if (memoryCell.operationMode == simpleDualPort)
 			verilogFile << "\"dual_port\";" << std::endl;
+	//	else if (memoryCell.operationMode == ROMPort)
+	//		verilogFile << "\"rom\";" << std::endl;
 		else
 			verilogFile << "\"single_port\";" << std::endl;
 
@@ -4551,7 +4582,8 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".data_interleave_width_in_bits = 1;" << std::endl;
 		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".data_interleave_offset_in_bits = 1;" << std::endl;
 
-		if (memoryCell.portAAddressWidth > 0)
+		if (memoryCell.portAAddressWidth > 0
+			|| memoryCell.portAUsedDataWidth > 0)
 		{
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_logical_ram_depth = " << pow(2, memoryCell.portAAddressWidth) << " ;" << std::endl;
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_first_address = 0;" << std::endl;
@@ -4596,7 +4628,8 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 		// parameters for port b
 		if (memoryCell.operationMode == trueDualPort || memoryCell.operationMode == simpleDualPort)
 		{
-			if (memoryCell.portBAddressWidth > 0)
+			if (memoryCell.portBAddressWidth > 0
+				|| memoryCell.portBUsedDataWidth > 0)
 			{
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_logical_ram_depth = " << pow(2, memoryCell.portBAddressWidth) << " ;" << std::endl;
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_first_address = 0;" << std::endl;
@@ -4844,527 +4877,535 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 	bool foundSource = false;
     bool addBrace = false;
         
-        //reset all reserved fanout placements for the next bitstream
-        for(unsigned i = 0; i < FPGAsizeX; i++){
-            for(unsigned j = 0; j < FPGAsizeY; j++){
-                for(unsigned k = 0; k < FPGAsizeZ; k++){
-                    fanoutLUTPlacement[i][j][k] = false;
-                }
-            }
-        }
+       //reset all reserved fanout placements for the next bitstream
+    for(unsigned i = 0; i < FPGAsizeX; i++){
+		for(unsigned j = 0; j < FPGAsizeY; j++){
+	       for(unsigned k = 0; k < FPGAsizeZ; k++){
+               fanoutLUTPlacement[i][j][k] = false;
+               }
+           }
+       }
         
         terminal_LUTS.clear();
-        
-	for (i = 0; i < FPGAsizeX; i++) // loop across all cells
-	{
-		for (j = 0; j < FPGAsizeY; j++)
-		{
-			for (k = 0; k < FPGAsizeZ; k++)
+
+
+			for (i = 0; i < FPGAsizeX; i++) // loop across all cells
 			{
-				if (i == 77 && j == 69 && k == 31)
-					std::cout << "DEbug double BRAM Address 0" << std::endl;
-
-				if (fpgaLogic[i][j][k].utilization>0) // this cell is used, so lets check its fanouts
+				for (j = 0; j < FPGAsizeY; j++)
 				{
-					path = -1;
-					node = -1;
-					for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++) // find the undeleted most critical path using this node
+					for (k = 0; k < FPGAsizeZ; k++)
 					{
-						if (!paths[fpgaLogic[i][j][k].nodes[x].path][0].deleted)
-						{
-							path = fpgaLogic[i][j][k].nodes[x].path;
-							node = fpgaLogic[i][j][k].nodes[x].node;
-							//		LoFile << fpgaLogic[i][j][k].nodes[x].path << "NODE" << fpgaLogic[i][j][k].nodes[x].node << "_t" << std::endl;
-							break;
-						}
-					}
-					assert(path == fpgaLogic[i][j][k].owner.path && node == fpgaLogic[i][j][k].owner.node); // check that the owner is correct
-					//there must be path, otherwise utilization should have been 0
-					assert(path > -1);
-
-					// clear outputPorts map
-
-					
-
-
-					outputPorts.clear();
-
-
-					// clear branch map
-					branchLabel.clear();
-					label = 0;
-					bool first_route_found = false;
-					// write source signal
-					// loop across all routes in the cell i,j,k
-					for (l = 0; l < (int)fpgaLogic[i][j][k].connections.size(); l++) 
-					{
-
-						// newBRAM stuff
-
-						std::string tempKey;
-
-						if (!fpgaLogic[i][j][k].isBRAM)
-						{
-							tempKey = "notBRAM";
-						}
-						else
-						{
-							assert(k == 0);
-							// if it's a BRAM let's get the key for this specific port
-							tempKey = "BRAM" + std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first) + "_"
-								+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first);
-							// siince this is a new signal
-							first_route_found = false;
-						}
-
-						// check if this port was used before
-						auto iterOutputPorts = outputPorts.find(tempKey);
-
-						// this port was not seen before, so let's create a new entry in the map
-						if (iterOutputPorts == outputPorts.end())
-						{
-							outputPorts.insert(std::pair<std::string, std::string>(tempKey, ""));
-							iterOutputPorts = outputPorts.find(tempKey);
-							assert(iterOutputPorts != outputPorts.end());
-						}
-						// so there is a connection but without any used resources, 
-						//this must be a connection betwee a LUT and a FF that are in the same LE.
-						//So I am gonna check that
-						if (fpgaLogic[i][j][k].connections[l].usedRoutingResources.size() == 0) 
-						{
-							int destinX = fpgaLogic[i][j][k].connections[l].destinationX;
-							int destinY = fpgaLogic[i][j][k].connections[l].destinationY;
-							int destinZ = fpgaLogic[i][j][k].connections[l].destinationZ;
-
-							// deleted
-							if (destinX == -1)
-								continue;
-							// must be areg
-							assert(destinZ%LUTFreq != 0);
-							assert(fpgaLogic[destinX][destinY][destinZ].FFMode == dInput);
-
-							// if this was the last connection, we need to close the routing signal with a brace
-							// We only have to close if it is not the only connection
-							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && l != 0)
-							{
-								RoFile << "}" << std::endl;
-								(iterOutputPorts->second) += "}";
-							}
-
-							continue;
-						}
-						if (fpgaLogic[i][j][k].connections[l].destinationX == -1)
-						{ 
-							if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && first_route_found)
-							{
-								RoFile << "}" << std::endl;
-								(iterOutputPorts->second) += "}";
-							}
-							continue;
-						}
 						
-
-
-
-
-
-						if (!first_route_found)//if (l == 0)
+						if (i == 36 && j == 44 && k == 4)
 						{
-							// if the source is not a BRAM
-							if (!fpgaLogic[i][j][k].isBRAM)
-							{
-								RoFile << "} \n signal_name = PATH" << path << "NODE" << node << " {" << std::endl;
-								(iterOutputPorts->second) += "} \n signal_name = PATH" + std::to_string(path) + "NODE" + std::to_string(node) + " {\n";
-							}
-							else // source is a BRAM
-							{
-								assert(k == 0);
-								RoFile << "} \n signal_name = PATH" << path << "NODE" << node;
-								(iterOutputPorts->second) += "} \n signal_name = PATH" + std::to_string(path) + "NODE" + std::to_string(node);
-								// uses port A
-								if (fpgaLogic[i][j][k].connections[l].memorySourcePort.first == BRAMportAout)
-								{
-									RoFile << "_a_dataout[" << fpgaLogic[i][j][k].connections[l].memorySourcePort.second << "] {"  << std::endl;
-									(iterOutputPorts->second) += "_a_dataout["
-										+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
-										+ "] {\n";
-								}
-								else // uses BRAM port B
-								{
-									if (fpgaLogic[i][j][k].connections[l].memorySourcePort.first != BRAMportBout)
-									{
-										std::cout << "Path " << path << " node " << node << std::endl;
-										std::cout << " Shit is " << paths[path][node].BRAMPortOut << std::endl;
- 									}
-									assert(fpgaLogic[i][j][k].connections[l].memorySourcePort.first == BRAMportBout);
-									RoFile << "_b_dataout[" << fpgaLogic[i][j][k].connections[l].memorySourcePort.second << "] {" << std::endl;
-									(iterOutputPorts->second) += "_b_dataout["
-										+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
-										+ "] {\n";
-
-								}
-
-							}
-							first_route_found = true;
+							std::cout << "DEbug double BRAM Address 0" << std::endl;
+							std::cout << fpgaLogic[i][j][k].portAInputCount;
 						}
-						foundSource = false;
-						// start writing rcf for this connection
-						//	RoFile << "signal_name = PATH" << path << "NODE" << node << " {" << std::endl;
-						for (x = 0; x < (int)fpgaLogic[i][j][k].connections[l].usedRoutingResources.size(); x++)
+
+						if (fpgaLogic[i][j][k].utilization > 0) // this cell is used, so lets check its fanouts
 						{
-
-							// check if the routing resource has been used before
-							auto iter = branchLabel.find(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x]);
-							if (foundSource)
+							path = -1;
+							node = -1;
+							for (x = 0; x < (int)fpgaLogic[i][j][k].nodes.size(); x++) // find the undeleted most critical path using this node
 							{
-								assert(iter == branchLabel.end());
-								// write the connection to the rcf
-								RoFile << "\tlabel = label_" << label << "_" 
-									<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", "
-									<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" 
-									<< std::endl;
-
-								(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
-									+ (fpgaLogic[i][j][k].connections[l].usedRoutingResources[x]) + ", "
-									+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
-
-								// insert the label
-                                                                
-                                                                
- //*****                        //either mark as used, or look for label
-                                                                
-                                                                
-								branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
-								label++;
-								continue;
-
-							}
-							if (iter == branchLabel.end()) // if not found then 
-							{
-								if (x == 0) // the first routing resource was not used before, so the source is not a label
+								if (!paths[fpgaLogic[i][j][k].nodes[x].path][0].deleted)
 								{
-									// write the connection to the rcf
-									RoFile << "\tlabel = label_" << label << "_" 
-										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", "
-										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" 
-										<< std::endl;
-
-									(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
-										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ", "
-										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
-
-									// insert the label
-                                                                        
-                                                                        
-                                    //either mark as used or look for label
-									branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
-									label++;
-									foundSource = true;
+									path = fpgaLogic[i][j][k].nodes[x].path;
+									node = fpgaLogic[i][j][k].nodes[x].node;
+									//		LoFile << fpgaLogic[i][j][k].nodes[x].path << "NODE" << fpgaLogic[i][j][k].nodes[x].node << "_t" << std::endl;
+									break;
 								}
-								else // must use branch_point 
+							}
+							assert(path == fpgaLogic[i][j][k].owner.path && node == fpgaLogic[i][j][k].owner.node); // check that the owner is correct
+							//there must be path, otherwise utilization should have been 0
+							assert(path > -1);
+
+							// clear outputPorts map
+
+
+
+
+							outputPorts.clear();
+
+
+							// clear branch map
+							branchLabel.clear();
+							label = 0;
+							bool first_route_found = false;
+							// write source signal
+							// loop across all routes in the cell i,j,k
+							for (l = 0; l < (int)fpgaLogic[i][j][k].connections.size(); l++)
+							{
+
+								// newBRAM stuff
+
+								std::string tempKey;
+
+								if (!fpgaLogic[i][j][k].isBRAM)
 								{
-									iter = branchLabel.find(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x - 1]);
+									tempKey = "notBRAM";
+								}
+								else
+								{
+									assert(k == 0);
+									// if it's a BRAM let's get the key for this specific port
+									tempKey = "BRAM" + std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first) + "_"
+										+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first);
+									// siince this is a new signal
+									first_route_found = false;
+								}
+
+								// check if this port was used before
+								auto iterOutputPorts = outputPorts.find(tempKey);
+
+								// this port was not seen before, so let's create a new entry in the map
+								if (iterOutputPorts == outputPorts.end())
+								{
+									outputPorts.insert(std::pair<std::string, std::string>(tempKey, ""));
+									iterOutputPorts = outputPorts.find(tempKey);
+									assert(iterOutputPorts != outputPorts.end());
+								}
+								// so there is a connection but without any used resources, 
+								//this must be a connection betwee a LUT and a FF that are in the same LE.
+								//So I am gonna check that
+								if (fpgaLogic[i][j][k].connections[l].usedRoutingResources.size() == 0)
+								{
+									int destinX = fpgaLogic[i][j][k].connections[l].destinationX;
+									int destinY = fpgaLogic[i][j][k].connections[l].destinationY;
+									int destinZ = fpgaLogic[i][j][k].connections[l].destinationZ;
+
+									// deleted
+									if (destinX == -1)
+										continue;
+									// must be areg
+									assert(destinZ%LUTFreq != 0);
+									assert(fpgaLogic[destinX][destinY][destinZ].FFMode == dInput);
+
+									// if this was the last connection, we need to close the routing signal with a brace
+									// We only have to close if it is not the only connection
+									if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && l != 0)
+									{
+										RoFile << "}" << std::endl;
+										(iterOutputPorts->second) += "}";
+									}
+
+									continue;
+								}
+								if (fpgaLogic[i][j][k].connections[l].destinationX == -1)
+								{
+								//	if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 && first_route_found)
+								//	{
+								//		RoFile << "}" << std::endl;
+								//		(iterOutputPorts->second) += "}";
+								//	}
+									continue;
+								}
+
+
+
+
+
+
+								if (!first_route_found)//if (l == 0)
+								{
+									if (path == 1253 && node == 10)
+										std::cout << "DEBUG" << std::endl;
+									// if the source is not a BRAM
+									if (!fpgaLogic[i][j][k].isBRAM)
+									{
+										RoFile << "} \n signal_name = PATH" << path << "NODE" << node << " {" << std::endl;
+										(iterOutputPorts->second) += "} \n signal_name = PATH" + std::to_string(path) + "NODE" + std::to_string(node) + " {\n";
+									}
+									else // source is a BRAM
+									{
+										assert(k == 0);
+										RoFile << "} \n signal_name = PATH" << path << "NODE" << node;
+										(iterOutputPorts->second) += "} \n signal_name = PATH" + std::to_string(path) + "NODE" + std::to_string(node);
+										// uses port A
+										if (fpgaLogic[i][j][k].connections[l].memorySourcePort.first == BRAMportAout)
+										{
+											RoFile << "_a_dataout[" << fpgaLogic[i][j][k].connections[l].memorySourcePort.second << "] {" << std::endl;
+											(iterOutputPorts->second) += "_a_dataout["
+												+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
+												+ "] {\n";
+										}
+										else // uses BRAM port B
+										{
+											if (fpgaLogic[i][j][k].connections[l].memorySourcePort.first != BRAMportBout)
+											{
+												std::cout << "Path " << path << " node " << node << std::endl;
+												std::cout << " Shit is " << paths[path][node].BRAMPortOut << std::endl;
+											}
+											assert(fpgaLogic[i][j][k].connections[l].memorySourcePort.first == BRAMportBout);
+											RoFile << "_b_dataout[" << fpgaLogic[i][j][k].connections[l].memorySourcePort.second << "] {" << std::endl;
+											(iterOutputPorts->second) += "_b_dataout["
+												+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
+												+ "] {\n";
+
+										}
+
+									}
+									first_route_found = true;
+								}
+								foundSource = false;
+								// start writing rcf for this connection
+								//	RoFile << "signal_name = PATH" << path << "NODE" << node << " {" << std::endl;
+								for (x = 0; x < (int)fpgaLogic[i][j][k].connections[l].usedRoutingResources.size(); x++)
+								{
+
+									// check if the routing resource has been used before
+									auto iter = branchLabel.find(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x]);
+									if (foundSource)
+									{
+										assert(iter == branchLabel.end());
+										// write the connection to the rcf
+										RoFile << "\tlabel = label_" << label << "_"
+											<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", "
+											<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";"
+											<< std::endl;
+
+										(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
+											+ (fpgaLogic[i][j][k].connections[l].usedRoutingResources[x]) + ", "
+											+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
+
+										// insert the label
+
+
+		 //*****                        //either mark as used, or look for label
+
+
+										branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
+										label++;
+										continue;
+
+									}
+									if (iter == branchLabel.end()) // if not found then 
+									{
+										if (x == 0) // the first routing resource was not used before, so the source is not a label
+										{
+											// write the connection to the rcf
+											RoFile << "\tlabel = label_" << label << "_"
+												<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", "
+												<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";"
+												<< std::endl;
+
+											(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
+												+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ", "
+												+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
+
+											// insert the label
+
+
+											//either mark as used or look for label
+											branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
+											label++;
+											foundSource = true;
+										}
+										else // must use branch_point 
+										{
+											iter = branchLabel.find(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x - 1]);
+											// element must be found
+											assert(iter != branchLabel.end());
+											// start from the routing resource before the current (that was definetly used before)
+											RoFile << "\tbranch_point = label_" << iter->second << "_" << iter->first << "; " << std::endl;
+
+											(iterOutputPorts->second) += "\tbranch_point = label_" + std::to_string(iter->second) + "_"
+												+ iter->first + ";\n";
+
+											RoFile << "\tlabel = label_" << label << "_"
+												<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", "
+												<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";"
+												<< std::endl;
+
+											(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
+												+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ", "
+												+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
+
+											//either mark as used or look for label                                                  
+											branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
+											label++;
+											foundSource = true;
+
+
+										}
+
+									}
+
+
+								}
+								if (!foundSource) // this means the connection is useing the exact sam resources used before
+								{
+									auto iter = branchLabel.find(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x - 1]);
 									// element must be found
 									assert(iter != branchLabel.end());
 									// start from the routing resource before the current (that was definetly used before)
 									RoFile << "\tbranch_point = label_" << iter->second << "_" << iter->first << "; " << std::endl;
-
 									(iterOutputPorts->second) += "\tbranch_point = label_" + std::to_string(iter->second) + "_"
 										+ iter->first + ";\n";
-
-									RoFile << "\tlabel = label_" << label << "_" 
-										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ", " 
-										<< fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] << ";" 
-										<< std::endl;
-
-									(iterOutputPorts->second) += "\tlabel = label_" + std::to_string(label) + "_"
-										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ", "
-										+ fpgaLogic[i][j][k].connections[l].usedRoutingResources[x] + ";\n";
-									
-                                    //either mark as used or look for label                                                  
-                                    branchLabel.insert(std::pair<std::string, int>(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x], label));
-									label++;
-									foundSource = true;
-
-
 								}
 
-							}
-
-
-						}
-						if (!foundSource) // this means the connection is useing the exact sam resources used before
-						{
-							auto iter = branchLabel.find(fpgaLogic[i][j][k].connections[l].usedRoutingResources[x - 1]);
-							// element must be found
-							assert(iter != branchLabel.end());
-							// start from the routing resource before the current (that was definetly used before)
-							RoFile << "\tbranch_point = label_" << iter->second << "_" << iter->first << "; " << std::endl;
-							(iterOutputPorts->second) += "\tbranch_point = label_" + std::to_string(iter->second) + "_" 
-								+ iter->first + ";\n";
-						}
-
-						// write last line dest = {...}, ....; but first we have to find who owns the destination LUT
-						destX = fpgaLogic[i][j][k].connections[l].destinationX;
-						destY = fpgaLogic[i][j][k].connections[l].destinationY;
-						destZ = fpgaLogic[i][j][k].connections[l].destinationZ;
-						pathDest = -1;
-						nodeDest = -1;
-						for (x = 0; x < (int)fpgaLogic[destX][destY][destZ].nodes.size(); x++) // find the undeleted most critical path using this node
-						{
-							if (!paths[fpgaLogic[destX][destY][destZ].nodes[x].path][0].deleted)
-							{
-								pathDest = fpgaLogic[destX][destY][destZ].nodes[x].path;
-								nodeDest = fpgaLogic[destX][destY][destZ].nodes[x].node;
-								break;
-							}
-						}
-						assert(pathDest == fpgaLogic[destX][destY][destZ].owner.path && nodeDest == fpgaLogic[destX][destY][destZ].owner.node); // check that the owner is correct
-						assert(pathDest > -1);
-						RoFile << "\t" << "dest = (";
-						(iterOutputPorts->second) += "\tdest = (";
-
-						bool specialBRAMPortIn = false;
-
-						if (destZ%LUTFreq != 0) // FF
-						{
-							if (fpgaLogic[destX][destY][destZ].FFMode != sData)
-							{
-								std::cout << "something is wrong with one of the registers when creating destination port in rcf file" << std::endl;
-								assert(1 == 2);
-
-							}
-							else
-							{
-								RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", D ), route_port = ";
-								(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + ", D ), route_port = ";
-							}
-						}
-						// BRAM
-						else if (fpgaLogic[destX][destY][destZ].isBRAM)
-						{
-							assert(destZ == 0);
-							RoFile << "PATH" << pathDest << "NODE" << nodeDest << "_";
-							(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + "_";
-							if (memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].operationMode == simpleDualPort) // the output is only port b
-							{
-								RoFile << "b_dataout[0], ";
-								(iterOutputPorts->second) += "b_dataout[0], ";
-							}
-							else
-							{
-								// if it's not a double memory or if the destination port is not data in then common case
-								if (fpgaLogic[destX][destY][destZ].countNumofMem == 0 || (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.first != BRAMportAData))
+								// write last line dest = {...}, ....; but first we have to find who owns the destination LUT
+								destX = fpgaLogic[i][j][k].connections[l].destinationX;
+								destY = fpgaLogic[i][j][k].connections[l].destinationY;
+								destZ = fpgaLogic[i][j][k].connections[l].destinationZ;
+								pathDest = -1;
+								nodeDest = -1;
+								for (x = 0; x < (int)fpgaLogic[destX][destY][destZ].nodes.size(); x++) // find the undeleted most critical path using this node
 								{
-									RoFile << "a_dataout[0], ";
-									(iterOutputPorts->second) += "a_dataout[0], ";
-								}
-								else
-								{
-									// double memories and destination port is data in
-									// larger than first memory width
-									if (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second >= memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth) 
+									if (!paths[fpgaLogic[destX][destY][destZ].nodes[x].path][0].deleted)
 									{
-										RoFile << "a_dataout[" << memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth << "], ";
-										(iterOutputPorts->second) += "a_dataout[" + std::to_string(memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth) + "], ";
-										specialBRAMPortIn = true;
+										pathDest = fpgaLogic[destX][destY][destZ].nodes[x].path;
+										nodeDest = fpgaLogic[destX][destY][destZ].nodes[x].node;
+										break;
+									}
+								}
+								assert(pathDest == fpgaLogic[destX][destY][destZ].owner.path && nodeDest == fpgaLogic[destX][destY][destZ].owner.node); // check that the owner is correct
+								assert(pathDest > -1);
+								RoFile << "\t" << "dest = (";
+								(iterOutputPorts->second) += "\tdest = (";
+
+								bool specialBRAMPortIn = false;
+
+								if (destZ%LUTFreq != 0) // FF
+								{
+									if (fpgaLogic[destX][destY][destZ].FFMode != sData)
+									{
+										std::cout << "something is wrong with one of the registers when creating destination port in rcf file" << std::endl;
+										assert(1 == 2);
+
 									}
 									else
 									{
-										RoFile << "a_dataout[0], ";
-										(iterOutputPorts->second) += "a_dataout[0], ";
+										RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", D ), route_port = ";
+										(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + ", D ), route_port = ";
+									}
+								}
+								// BRAM
+								else if (fpgaLogic[destX][destY][destZ].isBRAM)
+								{
+									assert(destZ == 0);
+									RoFile << "PATH" << pathDest << "NODE" << nodeDest << "_";
+									(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + "_";
+									if (memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].operationMode == simpleDualPort) // the output is only port b
+									{
+										RoFile << "b_dataout[0], ";
+										(iterOutputPorts->second) += "b_dataout[0], ";
+									}
+									else
+									{
+										// if it's not a double memory or if the destination port is not data in then common case
+										if (fpgaLogic[destX][destY][destZ].countNumofMem == 0 || (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.first != BRAMportAData))
+										{
+											RoFile << "a_dataout[0], ";
+											(iterOutputPorts->second) += "a_dataout[0], ";
+										}
+										else
+										{
+											// double memories and destination port is data in
+											// larger than first memory width
+											if (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second >= memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth)
+											{
+												RoFile << "a_dataout[" << memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth << "], ";
+												(iterOutputPorts->second) += "a_dataout[" + std::to_string(memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth) + "], ";
+												specialBRAMPortIn = true;
+											}
+											else
+											{
+												RoFile << "a_dataout[0], ";
+												(iterOutputPorts->second) += "a_dataout[0], ";
+											}
+
+										}
 									}
 
+									// now print the exact input port and index
+									// fpgaLogic[i][j][k].connections[l].dest
+									switch (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.first)
+									{
+									case BRAMportAData:
+										if (!specialBRAMPortIn)
+										{
+											RoFile << "PORTADATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
+												<< "] );" << std::endl << std::endl;
+
+											(iterOutputPorts->second) += "PORTADATAIN["
+												+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+												+ "] );\n\n";
+										}
+										else
+										{
+											RoFile << "PORTADATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
+												- memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth
+												<< "] );" << std::endl << std::endl;
+
+											(iterOutputPorts->second) += "PORTADATAIN["
+												+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
+													- memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth)
+												+ "] );\n\n";
+										}
+										break;
+									case BRAMportAAddress:
+										RoFile << "PORTAADDR[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
+											<< "] );" << std::endl << std::endl;
+
+										(iterOutputPorts->second) += "PORTAADDR["
+											+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+											+ "] );\n\n";
+										break;
+
+									case BRAMportBData:
+										RoFile << "PORTBDATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
+											<< "] );" << std::endl << std::endl;
+
+										(iterOutputPorts->second) += "PORTBDATAIN["
+											+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+											+ "] );\n\n";
+										break;
+									case BRAMportBAddress:
+										RoFile << "PORTBADDR[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
+											<< "] );" << std::endl << std::endl;
+
+										(iterOutputPorts->second) += "PORTBADDR["
+											+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
+											+ "] );\n\n";
+										break;
+
+									case BRAMportAWE:
+										RoFile << "PORTAWE );" << std::endl << std::endl;
+										(iterOutputPorts->second) += "PORTAWE );\n\n";
+										break;
+									case BRAMportBWE:
+										RoFile << "PORTBWE);" << std::endl << std::endl;
+										(iterOutputPorts->second) += "PORTBWE);\n\n";
+										break;
+
+									default:
+										std::cout << "Wrong destaination port for memory " << std::endl;
+										assert(false);
+										break;
+									}
+
+
 								}
-							}
-
-							// now print the exact input port and index
-							// fpgaLogic[i][j][k].connections[l].dest
-							switch (fpgaLogic[i][j][k].connections[l].memoryDestinationPort.first)
-							{
-							case BRAMportAData:
-								if (!specialBRAMPortIn)
+								// not a ff nor a BRAM then must be a LUT
+								else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 2) // 2 output ports are used then name the destination signal as if it was combout
 								{
-									RoFile << "PORTADATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
-										<< "] );" << std::endl << std::endl;
+									RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
+									(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + ", DATAB ), route_port = ";
 
-									(iterOutputPorts->second) += "PORTADATAIN["
-										+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
-										+ "] );\n\n";
+									std::stringstream LUTName;
+									LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
+									terminal_LUTS[LUTName.str()] = true;
+								}
+								else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 1)
+								{
+									if (fpgaLogic[destX][destY][destZ].outputPorts[Combout - 5]) // combout is th eonly output
+									{
+										RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
+										(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE"
+											+ std::to_string(nodeDest) + ", DATAB ), route_port = ";
+										//	if (pathDest == 2 && nodeDest == 9)
+									///			std::cout << "Debugging" << std::endl;
+									}
+									else // cout is the output
+									{
+										RoFile << "PATH" << pathDest << "NODE" << nodeDest << "_Cout, DATAB ), route_port = ";
+										(iterOutputPorts->second) += "PATH" + std::to_string(pathDest)
+											+ "NODE" + std::to_string(nodeDest) + "_Cout, DATAB ), route_port = ";
+									}
+									std::stringstream LUTName;
+									LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
+									terminal_LUTS[LUTName.str()] = true;
 								}
 								else
 								{
-									RoFile << "PORTADATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second 
-										- memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth
-										<< "] );" << std::endl << std::endl;
-
-									(iterOutputPorts->second) += "PORTADATAIN["
-										+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second 
-											- memories[fpgaLogic[destX][destY][destZ].indexMemories[0]].portAUsedDataWidth)
-										+ "] );\n\n";
+									assert(false);
+									std::cout << "something wrong with the output of a destination when creating rcf." << std::endl;
 								}
-								break;
-							case BRAMportAAddress:
-								RoFile << "PORTAADDR[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
-									<< "] );" << std::endl << std::endl;
-
-								(iterOutputPorts->second) +=  "PORTAADDR["
-									+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
-									+ "] );\n\n";
-								break;
-
-							case BRAMportBData:
-								RoFile << "PORTBDATAIN[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
-									<< "] );" << std::endl << std::endl;
-
-								(iterOutputPorts->second) += "PORTBDATAIN["
-									+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
-									+ "] );\n\n";
-								break;
-							case BRAMportBAddress:
-								RoFile << "PORTBADDR[" << fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second
-									<< "] );" << std::endl << std::endl;
-
-								(iterOutputPorts->second) += "PORTBADDR["
-									+ std::to_string(fpgaLogic[i][j][k].connections[l].memoryDestinationPort.second)
-									+ "] );\n\n";
-								break;
-
-							case BRAMportAWE:
-								RoFile << "PORTAWE );" << std::endl << std::endl;
-								(iterOutputPorts->second) += "PORTAWE );\n\n";
-								break;
-							case BRAMportBWE:
-								RoFile << "PORTBWE);" << std::endl << std::endl;
-								(iterOutputPorts->second) += "PORTBWE);\n\n";
-								break;
-
-							default:
-								std::cout << "Wrong destaination port for memory " << std::endl;
-								assert(false);
-								break;
-							}
-
-
-						}
-						// not a ff nor a BRAM then must be a LUT
-						else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 2) // 2 output ports are used then name the destination signal as if it was combout
-						{
-							RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
-							(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" + std::to_string(nodeDest) + ", DATAB ), route_port = ";
-							
-                                                        std:: stringstream LUTName;
-                                                        LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
-                                                        terminal_LUTS[LUTName.str()] = true;
-						}
-						else if (fpgaLogic[destX][destY][destZ].usedOutputPorts == 1)
-						{
-							if (fpgaLogic[destX][destY][destZ].outputPorts[Combout - 5]) // combout is th eonly output
-							{
-								RoFile << "PATH" << pathDest << "NODE" << nodeDest << ", DATAB ), route_port = ";
-								(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) + "NODE" 
-									+ std::to_string(nodeDest) + ", DATAB ), route_port = ";
-							//	if (pathDest == 2 && nodeDest == 9)
-						///			std::cout << "Debugging" << std::endl;
-							}
-							else // cout is the output
-							{
-								RoFile << "PATH" << pathDest << "NODE" << nodeDest << "_Cout, DATAB ), route_port = ";
-								(iterOutputPorts->second) += "PATH" + std::to_string(pathDest) 
-									+ "NODE" + std::to_string(nodeDest) + "_Cout, DATAB ), route_port = ";
-							}
-                                                        std:: stringstream LUTName;
-                                                        LUTName << "LCCOMB:X" << destX << "Y" << destY << "N" << destZ;
-                                                        terminal_LUTS[LUTName.str()] = true;
-						}
-						else
-						{
-							assert(false);
-							std::cout << "something wrong with the output of a destination when creating rcf." << std::endl;
-						}
-						if (!fpgaLogic[destX][destY][destZ].isBRAM)
-						{
-							switch (fpgaLogic[i][j][k].connections[l].destinationPort)
-							{
-							case portA:
-								RoFile << "DATAA ;" << std::endl << std::endl;
-								(iterOutputPorts->second) += "DATAA ;\n\n";
-								break;
-							case portB:
-								RoFile << "DATAB ;" << std::endl << std::endl;
-								(iterOutputPorts->second) += "DATAB ;\n\n";
-								break;
-							case portC:
-								RoFile << "DATAC ;" << std::endl << std::endl;
-								(iterOutputPorts->second) += "DATAC ;\n\n";
-								break;
-							case portD:
-								RoFile << "DATAD ;" << std::endl << std::endl;
-								(iterOutputPorts->second) += "DATAD ;\n\n";
-								break;
-							default:
-								if (destZ%LUTFreq == 0 || fpgaLogic[destX][destY][destZ].FFMode != sData)
+								if (!fpgaLogic[destX][destY][destZ].isBRAM)
 								{
-									std::cout << "Something wrong with destination port when creating RCF files at the final case statement of destination port" << std::endl;
+									switch (fpgaLogic[i][j][k].connections[l].destinationPort)
+									{
+									case portA:
+										RoFile << "DATAA ;" << std::endl << std::endl;
+										(iterOutputPorts->second) += "DATAA ;\n\n";
+										break;
+									case portB:
+										RoFile << "DATAB ;" << std::endl << std::endl;
+										(iterOutputPorts->second) += "DATAB ;\n\n";
+										break;
+									case portC:
+										RoFile << "DATAC ;" << std::endl << std::endl;
+										(iterOutputPorts->second) += "DATAC ;\n\n";
+										break;
+									case portD:
+										RoFile << "DATAD ;" << std::endl << std::endl;
+										(iterOutputPorts->second) += "DATAD ;\n\n";
+										break;
+									default:
+										if (destZ%LUTFreq == 0 || fpgaLogic[destX][destY][destZ].FFMode != sData)
+										{
+											std::cout << "Something wrong with destination port when creating RCF files at the final case statement of destination port" << std::endl;
+										}
+										else
+										{
+											RoFile << "ASDATA ;" << std::endl << std::endl;
+										}
+										break;
+									}
 								}
-								else
-								{
-									RoFile << "ASDATA ;" << std::endl << std::endl;
+								// if this was the last connection, we need to close the routing signal with a brace
+							//	if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 )//&& l != 0)
+							//	{
+							//		RoFile << "}" << std::endl;
+							//		(iterOutputPorts->second) += "}\n";
+							//	}
+								if (l == (int)fpgaLogic[i][j][k].connections.size() - 1) {
+
+									addBrace = true;
 								}
-								break;
+							}
+
+
+							// print the connection of i, j, k to file
+
+							for (auto it = outputPorts.begin(); it != outputPorts.end(); ++it)
+							{
+								completeFile += it->second;
+							}
+							if (addBrace) {
+								//At the end of a net's routing, add missing fanouts to the net
+								std::string resource_name;
+								std::ostringstream FF_name_stream;
+								//create name of the FF (starting node) to search for it in the fanout map
+								FF_name_stream << "FF_X" << i << "_Y" << j << "_N" << k;
+								resource_name = FF_name_stream.str();
+								std::ostringstream current_node_name;
+								current_node_name << "PATH" << path << "NODE" << node;
+								std::string current_node_name_str = current_node_name.str();
+								//if the FF is found, add fanouts to the path
+								if (routing_trees.find(resource_name) != routing_trees.end()) {
+									add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
+								}
+								//now check if the source node is a LUT
+								std::ostringstream LUT_name_stream;
+								LUT_name_stream << "LCCOMB_X" << i << "_Y" << j << "_N" << k;
+								resource_name = LUT_name_stream.str();
+								//if the LUT is found, add fanouts to th epath (only one of this or the one above will trigger)
+								if (routing_trees.find(resource_name) != routing_trees.end()) {
+									add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
+								}
+								//finish the file with a brace
+							 //   RoFile << "}" << std::endl;
+
+								addBrace = false;
 							}
 						}
-						// if this was the last connection, we need to close the routing signal with a brace
-					//	if (l == (int)fpgaLogic[i][j][k].connections.size() - 1 )//&& l != 0)
-					//	{
-					//		RoFile << "}" << std::endl;
-					//		(iterOutputPorts->second) += "}\n";
-					//	}
-						if (l == (int)fpgaLogic[i][j][k].connections.size() - 1){
-							
-                                                        addBrace = true;
-                                                }
-					}
-                                        
 
-					// print the connection of i, j, k to file
-
-					for (auto it = outputPorts.begin(); it != outputPorts.end(); ++it)
-					{
-						completeFile += it->second;
 					}
-                                        if(addBrace){
-                                            //At the end of a net's routing, add missing fanouts to the net
-                                            std:: string resource_name;
-                                            std:: ostringstream FF_name_stream;
-                                            //create name of the FF (starting node) to search for it in the fanout map
-                                            FF_name_stream << "FF_X" << i << "_Y" << j << "_N" << k;
-                                            resource_name = FF_name_stream.str();
-                                            std::ostringstream current_node_name;
-                                            current_node_name << "PATH" << path << "NODE" << node;
-                                            std::string current_node_name_str = current_node_name.str();
-                                            //if the FF is found, add fanouts to the path
-                                            if(routing_trees.find(resource_name) != routing_trees.end()){
-                                                add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
-                                            }
-                                            //now check if the source node is a LUT
-                                            std:: ostringstream LUT_name_stream;
-                                            LUT_name_stream << "LCCOMB_X" << i << "_Y" << j << "_N" << k;
-                                            resource_name = LUT_name_stream.str();
-                                            //if the LUT is found, add fanouts to th epath (only one of this or the one above will trigger)
-                                            if(routing_trees.find(resource_name) != routing_trees.end()){
-                                                add_fanouts_to_routing(routing_trees[resource_name], branchLabel, RoFile, current_node_name_str);
-                                            }
-                                            //finish the file with a brace
-                                         //   RoFile << "}" << std::endl;
-											
-                                            addBrace = false;
-                                        }
 				}
-
 			}
-		}
-	}
+
 	std::ofstream RoFileTest;
 	std::string RoFileNameTest = "RCF_File_test_" + std::to_string(bitStreamNumber) + ".txt";
 	std::string fileBraceRemoved = completeFile.substr(1, completeFile.size() - 1);

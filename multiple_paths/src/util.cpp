@@ -6,6 +6,9 @@ bool get_feeder_special(int x, int y, int z, int portIn, int & feederPath, int &
 // we check for wraparound apths[old] currently the function assumes there is no wraparound paths. To make it formally correct, we need to check that the source and sink found are from different paths. Otherwise, we could falsely identify a wraparound path as cascaded paths.
 bool is_cascaded_reg(int x, int y, int z) // returns true if the register in loc (x,y,z) is a cascaded register. Meaning that it is a sink and a source at the same time
 {
+	// if it's a BRAM ignore
+	if (fpgaLogic[x][y][z].isBRAM)
+		return false;
 	assert(z % LUTFreq != 0); // this is a register
 
 	int l = 0;
@@ -129,6 +132,10 @@ bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, 
 {
 	int i;
 	int currentPath, currentNode, nextNode;
+	// if BRAM return false todo: deal with this better if we wany to test multiple 
+	// BRAM ports in the same bitstream
+	if (fpgaLogic[x][y][z].isBRAM)
+		return false;
 	assert(z % LUTFreq == 0); // must be a lut
 						//return true;
 	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
@@ -138,12 +145,14 @@ bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, 
 		nextNode = currentNode + 1;
 		if (paths[currentPath][0].deleted)
 			continue;
-		if (currentNode == (int)paths[currentPath].size() - 2) // this node is the b4 last cell so it feeds a register, now just ignore it, for cascaded paths this cell must be controlled todo: if this is true return true; 
+		// this node is the b4 last cell so it feeds a register, now just ignore it, for cascaded paths this cell must be controlled todo: if this is true return true; 
+		if (currentNode == (int)paths[currentPath].size() - 2) 
 		{
 			// this means that this node is the cell before the last, so it feeds a aregister, we must check if this register is a cascaded register then we must control it.
 			
 			// check if this node feeds a cascaded register
-			if (is_cascaded_reg(paths[currentPath][nextNode].x, paths[currentPath][nextNode].y, paths[currentPath][nextNode].z)) // if it feeds a cascaded register, then return true as we do need the control signal.
+			// if it feeds a cascaded register, then return true as we do need the control signal.
+			if (is_cascaded_reg(paths[currentPath][nextNode].x, paths[currentPath][nextNode].y, paths[currentPath][nextNode].z)) 
 			{
 				assert(fpgaLogic[x][y][z].cascadedPaths.size()>0);
 				return true;
@@ -151,7 +160,9 @@ bool check_control_signal_required(int x, int y, int z) // checks if cell x, y, 
 		}
 		if (fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts>1) // more than one port used
 		{
-			assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts <= LUTinputSize ); /*I now call it before deleting any paths so it may just hapen that a LUT is using all of its inputs, added equal sign to allow Luts to use only one control signal "fix"*/
+			/*I now call it before deleting any paths so it may just hapen that a LUT is using all of its inputs, added equal sign to allow Luts to use only one control signal "fix"*/
+			if(!fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].isBRAM)
+				assert(fpgaLogic[paths[currentPath][currentNode + 1].x][paths[currentPath][currentNode + 1].y][paths[currentPath][currentNode + 1].z].usedInputPorts <= LUTinputSize );
 			return true;
 		}
 	}
@@ -199,6 +210,7 @@ void handle_BRAM_path_deletion(int x, int y, int z, int path, int node)
 		usedOutPort = paths[path][node].BRAMPortOut;
 		usedOutPin = paths[path][node].BRAMPortOutIndex;
 		bool outputPortStillUsed = false;
+		bool outputPinUsed = false;
 		for (int j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
 		{
 			int potenPath = fpgaLogic[x][y][z].nodes[j].path;
@@ -208,22 +220,31 @@ void handle_BRAM_path_deletion(int x, int y, int z, int path, int node)
 			if (paths[potenPath][0].deleted) // if this path is deleted then continue to next path
 				continue;
 
-			if (paths[potenPath][potenNode].BRAMPortOut == usedOutPort
-				&& paths[potenPath][potenNode].BRAMPortOutIndex == usedOutPin) // another path is using the same input port and pin 
+			if (paths[potenPath][potenNode].BRAMPortOut == usedOutPort) // another path is using the same output port 
 			{
+				outputPortStillUsed = true;
+			}
+			if (paths[potenPath][potenNode].BRAMPortOut == usedOutPort
+				&& paths[potenPath][potenNode].BRAMPortOutIndex == usedOutPin) // another path is using the same output port and pin 
+			{
+				outputPinUsed = true;
 				outputPortStillUsed = true;
 				break;
 			}
 
 		}
 
-		fpgaLogic[x][y][z].BRAMoutputPorts[usedOutPort][usedOutPin] = outputPortStillUsed;
+		fpgaLogic[x][y][z].BRAMoutputPorts[usedOutPort][usedOutPin] = outputPinUsed;
 
 		if (!outputPortStillUsed)
 		{
+			fpgaLogic[x][y][z].BRAMOutputPortsUsed--;
+		}
+
+		if (!outputPinUsed)
+		{
+			fpgaLogic[x][y][z].BRAMOutputPortsUsed--;
 			fpgaLogic[x][y][z].usedOutputPorts--;
-
-
 		}
 	}
 	else if (node == paths[path].size() - 1) // last node in the path is a BRAM
@@ -232,6 +253,7 @@ void handle_BRAM_path_deletion(int x, int y, int z, int path, int node)
 		usedInputPort = paths[path][node].BRAMPortIn;
 		usedInputPin = paths[path][node].BRAMPortInIndex;
 		bool inputPortStillUsed = false;
+		bool inputPinStillUsed = false;
 		for (int j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
 		{
 			int potenPath = fpgaLogic[x][y][z].nodes[j].path;
@@ -240,32 +262,88 @@ void handle_BRAM_path_deletion(int x, int y, int z, int path, int node)
 				continue;
 			if (paths[potenPath][0].deleted) // if this path is deleted then continue to next path
 				continue;
-
+			if (paths[potenPath][potenNode].BRAMPortIn == usedInputPort) // another path is using the same Port
+			{
+				inputPortStillUsed = true;
+			}
 			if (paths[potenPath][potenNode].BRAMPortIn == usedInputPort
 				&& paths[potenPath][potenNode].BRAMPortInIndex == usedInputPin) // another path is using the same input port and pin 
 			{
 				inputPortStillUsed = true;
+				inputPinStillUsed = true;
 				break;
 			}
 
 		}
 
-		fpgaLogic[x][y][z].BRAMinputPorts[usedInputPort][usedInputPin] = inputPortStillUsed;
+		
+		// change owner ship
+		bool isUsed = false;
+		for (int i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+		{
+			if (!paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted) // if this path is deleted then continue to next path
+			{
+				fpgaLogic[x][y][z].owner.path = fpgaLogic[x][y][z].nodes[i].path;
+				fpgaLogic[x][y][z].owner.node = fpgaLogic[x][y][z].nodes[i].node;
+				isUsed = true;
+				break;
+			}
+		}
+		if (!isUsed) // this is not used
+		{
+			fpgaLogic[x][y][z].owner.path = -1;
+			fpgaLogic[x][y][z].owner.node = -1;
+
+		}
 
 		if (!inputPortStillUsed)
 		{
-			fpgaLogic[x][y][z].usedInputPorts--;
+			fpgaLogic[x][y][z].BRAMInputPortsUsed--;
+		}
 
+		if (!inputPinStillUsed)
+		{
+			int nodeFeeder, pathFeeder;
+			assert(get_BRAM_feeder_special(x, y, z, std::make_pair(paths[path][node].BRAMPortIn, paths[path][node].BRAMPortInIndex), pathFeeder, nodeFeeder));
+
+			int xFeeder = paths[pathFeeder][nodeFeeder].x;
+			int yFeeder = paths[pathFeeder][nodeFeeder].y;
+			int zFeeder = paths[pathFeeder][nodeFeeder].z;
+
+			// utilizing the fact that when I delete a path I keep the nodes array intact
+			assert(fpgaLogic[xFeeder][yFeeder][zFeeder].nodes.size() > 0);
+
+			bool extraCheck = false;
+
+			// loop across all connections in the feeder node to delete the one that matches the deleted input port
+			for (int counter = 0; counter < (int)fpgaLogic[xFeeder][yFeeder][zFeeder].connections.size(); counter++)
+			{
+				
+
+				if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX == x
+					&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationY == y
+					&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationZ == z
+					&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].memoryDestinationPort.first == paths[path][node].BRAMPortIn
+					&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].memoryDestinationPort.second == paths[path][node].BRAMPortInIndex) // connection matched
+				{
+					assert(!extraCheck);
+					fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX = -1;
+					extraCheck = true;
+				}
+												
+			}
+
+			fpgaLogic[x][y][z].usedInputPorts--;
 			if (usedInputPort <= BRAMportAWE) // then it's port A related
 			{
-				fpgaLogic[x][y][z].portAInputCount++;
+				fpgaLogic[x][y][z].portAInputCount--;
 			}
 			else
 			{
-				fpgaLogic[x][y][z].portBInputCount++;
+				fpgaLogic[x][y][z].portBInputCount--;
 			}
-
 		}
+		fpgaLogic[x][y][z].BRAMinputPorts[usedInputPort][usedInputPin] = inputPinStillUsed;
 	}
 	else // a BRAM is in the middle of a path
 	{
@@ -327,6 +405,7 @@ bool delete_path(int path)
 		if (fpgaLogic[x][y][z].isBRAM)
 		{
 			handle_BRAM_path_deletion(x, y, z, path, i);
+			continue;
 		}
 
 		for (j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
@@ -338,13 +417,25 @@ bool delete_path(int path)
 
 			if (i == (int)paths[path].size() - 1) // last element in the path which is the sink reg
 			{
-				assert(z%LUTFreq != 0); // make sure its a reg
+				assert((z%LUTFreq != 0) || (fpgaLogic[x][y][z].isBRAM)); // make sure its a reg or a BRAM
 				if (fpgaLogic[x][y][z].nodes[j].node>0) // check if node j at reg x, y, z is a sink register. If thats the case then this register is still a sink
 					isStillSink = true;
 			}
 
-			if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].portIn == paths[path][i].portIn) // another path is using the same element using the same portIn
-				portInStillExists = true;
+			if (fpgaLogic[x][y][z].isBRAM)
+			{
+				// another path is using the same element using the same portIn
+				if ((paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].BRAMPortIn == paths[path][i].BRAMPortIn
+					&& paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].BRAMPortInIndex == paths[path][i].BRAMPortInIndex))
+					portInStillExists = true;
+			}
+			else
+			{
+				// another path is using the same element using the same portIn
+				if ((paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].portIn == paths[path][i].portIn))
+					portInStillExists = true;
+			}
+			
 
 			if (paths[fpgaLogic[x][y][z].nodes[j].path][fpgaLogic[x][y][z].nodes[j].node].portOut == paths[path][i].portOut) // another path is using the same element using the same portOut
 				portOutStillExists = true;
@@ -371,11 +462,12 @@ bool delete_path(int path)
 		}
 		if (!portInStillExists || (!isStillSink&&(z%LUTFreq!=0))) // input port must be deleted or the sink register is no longer there
 		{
-			if (z%LUTFreq == 0) // LUT
+			if (z%LUTFreq == 0) // LUT or BRAM
 			{
 				assert(!portInStillExists); // ensure that this part is only executed for LUTs when !portInstillexists is true
 				// portIn is removed so I have to delete routing connection from the feeder node
 				int nodeFeeder, pathFeeder;
+
 				assert(get_feeder_special(x, y, z, paths[path][i].portIn, pathFeeder, nodeFeeder)); // this function returns th feeder even if it was deleted
 
 				int xFeeder = paths[pathFeeder][nodeFeeder].x;
@@ -390,18 +482,28 @@ bool delete_path(int path)
 				// loop across all connections in the feeder node to delete the one that matches the deleted input port
 				for (int counter = 0; counter < (int)fpgaLogic[xFeeder][yFeeder][zFeeder].connections.size(); counter++)
 				{
-					if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX == x && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationY == y && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationZ == z && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationPort == paths[path][i].portIn) // connection matched
+					if (!fpgaLogic[x][y][z].isBRAM)
 					{
-						assert(!extraCheck);
-						//.deletedConn							fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].deleted = true;
-						// trial ibrahim 23/05/2016
-						fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX = -1;
-						extraCheck = true;
+						if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX == x
+							&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationY == y
+							&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationZ == z
+							&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationPort == paths[path][i].portIn) // connection matched
+						{
+							assert(!extraCheck);
+							//.deletedConn							fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].deleted = true;
+							// trial ibrahim 23/05/2016
+							fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX = -1;
+							extraCheck = true;
 
+						}
 					}
+					
 				}
-				fpgaLogic[x][y][z].inputPorts[paths[path][i].portIn] = false;
-				fpgaLogic[x][y][z].usedInputPorts--;
+				if (!fpgaLogic[x][y][z].isBRAM)
+				{
+					fpgaLogic[x][y][z].inputPorts[paths[path][i].portIn] = false;
+					fpgaLogic[x][y][z].usedInputPorts--;
+				}
 
 			}
 			else if (i>0) // FF and sink of path path
@@ -422,7 +524,9 @@ bool delete_path(int path)
 				// loop across all connections in the feeder node to delete the one that matches the deleted input port
 				for (int counter = 0; counter < (int)fpgaLogic[xFeeder][yFeeder][zFeeder].connections.size(); counter++)
 				{
-					if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX == x && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationY == y && fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationZ == z) // connection matched
+					if (fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationX == x 
+						&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationY == y 
+						&& fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].destinationZ == z) // connection matched
 					{
 						assert(!extraCheck);
 						//.deletedConn							fpgaLogic[xFeeder][yFeeder][zFeeder].connections[counter].deleted = true;
@@ -455,9 +559,12 @@ bool delete_path(int path)
 
 		if (!portOutStillExists) //output port must be deleted
 		{
-			if (z%LUTFreq == 0)
-				fpgaLogic[x][y][z].outputPorts[paths[path][i].portOut - 5] = false;
-			fpgaLogic[x][y][z].usedOutputPorts--;
+			if (!fpgaLogic[x][y][z].isBRAM)
+			{
+				if (z%LUTFreq == 0)
+					fpgaLogic[x][y][z].outputPorts[paths[path][i].portOut - 5] = false;
+				fpgaLogic[x][y][z].usedOutputPorts--;
+			}
 		}
 
 	}
@@ -979,6 +1086,77 @@ bool get_BRAM_feeder(
 	return false;
 
 }
+
+
+
+
+// finds the path and node that feeds the BRAM from a specific index in a specific port even if it was deleted before
+// returns true if a feeder was found and false otherwise
+bool get_BRAM_feeder_special(
+	int x, // x loc
+	int y, // y loc
+	int z, // z loc, should always be zero as it's a BRAM
+	std::pair <int, int> BRAMportInputInfo,  // .first represnts the port, .second is the index
+	int & feederPath,  // the path feeder for the specific pin
+	int & feederNode) // the node feeder for the specific pin
+{
+	// checking that z is zero and that this is a BRAM
+	assert(z == 0);
+	assert(fpgaLogic[x][y][z].isBRAM);
+
+	int i;
+
+
+	if (fpgaLogic[x][y][z].nodes.size() < 1) // make sure that this element is actually used
+		return false;
+
+
+	// ensures that this ports is actually used
+	if (!fpgaLogic[x][y][z].BRAMinputPorts[BRAMportInputInfo.first][BRAMportInputInfo.second])
+		return false;
+
+
+	int possibleFeedingPath = -1;
+	int possibleFeedingNode = -1;
+
+	// loop through paths using the questioned element, 
+	//the first non-deleted path feeding the desired input port and pin is used to get the feeder.
+	for (i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+	{
+		if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortIn == BRAMportInputInfo.first
+			&& paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortInIndex == BRAMportInputInfo.second
+			)//&& !paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted)
+		{
+			possibleFeedingPath = fpgaLogic[x][y][z].nodes[i].path;
+			possibleFeedingNode = fpgaLogic[x][y][z].nodes[i].node;
+			break;
+		}
+	}
+	if (possibleFeedingNode == -1 || possibleFeedingPath == -1)
+		return false;
+
+	int feederX, feederY, feederZ;
+	feederX = paths[possibleFeedingPath][possibleFeedingNode - 1].x;
+	feederY = paths[possibleFeedingPath][possibleFeedingNode - 1].y;
+	feederZ = paths[possibleFeedingPath][possibleFeedingNode - 1].z;
+
+	// loop through paths using this feeder the first nondeletred one is the name that should be used
+	for (i = 0; i < (int)fpgaLogic[feederX][feederY][feederZ].nodes.size(); i++)
+	{
+//		if (!paths[fpgaLogic[feederX][feederY][feederZ].nodes[i].path][0].deleted)
+//		{
+			feederPath = fpgaLogic[feederX][feederY][feederZ].nodes[i].path;
+			feederNode = fpgaLogic[feederX][feederY][feederZ].nodes[i].node;
+
+//			assert(feederPath == fpgaLogic[feederX][feederY][feederZ].owner.path);
+//			assert(feederNode == fpgaLogic[feederX][feederY][feederZ].owner.node);
+			return true;
+//		}
+	}
+	return false;
+
+}
+
 
 // returns the path and node that feeds element x,y,z through portIn,
 //it is special as it returns a value even if the feeder cell is deleted, but it checks that it did exist before.

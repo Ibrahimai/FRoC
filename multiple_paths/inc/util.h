@@ -27,4 +27,12 @@ bool get_BRAM_feeder(
 	int & feederNode); // the node feeder for the specific pin
 
 
+bool get_BRAM_feeder_special(
+	int x, // x loc
+	int y, // y loc
+	int z, // z loc, should always be zero as it's a BRAM
+	std::pair <int, int> BRAMportInputInfo,  // .first represnts the port, .second is the index
+	int & feederPath,  // the path feeder for the specific pin
+	int & feederNode); // the node feeder for the specific pin
+
 std::string portNumbertoName(int BRAMportInfo);
