@@ -219,7 +219,7 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	verilogFile << BRAM_intermediateSignals;
 
 	// control signals from separate controllers to BRAM
-	// loop over al memory controllers
+	// loop over all memory controllers
 
 	verilogFile << "\n \n// signals between separate controllers and BRAMs \n \n";
 	for (int i = 0; i < FPGAsizeX; i++)
@@ -258,7 +258,38 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
 						|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
 					{
+						if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
+						{
+							verilogFile << "wire isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+						}
 						verilogFile << "wire [" << testedPortSize - 1 << ":0] info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
+					//	if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
+					//	{
+						verilogFile << "wire sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+						verilogFile << "wire isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+					//	}
+					}
+
+					if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+						|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+						|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
+					{ 
+					
+						verilogFile << "wire sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+						verilogFile << "wire isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+						verilogFile << "wire isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+						
+					}
+
+
+					if (controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+						|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+						|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+						|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+						|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
+					{
+						verilogFile << "wire doneTestingSinks_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+						verilogFile << "wire sourceTogglingIn_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
 					}
 
 				}
@@ -307,7 +338,9 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						<< "\t.infoToTest(info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
 						<< "\t.BRAM_dataOut(PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_b_dataout),\n"
 						<< "\t.error(error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
-						<< "\t.done(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+						<< "\t.done(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.sourceToggling(sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.isSourceBRAMReg(isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
 
 					for (int k = 0; k < memoryControllers[i][j].size(); k++)
 					{
@@ -365,7 +398,11 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						<< "\t.startTest(start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
 						<< "\t.reset(reset),\n"
 						<< "\t.resetTest(reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
-						<< "\t.infoToTest(info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+						<< "\t.infoToTest(info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.sourceToggling(sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.isSourceBRAMReg(isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<<  "\t.isInverting(isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"; //new;
+
 					if (controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA)
 						verilogFile << "\t.BRAM_dataOut(PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_a_dataout),\n";
 					else
@@ -440,7 +477,10 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						<< " (.clk(CLK),\n"
 						<< "\t.startTest(start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
 						<< "\t.reset(reset),\n"
-						<< "\t.resetTest(reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+						<< "\t.resetTest(reset_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.sourceToggling(sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.isSourceBRAMReg(isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.isInverting(isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"; //new;
 
 					if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA)
 						verilogFile << "\t.BRAM_dataOut(PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_a_dataout),\n";
@@ -522,6 +562,9 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 
 					verilogFile << "\t.checkForErrorsOut(error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
 						<< "\t.done(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+					verilogFile << "\t.doneTestingSinks(doneTestingSinks_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.sourceIsToggling(sourceTogglingIn_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
 
 
 					for (int k = 0; k < memoryControllers[i][j].size(); k++)
@@ -687,6 +730,50 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 				{
 					verilogFile << "\t.info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
 						<< "info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+
+					verilogFile << "\t.sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+					verilogFile << "\t.isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+
+					if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
+					{
+						verilogFile << "\t.isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+							<< "isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+					}
+						
+				}
+
+				if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+					|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
+				{
+
+					verilogFile << "\t.sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+					verilogFile << "\t.isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+					verilogFile << "\t.isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+				}
+
+				if (controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
+				{
+					verilogFile << "\t.doneTestingSinks_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "doneTestingSinks_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+					verilogFile << "\t.sourceTogglingIn_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "sourceTogglingIn_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+
+
 				}
 
 			}
@@ -883,12 +970,16 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	verilogFileSecondPart.close();
 }
 
-
-bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, int & testedAddressPortIndex, int & controllerType)
+// returns true if the input BRAM is being tested in the current phase
+// also returns what controller type this BRAM has, which addreess port is being tested and which x,y,z cell is the source of the tested path now
+bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, int & testedAddressPortIndex, int & controllerType, int & x, int & y, int & z, int & testedPath)
 {
 
 
-
+	x = -1;
+	y = -1;
+	z = -1;
+	testedPath = -1;
 
 	if (memoryControllers[iBRAM][jBRAM].size() > 0) // memory controller is needed
 	{
@@ -938,8 +1029,12 @@ bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, in
 				//	assert(paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][fpgaLogic[iBRAM][jBRAM][0].nodes[k].node].BRAMPortIn == BRAMportAAddress);
 					// return which pin is being tested
 					testedAddressPortIndex = paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][fpgaLogic[iBRAM][jBRAM][0].nodes[k].node].BRAMPortInIndex;
-
+					testedPath = fpgaLogic[iBRAM][jBRAM][0].nodes[k].path;
 					BRAMCurrentlyTested = true;
+					// set the source of the tested path
+					x = paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][0].x;
+					y = paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][0].y;
+					z = paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][0].z;
 					break;
 				}
 			}
@@ -967,7 +1062,7 @@ bool isBRAMControllerUsedInThisTestPhase(int iBRAM, int jBRAM, int testPhase, in
 					assert(!paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][0].deleted);
 
 					testedAddressPortIndex = -1;// paths[fpgaLogic[iBRAM][jBRAM][0].nodes[k].path][fpgaLogic[iBRAM][jBRAM][0].nodes[k].node].BRAMPortInIndex;
-
+					testedPath = fpgaLogic[iBRAM][jBRAM][0].nodes[k].path;
 					BRAMCurrentlyTested = true;
 					break;
 				}
@@ -1182,6 +1277,11 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 						to_test = getBRAMPortSize(i, j, BRAMportBAddress, memories);
 						controllerFile << "output reg [" << /*memoryControllers[i][j][addressIndex].second*/ to_test - 1 << ":0] info_to_test_PATH" 
 							<< BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
+
+						controllerFile << "output reg sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "output reg isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+
+
 					}
 
 					if (controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
@@ -1191,6 +1291,10 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 						to_test = getBRAMPortSize(i, j, BRAMportAData, memories);
 						controllerFile << "output reg [" << /*memoryControllers[i][j][addressIndex].second*/ to_test - 1 << ":0] info_to_test_PATH"
 							<< BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
+						controllerFile << "output reg sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "output reg isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "output reg isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+
 					}
 
 					if (controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
@@ -1199,6 +1303,28 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 						to_test = getBRAMPortSize(i, j, BRAMportBData, memories);
 						controllerFile << "output reg [" << /*memoryControllers[i][j][addressIndex].second*/ to_test - 1 << ":0] info_to_test_PATH"
 							<< BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t";
+						controllerFile << "output reg sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "output reg isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+
+					}
+
+					if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+						|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+						|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
+					{
+						controllerFile << "output reg sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "output reg isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "output reg isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+					}
+
+					if (controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+						|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+						|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+						|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+						|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
+					{
+						controllerFile << "output doneTestingSinks_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "input sourceTogglingIn_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
 					}
 				}
 			}
@@ -1270,7 +1396,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	controllerFile << "// sticky modules for timer and done signals from BRAM is they exist\n\n\n";
 	controllerFile << "sticky_register timerReachedStickyReg (.clk(CLK), .d(timer_reached), .reset(timer_reached_sticky_reset), .q(timer_reached_sticky));\n\n" << std::endl;
 
-
+	controllerFile << "reg done_state;" << std::endl;
+	controllerFile << "reg done_state_noDataoutController;" << std::endl;
 
 
 	////////////////////////////////////////
@@ -1311,6 +1438,20 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 						<< BRAMNodeOwner << " (.clk(CLK), .d(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner
 						<< "_BRAM), .reset(timer_reached_sticky_reset), .q(done_PATH" << BRAMPathOwner
 						<< "NODE" << BRAMNodeOwner << "_BRAM_sticky));\n" << std::endl;
+
+
+					if (controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+						|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+						|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+						|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+						|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
+					{
+						// setting the default value to don_State_noDataoutController
+						// means that the done testing given as input to the data out controller will always follow the done signal
+						// given as an output by the other controllers
+						// this is not the best solution but it's easy and it doesn't result in longer testing
+						controllerFile << "assign doneTestingSinks_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM = done_state_noDataoutController;\n"; //new
+					}
 				}
 			}
 		}
@@ -1397,7 +1538,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	//sequential part of the FSM, state transitions
 	////////////////////////////
 
-	controllerFile << "reg done_state;" << std::endl;
+
 
 	controllerFile << "always @ (posedge CLK or posedge reset) begin" << std::endl;
 	controllerFile << "\tif (reset)" << std::endl;
@@ -1470,6 +1611,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				}
 
 			}
+
+
 		}
 	}
 
@@ -1478,6 +1621,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 	controllerFile << "//default values " << std::endl;
 
 	// BRAM start_test and reset_test default values
+
+
 
 	for (int i = 0; i < FPGAsizeX; i++)
 	{
@@ -1497,16 +1642,52 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
 					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
 				{
+					// for data in set the inverting path to a default value of 0
+					if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
+					{
+						controllerFile << "\tisInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n"; //new
+					}
 					controllerFile << "\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling <= {"
 						<< testedPortSize << "{1'b0}};\n";
+
+				//	if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
+				//	{
+						controllerFile << "\tsourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= "
+							<< "1'b1;\n";
+
+						controllerFile << "\tisSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n"; //new
+				//	}
 				}
-				
+				if (controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+					|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+					|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
+				{
+					controllerFile << "\tsourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= "
+						<< "1'b1;\n";
+					controllerFile << "\tisSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n"; //new
+					controllerFile << "\tisInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n"; //new
+				}
+
+		/*		if (controllerType == DATAOUT_SIMPLE_DUAL_CONTROLLER
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_NORMAL_CONTROLLER_PORTB
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTA
+					|| controllerType == DATAOUT_ROM_CONTROLLER_PORTB)
+				{
+					// setting the default value to don_State_noDataoutController
+					// means that the done testing given as input to the data out controller will always follow the done signal
+					// given as an output by the other controllers
+					// this is not the best solution but it's easy and it doesn't result in longer testing
+					controllerFile << "\tdoneTestingSinks_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= done_state_noDataoutController;\n"; //new
+				}
+				*/
 			}		
 		}
 	}
 	controllerFile << "\tenableErrorCheckingTemp <= ({ " << sinks.size() << "{enableErrorChecking}});" << std::endl;
 	controllerFile << "\ttimer_reached_sticky_reset <= 1'b0;\n";
 	controllerFile << "\tdone_state <= 1'b1;\n";
+	controllerFile << "\tdone_state_noDataoutController <= 1'b1;\n";
 	controllerFile << "\tcase (state)" << std::endl;
 	controllerFile << "\t\tIdle : begin" << std::endl;
 	//RESET state: in reset state fix all LUTs to a fixed output and todo: reset all source signals
@@ -2285,9 +2466,16 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 
 							currentlyTested = true;
 
-							// check if this sink is inside a BRAM
+							// check if the source is a BRAM
+							int testedPath = fpgaLogic[x][y][z].nodes[k].path;
+							int testedNode = fpgaLogic[x][y][z].nodes[k].node;
+							int srcX = paths[testedPath][0].x;
+							int srcY = paths[testedPath][0].y;
+							int srcZ = paths[testedPath][0].z;
+
+							// check if this sink is inside a BRAM and the source is not a BRAM
 							// this can only happen if this is a readable address port
-							if (fpgaLogic[x][y][z].isBRAM)
+							if (fpgaLogic[x][y][z].isBRAM && !fpgaLogic[srcX][srcY][srcZ].isBRAM)
 							{
 								if(memories[fpgaLogic[x][y][z].indexMemories[0]].portARegistered)
 									controllerFile << "\t\t\tenableErrorCheckingTemp[" << j 
@@ -2299,12 +2487,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 							}
 							
 
-							// check if the source is a BRAM
-							int testedPath = fpgaLogic[x][y][z].nodes[k].path;
-							int testedNode = fpgaLogic[x][y][z].nodes[k].node;
-							int srcX = paths[testedPath][0].x;
-							int srcY = paths[testedPath][0].y;
-							int srcZ = paths[testedPath][0].z;
+							
 
 							// if the source is a BRAM then adjust the checking for error signal
 							if (fpgaLogic[srcX][srcY][srcZ].isBRAM)
@@ -2340,7 +2523,17 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					{
 						int testedAddressPortIndex = -1;
 						int controllerType = -1;
-						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase( iBRAM, jBRAM, i, testedAddressPortIndex, controllerType);
+						int BRAMsrcX, BRAMsrcY, BRAMsrcZ, currentlyTestedPath;
+						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase(iBRAM, 
+							jBRAM,
+							i, 
+							testedAddressPortIndex, 
+							controllerType, 
+							BRAMsrcX,
+							BRAMsrcY,
+							BRAMsrcZ,
+							currentlyTestedPath);
+
 						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
 						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
 						// if BRAM is currently tested then let's add it to the errorSignalDivision
@@ -2361,16 +2554,103 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 								BRAMControllersTestedNow.push_back(std::make_pair(BRAMPathOwner, BRAMNodeOwner));
 							}
 							
+
+							// if we have a read incapable addres port being tested now
+							// let's check if it's source is a BRAM
+							// in that case we assign the sourceToggling signal of the sink BRAM
+							// to the one coming from the output
+			/*				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
+							{
+								// check if the source is a BRAM
+								if (fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].isBRAM)
+								{
+									int BRAMsrcPathOwner = fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].owner.path;
+									int BRAMsrcNodeOwner = fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].owner.node;
+									controllerFile << "\t\t\tsourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= ";
+									controllerFile << "sourceTogglingIn_PATH" << BRAMsrcPathOwner << "NODE" << BRAMsrcNodeOwner << "_BRAM;\n"; //new
+
+									// if the source BRAM is registered , then set the corresponding signal in the sink controller
+									if (memories[fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].indexMemories[0]].portARegistered)
+									{
+										controllerFile << "\t\t\tisSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b1;\n"; //new
+									}
+
+
+									// assign the done testing signal to the source BRAM
+									// it's done after all other BRAM sinks have finished testing
+									//done_state_noDataoutController
+									// added this to the default value
+									//controllerFile << "\t\t\tdoneTestingSinks_PATH" << BRAMsrcPathOwner << "NODE" << BRAMsrcNodeOwner << "_BRAM <= "; //new
+									//controllerFile << "done_state_noDataoutController;\n";
+								}
+								
+							}*/
 							
 
 							if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
 								|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
-								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+								|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+								|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+								|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
 							{
+
 								// set the corresponding info to test address or data
-								controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
-									<< "] <= 1'b1;\n";
+								if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+								{
+									controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
+										<< "] <= 1'b1;\n";
+								}
+
+								if (controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+									|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+									|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+									|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
+								{
+									controllerFile << "\t\t\tisInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= ";
+
+									if (isPathInverting(currentlyTestedPath))
+										controllerFile << "1'b1;\n";
+									else
+										controllerFile << "1'b0;\n";
+								}
+
+								// if we have a read incapable addres port being tested now or a data in port or a WE
+								// let's check if it's source is a BRAM
+								// in that case we assign the sourceToggling signal of the sink BRAM
+								// to the one coming from the output
+							//	if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
+							//	{
+									// check if the source is a BRAM
+									if (fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].isBRAM)
+									{
+										int BRAMsrcPathOwner = fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].owner.path;
+										int BRAMsrcNodeOwner = fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].owner.node;
+										controllerFile << "\t\t\tsourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= ";
+										controllerFile << "sourceTogglingIn_PATH" << BRAMsrcPathOwner << "NODE" << BRAMsrcNodeOwner << "_BRAM;\n"; //new
+
+									   // if the source BRAM is registered , then set the corresponding signal in the sink controller
+										if (memories[fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].indexMemories[0]].portARegistered)
+										{
+											controllerFile << "\t\t\tisSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b1;\n"; //new
+										}
+
+
+										// assign the done testing signal to the source BRAM
+										// it's done after all other BRAM sinks have finished testing
+										//done_state_noDataoutController
+										// added this to the default value
+										//controllerFile << "\t\t\tdoneTestingSinks_PATH" << BRAMsrcPathOwner << "NODE" << BRAMsrcNodeOwner << "_BRAM <= "; //new
+										//controllerFile << "done_state_noDataoutController;\n";
+									}
+
+							//	}
 							}
 							
 
@@ -2394,6 +2674,29 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 				}
 
 				if (BRAMControllersTestedNow.size() > 0)
+				{
+					controllerFile << " 1'b1;\n";
+				}
+
+
+				// done_state_noDataoutController signal for the current test phase
+				// utilizing the fact that errorSignalDivision[testPhaseCount] stores the BRAMs being tested in this phase
+				// except for the ones that are data out controller
+
+				if (errorSignalDivision[testPhaseCount].size() > 0)
+				{
+					controllerFile << "\t\t\tdone_state_noDataoutController <= 1'b1 & ";
+				}
+
+				for (int count = 0; count < errorSignalDivision[testPhaseCount].size(); count++)
+				{
+					// if it's an error from a BRAM
+					if(errorSignalDivision[testPhaseCount][count].first!=-1)
+						controllerFile << " done_PATH" << errorSignalDivision[testPhaseCount][count].first << "NODE" << errorSignalDivision[testPhaseCount][count].second << "_BRAM_sticky &";
+
+				}
+
+				if (errorSignalDivision[testPhaseCount].size() > 0)
 				{
 					controllerFile << " 1'b1;\n";
 				}
@@ -2442,7 +2745,16 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					{
 						int testedAddressPortIndex = -1;
 						int controllerType = -1;
-						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase(iBRAM, jBRAM, i, testedAddressPortIndex, controllerType);
+						int BRAMsrcX, BRAMsrcY, BRAMsrcZ, currentlyTestedPath;
+						bool BRAMCurrentlyTested = isBRAMControllerUsedInThisTestPhase(iBRAM,
+							jBRAM,
+							i,
+							testedAddressPortIndex,
+							controllerType, BRAMsrcX,
+							BRAMsrcY,
+							BRAMsrcZ,
+							currentlyTestedPath);
+
 						int BRAMPathOwner = fpgaLogic[iBRAM][jBRAM][0].owner.path;
 						int BRAMNodeOwner = fpgaLogic[iBRAM][jBRAM][0].owner.node;
 
@@ -2454,13 +2766,63 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 								|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
 								|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+								|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+								|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+								|| controllerType == WE_READ_INCAPABLE_CONTROLLER
 								)
 							{
-								// set the corresponding info to test (address or data in)
-								controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
-									<< "] <= 1'b1;\n";
+								if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
+								{
+									// set the corresponding info to test (address or data in)
+									controllerFile << "\t\t\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling[" << testedAddressPortIndex
+										<< "] <= 1'b1;\n";
+								}
+
+								if (controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
+									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
+									|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
+									|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTB
+									|| controllerType == WE_READ_INCAPABLE_CONTROLLER)
+								{
+									controllerFile << "\t\t\tisInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= ";
+
+									if (isPathInverting(currentlyTestedPath))
+										controllerFile << "1'b1;\n";
+									else
+										controllerFile << "1'b0;\n";
+								}
+
+								// if we have a read incapable addres port being tested now
+								// let's check if it's source is a BRAM
+								// in that case we assign the sourceToggling signal of the sink BRAM
+								// to the one coming from the output
+							//	if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
+							//	{
+									// check if the source is a BRAM
+									if (fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].isBRAM)
+									{
+										int BRAMsrcPathOwner = fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].owner.path;
+										int BRAMsrcNodeOwner = fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].owner.node;
+										controllerFile << "\t\t\tsourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= ";
+										controllerFile << "sourceTogglingIn_PATH" << BRAMsrcPathOwner << "NODE" << BRAMsrcNodeOwner << "_BRAM;\n"; //new
+										// if the source BRAM is registered , then set the corresponding signal in the sink controller
+										if (memories[fpgaLogic[BRAMsrcX][BRAMsrcY][BRAMsrcZ].indexMemories[0]].portARegistered)
+										{
+											controllerFile << "\t\t\tisSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b1;\n"; //new
+										}
+									}
+
+							//	}
+
 							}
 							//controllerFile << "| errorVec[" << j << "] ";
+
+
+							
 						}
 					}
 
@@ -4949,10 +5311,11 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 								{
 									assert(k == 0);
 									// if it's a BRAM let's get the key for this specific port
-									tempKey = "BRAM" + std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first) + "_"
-										+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first);
+									tempKey = "BRAM" + std::to_string(i) + std::to_string(j) + std::to_string(k) +
+										std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.first) + "_"
+										+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second);
 									// siince this is a new signal
-									first_route_found = false;
+									//first_route_found = false;
 								}
 
 								// check if this port was used before
@@ -4961,6 +5324,7 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 								// this port was not seen before, so let's create a new entry in the map
 								if (iterOutputPorts == outputPorts.end())
 								{
+									first_route_found = false;
 									outputPorts.insert(std::pair<std::string, std::string>(tempKey, ""));
 									iterOutputPorts = outputPorts.find(tempKey);
 									assert(iterOutputPorts != outputPorts.end());

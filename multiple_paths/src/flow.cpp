@@ -292,7 +292,7 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	}
 
 
-	if (remove_LUT_or_FF_in_LE() > 0) // not in ILP // new handled BRAM :)
+	if (remove_LUT_or_FF_in_LE() > 0) // not in ILP // new handles BRAM :)
 		scheduleChanged = true;
 
 	std::cout << "after removing LAB/reg in the same LE conflict number of Luts is :";
@@ -300,7 +300,7 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	
 	if (!ILPform)
 	{
-		if (remove_fanin_higher_than_three() > 0) // added to ILP // new handled BRAM and deletes paths to BRAM :)
+		if (remove_fanin_higher_than_three() > 0) // added to ILP // new handles BRAM and deletes paths to BRAM :)
 			scheduleChanged = true;
 
 		std::cout << "after removing fanin higher than three  number of Luts is ,";
@@ -1159,8 +1159,68 @@ void update_FPGA_fabric_with_memory_info(std::vector<BRAM>  memories)
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 
+bool isPathUsingDSP(int path)
+{
+	std::vector<int> xLocsBRAMs = { 22, 44, 71, 93 };
+	int i, j;
+	// set the isBRAM variable to true
+	for (i = 0; i < paths[path].size(); i++)
+	{
+		for (j = 0; j < xLocsBRAMs.size(); j++)
+		{
+			if (paths[path][i].x == xLocsBRAMs[j])
+				return true;
+			//fpgaLogic[xLocsBRAMs[i]][j][0].isBRAM = true;
+		}
+	}
+	return false;
+}
+
+void getPathsStats()
+{
+	int pathsStartinginBRAM = 0;
+	int pathsEndinginBRAM = 0;
+	int pathsUsingDSP = 0;
+	int pathsStartingAndEndinginBRAM = 0;
+
+	for (int i = 1; i < paths.size(); i++)
+	{
+
+		if (paths[i].size() <= 1)
+			continue;
+
+		int srcX = paths[i][0].x;
+		int srcY = paths[i][0].y;
+		int srcZ = paths[i][0].z;
+
+		int sinkX = paths[i][paths[i].size() - 1].x;
+		int sinkY = paths[i][paths[i].size() - 1].y;
+		int sinkZ = paths[i][paths[i].size() - 1].z;
+
+		if (fpgaLogic[srcX][srcY][srcZ].isBRAM && fpgaLogic[sinkX][sinkY][sinkZ].isBRAM)
+			pathsStartingAndEndinginBRAM++;
+		else if (fpgaLogic[srcX][srcY][srcZ].isBRAM)
+			pathsStartinginBRAM++;
+		else if (fpgaLogic[sinkX][sinkY][sinkZ].isBRAM)
+			pathsEndinginBRAM++;
+
+		if (isPathUsingDSP(i))
+		{
+			pathsUsingDSP++;
+		//	delete_path(i);
+		}
+	}
+
+	std::cout << "Path starting at BRAM only " << pathsStartinginBRAM << std::endl;
+	std::cout << "Path ending at BRAM only " << pathsEndinginBRAM << std::endl;
+	std::cout << "Paths starting and ending in BRAMs " << pathsStartingAndEndinginBRAM << std::endl;
+
+	std::cout << "Paths using DSP " << pathsUsingDSP << std::endl;
 
 
+	return;
+
+}
 
 
 int runiFRoC(int argc, char* argv[])
@@ -1196,6 +1256,7 @@ int runiFRoC(int argc, char* argv[])
 	update_FPGA_fabric_with_memory_info(memories);
 	parseIn("D:/PhDResearch/testingGIT/DVS2.0/fils/metaBRAMTrial");
 	read_routing("D:/PhDResearch/testingGIT/DVS2.0/fils/metaRoutingBRAMTrial");
+	getPathsStats();
 	//generate_BRAMsWYSYWIGs(memories,0);
 	//remove_fanin_higher_than_three();
 	// create Output Files
@@ -1204,7 +1265,9 @@ int runiFRoC(int argc, char* argv[])
 	remove_fanin_higher_than_three();
 	remove_arithLUT_with_two_inputs_and_no_cin();
 	remove_to_match_routing_constraint();
+	//todo: need to handle the case if a BRAM is feeding another BRAM with no LUTs in the middle, I must delete many paths to ensure fixing offpath inputs
 	remove_to_fix_off_path_inputs();
+	remove_to_fix_off_path_inputs_of_BRAM();
 	remove_to_toggle_source();
 
 	assign_test_phases_ib(false);
@@ -1217,20 +1280,24 @@ int runiFRoC(int argc, char* argv[])
 	std::vector <std::vector<int> > test_structure;
 	test_structure.resize(numberOfTestPhases);
 	int i;
-
+	int testedPaths = 0;
 	for (i = 1; i < (int)paths.size(); i++)
 	{
 		if (paths[i].size() <= 1)
 			continue;
 
 		if (!paths[i][0].deleted)
+		{
 			test_structure[paths[i][0].testPhase].push_back(i);
+			testedPaths++;
+		}
 		else
 		{
 			assert(paths[i][0].testPhase == -1);
 		}
 	}
 	unsigned int j;
+	std::cout << "Number of tested paths " << testedPaths << std::endl;
 	std::cout << " test phases look like : " << std::endl;
 	for (i = 0; i < (int)test_structure.size(); i++)
 	{
@@ -1242,7 +1309,7 @@ int runiFRoC(int argc, char* argv[])
 		std::cout << std::endl;
 	}
 
-	std::cout << "Done MAte" << std::endl;
+	std::cout << "Done Mate" << std::endl;
 	return 0;
 
 	///////////////////////////

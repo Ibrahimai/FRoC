@@ -275,8 +275,8 @@ class Logic_element
 {
 public:
 	int utilization;
-	int usedInputPorts;
-	int usedOutputPorts;
+	int usedInputPorts; // for BRAMs this represents the number of pins used
+	int usedOutputPorts; // for BRAMs this represents the number of output pns used
 	int FFMode; // -1 unused FF or source only, 0 means used from D input, 1 means used from sdata (with lsload connected to 1)  input
 	bool inputPorts[InputPortSize];
 	bool outputPorts[OutputPortSize];
@@ -297,8 +297,8 @@ public:
 	std::vector <int> indexMemories; // the corresponding index in the memories data structure (memories stores all info about the used BRAM)
 	int portAInputCount; // used input pins of port a
 	int portBInputCount; // used input pins of port b
-	int BRAMInputPortsUsed;
-	int BRAMOutputPortsUsed;
+	int BRAMInputPortsUsed; // number of input ports used
+	int BRAMOutputPortsUsed; // number of output ports used 
 	int countNumofMem; // num of memories mapped to this BRAM, used bcoz of mapping multiple brams to same cell by q
 
 

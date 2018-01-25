@@ -217,7 +217,8 @@ void ILP_solve()
 }
 
 */
-// maximize number of paths/ bitstream, using auxilliary variables to represent LUT inputs and use these variables to create constraints for LUT inputs and re-convergent fanout
+// maximize number of paths/bitstream,
+// using auxilliary variables to represent LUT inputs and use these variables to create constraints for LUT inputs and re-convergent fanout
 void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // bitstreams just for debugging purposes
 {
 	try {
@@ -277,10 +278,14 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 					if (k%LUTFreq != 0) // not lut skip
 						continue;
 
+					// 1st sol if BRAM then ignore
+					if (fpgaLogic[i][j][k].isBRAM)
+						continue;
+
 					if (fpgaLogic[i][j][k].utilization < 1) // not used skip
 						continue;
 
-					num_of_auxiliary_variables += fpgaLogic[i][j][k].usedInputPorts; // add used input port os this lut as they are variables;
+					num_of_auxiliary_variables += fpgaLogic[i][j][k].usedInputPorts; // add used input port of this lut as they are variables;
 
 					int double_check = 0;
 					for (int l = 0; l < InputPortSize; l++)
@@ -377,6 +382,9 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 					if (k%LUTFreq != 0) // if its a reg skip it
 						continue;
 
+					// 1st sol if BRAM then ignore
+					if (fpgaLogic[i][j][k].isBRAM)
+						continue;
 
 					std::vector<std::vector<int> > paths_sets;// 2d-vector to store all paths using pin x
 					paths_sets.resize(InputPortSize);
@@ -640,6 +648,10 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 					if (k%LUTFreq != 0) // if its a lut skip it
 						continue;
 
+					// 1st sol if BRAM then ignore
+					if (fpgaLogic[i][j][k].isBRAM)
+						continue;
+
 					bool adder = false;
 					int control_signals = 1;
 					if (check_control_signal_required(i, j, k))
@@ -798,6 +810,10 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 				for (int k = 0; k < FPGAsizeZ; k++)
 				{
 					if (k%LUTFreq != 0) // if it's a reg then skip
+						continue;
+
+					// 1st sol if BRAM then ignore
+					if (fpgaLogic[i][j][k].isBRAM)
 						continue;
 
 					// LUTs only
@@ -984,7 +1000,12 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 			int sourceRegY = paths[i][0].y;
 			int sourceRegZ = paths[i][0].z;
 
-			assert(sourceRegZ%LUTFreq != 0);// muts be reg
+			assert(sourceRegZ%LUTFreq != 0 
+				|| fpgaLogic[sourceRegX][sourceRegY][sourceRegZ].isBRAM);// muts be reg or a BRAM
+
+			// 1st sol if BRAM then ignore
+			if (fpgaLogic[sourceRegX][sourceRegY][sourceRegZ].isBRAM)
+				continue;
 
 			if (paths[i][paths[i].size() - 1].x == sourceRegX && paths[i][paths[i].size() - 1].y == sourceRegY && paths[i][paths[i].size() - 1].z == sourceRegZ) // feedback path so ignore it for now
 				continue;

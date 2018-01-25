@@ -217,7 +217,8 @@ int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs)
 			if (paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortIn == -1)
 			{
 				assert(paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortOut > -1);
-				tempPort = paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortOut;
+				tempPort = paths[fpgaLogic[x][y][z].nodes[i].path][fpgaLogic[x][y][z].nodes[i].node].BRAMPortOut
+					+ fpgaLogic[x][y][z].BRAMinputPorts.size(); // adding the size of the input ports to diff output ports from input ports
 			}
 			else
 			{
@@ -233,12 +234,24 @@ int reduce_number_of_LUT_inputs(int x, int y, int z, int excessInputs)
 			inputImportance.push_back(std::make_pair(tempPort, isInput));
 		}
 	}
+	if (excessInputs >= inputImportance.size())
+	{
+		std::cout << "Debug" << std::endl;
+		std::cout << x << " " << y << " " << z << std::endl;
+		std::cout << fpgaLogic[x][y][z].BRAMInputPortsUsed << std::endl;
+		std::cout << fpgaLogic[x][y][z].BRAMOutputPortsUsed << std::endl;
+	}
 	assert(excessInputs < inputImportance.size());
 	// now let's free the inputs (or outputs incase of the BRAM)
 	for (int i = 0; i < excessInputs; i++)
 	{
 		tempPort = inputImportance[inputImportance.size() - 1 - i].first; // get the least important port
 		isInput = inputImportance[inputImportance.size() - 1 - i].second; // see if this is an input or output port (only for BRAM)
+
+		// if it's not an inputport of a BRAM
+		//then let's map back the port appropriately.
+		if (isInput==0 && isBRAM)
+			tempPort -= fpgaLogic[x][y][z].BRAMinputPorts.size();
 
 		for (int j = 0; j < (int)fpgaLogic[x][y][z].nodes.size(); j++)
 		{
@@ -455,7 +468,7 @@ int remove_arithLUT_with_two_inputs_and_no_cin()
 void remove_feedback_paths()
 {
 	int total = 0;
-
+	int totalBRAM = 0;
 	for (int i = 0; i < (int)paths.size(); i++)
 	{
 		if (paths[i].size() < 1)
@@ -464,10 +477,16 @@ void remove_feedback_paths()
 		if (paths[i][0].x == paths[i][paths[i].size() - 1].x && paths[i][0].y == paths[i][paths[i].size() - 1].y && paths[i][0].z == paths[i][paths[i].size() - 1].z)
 		{
 			if (delete_path(i))
-				total++;
+			{
+				if (fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].isBRAM)
+					totalBRAM++;
+				else
+					total++;
+			}
 		}
 	}
 	std::cout << "**********Number of deleted paths due to wrap around paths : " << total << " **********" << std::endl;
+	std::cout << "**********Number of deleted paths due to wrap around paths from BRAM : " << totalBRAM << " **********" << std::endl;
 
 }
 
@@ -489,6 +508,9 @@ std::vector<Path_logic_component> number_of_distinct_inputs_to_lab(int x, int y,
 		if (fpgaLogic[x][y][i].utilization == 0)
 			continue;
 
+		// if it's a BRAM then ignore
+		if (fpgaLogic[x][y][i].isBRAM)
+			continue;
 
 		if (i % 2 == 1) // assumes that the input of the LUT (Xin) is not in the same LAB (conservetive assumption)
 		{
@@ -753,7 +775,105 @@ int remove_to_fix_off_path_inputs()
 }
 
 
-int  remove_to_toggle_source()
+// deletes all paths using BRAM (x,y,z) from input pin (InputPin)
+int delete_BRAM_paths_from_input_pin(int x, int y, int z, std::pair<int, int> InputPin)
+{
+
+	assert(fpgaLogic[x][y][z].isBRAM);
+	int total = 0;
+	int currentPath = -1;
+	int currentNode = -1;
+	for (int i = 0; i < fpgaLogic[x][y][z].nodes.size(); i++)
+	{
+		currentPath = fpgaLogic[x][y][z].nodes[i].path;
+		currentNode = fpgaLogic[x][y][z].nodes[i].node;
+
+		if (paths[currentPath][currentNode].BRAMPortIn == InputPin.first
+			&& paths[currentPath][currentNode].BRAMPortInIndex == InputPin.second)
+		{
+			if (delete_path(currentPath))
+				total++;
+		}
+	}
+
+	return total;
+}
+
+// handles the case when a BRAM feeds another BRAM
+// in that case it frees all but one input pin of the tested port
+int remove_to_fix_off_path_inputs_of_BRAM()
+{
+	int total = 0;
+	for (int i = 0; i < FPGAsizeX; i++)
+	{
+		for (int j = 0; j < FPGAsizeY; j++)
+		{
+			for (int k = 0; k < FPGAsizeZ; k++)
+			{
+				if (k%LUTFreq != 0) // if it's a reg then skip
+					continue;
+				if (fpgaLogic[i][j][k].isBRAM)
+				{
+					std::vector<std::pair<int, int>> usedBRAMs;
+					usedBRAMs.resize(0);
+					for (int z = 0; z < fpgaLogic[i][j][k].BRAMinputPorts.size(); z++)
+					{
+						for (int l = 0; l < fpgaLogic[i][j][k].BRAMinputPorts[z].size();l++)
+						{
+							if (fpgaLogic[i][j][k].BRAMinputPorts[z][l]) // check if this port is used
+							{
+
+								int pathFeeder, nodeFeeder;
+								assert(get_BRAM_feeder(i, j, k, std::make_pair(z, l), pathFeeder, nodeFeeder)); // get the feeder for this BRAM
+
+								int feederX = paths[pathFeeder][nodeFeeder].x;
+								int feederY = paths[pathFeeder][nodeFeeder].y;
+								int feederZ = paths[pathFeeder][nodeFeeder].z;
+								// if the feeder is not a BRAM
+								// then ignore it
+								if (!fpgaLogic[feederX][feederY][feederZ].isBRAM) 
+									continue;
+
+								bool sourceExisted = false;
+
+								for (int srcCounter = 0; srcCounter < usedBRAMs.size(); srcCounter++)
+								{
+									if (usedBRAMs[srcCounter].first == feederX
+										&& usedBRAMs[srcCounter].second == feederY)
+									{
+										sourceExisted = true;
+										break;
+									}
+								}
+								// assumes there is only one path that directly start at a BRAM and ends at another BRAM
+								if (sourceExisted)
+								{
+									total += delete_BRAM_paths_from_input_pin(i, j, k, std::make_pair(z, l));
+
+								//	if (delete_path(pathFeeder))
+								///		total++;
+								}
+								else
+								{
+									usedBRAMs.push_back(std::make_pair(feederX, feederY));
+								}
+							}
+						}
+					}
+
+				}
+			}
+		}
+	}
+
+
+	std::cout << "*************************************** deleted paths to fix direct memory-to-memory paths = " << total << "**********************************" << std::endl;
+	IgnoredPathStats << total << "\t";
+	return total;
+}
+
+
+int remove_to_toggle_source()
 {
 
 	int total = 0;

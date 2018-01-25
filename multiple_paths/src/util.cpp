@@ -239,12 +239,26 @@ void handle_BRAM_path_deletion(int x, int y, int z, int path, int node)
 		if (!outputPortStillUsed)
 		{
 			fpgaLogic[x][y][z].BRAMOutputPortsUsed--;
+			assert(!outputPinUsed);
 		}
 
 		if (!outputPinUsed)
 		{
-			fpgaLogic[x][y][z].BRAMOutputPortsUsed--;
+		//	fpgaLogic[x][y][z].BRAMOutputPortsUsed--;
 			fpgaLogic[x][y][z].usedOutputPorts--;
+		}
+
+		// change owner ship
+		bool isUsed = false;
+		for (int i = 0; i < (int)fpgaLogic[x][y][z].nodes.size(); i++)
+		{
+			if (!paths[fpgaLogic[x][y][z].nodes[i].path][0].deleted) // if this path is deleted then continue to next path
+			{
+				fpgaLogic[x][y][z].owner.path = fpgaLogic[x][y][z].nodes[i].path;
+				fpgaLogic[x][y][z].owner.node = fpgaLogic[x][y][z].nodes[i].node;
+				isUsed = true;
+				break;
+			}
 		}
 	}
 	else if (node == paths[path].size() - 1) // last node in the path is a BRAM
@@ -357,7 +371,8 @@ bool delete_path(int path)
 {
 	if (paths[path][0].deleted) // already deleted this path
 		return false;
-
+	if (path == 78)
+		std::cout << "debug" ;
 //	if (paths[path][0].x == 58 && paths[path][0].y == 21 && paths[path][0].z == 17)
 //		std::cout << "debuging 21-10-2016" << std::endl;
 
@@ -597,6 +612,20 @@ bool delete_path(int path)
 	}
 
 	return true;
+}
+
+
+bool isPathInverting(int path)
+{
+	int numOfInversions = 0;
+	// loop through the used atoms but skip the source and sink regs
+	for (int i = 1; i < paths[path].size()-1; i++)
+	{
+		if (paths[path][i].inverting)
+			numOfInversions++;
+	}
+
+	return ((numOfInversions % 2) == 1);
 }
 
 #ifdef StratixV

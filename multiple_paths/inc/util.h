@@ -36,3 +36,5 @@ bool get_BRAM_feeder_special(
 	int & feederNode); // the node feeder for the specific pin
 
 std::string portNumbertoName(int BRAMportInfo);
+
+bool isPathInverting(int path);

@@ -388,7 +388,7 @@ int parseIn(std::string metaFileName)
 	bool invertingSignal;
 
 
-
+	int totalUnwantedPAths = 0;
 	while (std::getline(metaData, line))
 	{
 
@@ -621,6 +621,8 @@ int parseIn(std::string metaFileName)
 				else
 				{
 					std::cout << "Error in input meta file. BRAM input port is " << endPort << std::endl;
+					std::cout << x << " " << y << " " << " " << z << std::endl;
+					totalUnwantedPAths++;
 					assert(false);
 				}
 				if (fpgaLogic[x][y][z].countNumofMem < 2)
@@ -741,7 +743,7 @@ int parseIn(std::string metaFileName)
 			{
 				if (tempFFMode != fpgaLogic[x][y][z].FFMode)
 				{
-					std::cout << x << " " << y << " " << z;
+					std::cout << x << " " << y << " " << z << " " << std::endl;
 				}
 				assert(tempFFMode == fpgaLogic[x][y][z].FFMode); // we only support one mode of FF, either input through d or through sdata, but not both.
 			}
@@ -793,7 +795,7 @@ int parseIn(std::string metaFileName)
 	update_cascaded_list();
 
 	
-
+	std::cout << totalUnwantedPAths << std::endl;
 	return 1;
 }
 
