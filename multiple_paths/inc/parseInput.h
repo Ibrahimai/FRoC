@@ -1,4 +1,5 @@
 
+
 // returns 0 if it fails
 int parseOptions(int argc, char* argv[],
 	std::string & outputName,
@@ -10,7 +11,9 @@ int parseOptions(int argc, char* argv[],
 	double &  var,
 	double &  yld,
 	int &  MCsamplesCount,
-	std::string & MCsimFileName);
+	std::string & MCsimFileName,
+	std::vector<BRAM> & memories);
+
 void helpMessage(); // prints help message;
 bool isInt(std::string input); // return true if input string is an int
 int parseIn(std::string metaFileName);
@@ -21,3 +24,4 @@ bool compare_routing();
 void update_cascaded_list(); // adds cascaded paths to the list of cascadedPaths at every LUT.
 void print_path(int path);
 int read_timing_edges(char* edgesFile);
+

@@ -4,6 +4,548 @@
 #include "util.h"
 #include "routing_tree.h"
 
+// this function prints all information stored in mem
+// used for debugging and development
+void printMemory(BRAM mem)
+{
+
+
+
+	std::cout << "Memory " << mem.name << " has the following attributes:" << std::endl;
+
+	std::cout << "Xlocation " << mem.x << " Ylocation " << mem.y << std::endl;
+
+	std::cout << "Operation mode:";
+	if (mem.operationMode == 0)
+		std::cout << " Single Port. " << std::endl;
+	else if (mem.operationMode == 1)
+		std::cout << "Simple Dual Port." << std::endl;
+	else if (mem.operationMode == 2)
+		std::cout << "True Dual Port." << std::endl;
+	else
+	{
+		std::cout << "ERROR: Undefined mode" << std::endl;
+	}
+
+	std::cout << "Port A data width is " << mem.portADataWidth << ". Only " << mem.portAUsedDataWidth << " bits are used" << std::endl;
+
+	std::cout << "Port A address width is " << mem.portAAddressWidth << std::endl;
+
+	std::cout << "Port B data width is " << mem.portBDataWidth << ". Only " << mem.portBUsedDataWidth << " bits are used" << std::endl;
+
+	std::cout << "Port B address width is " << mem.portBAddressWidth << std::endl;
+
+	if (mem.portAWE)
+		std::cout << "Port A Write enable is used" << std::endl;
+
+	if (mem.portARE)
+		std::cout << "Port A Read enable is used" << std::endl;
+
+	if (mem.portBWE)
+		std::cout << "Port b Write enable is used" << std::endl;
+
+	if (mem.portBRE)
+		std::cout << "Port B read enable is used" << std::endl;
+
+	if (mem.clk0)
+		std::cout << "Clock 0 is used" << std::endl;
+
+	if (mem.clr0)
+		std::cout << "Clear 0 is used" << std::endl;
+
+	if (mem.ena0)
+		std::cout << "enable 0 is used" << std::endl;
+}
+
+
+
+
+bool parseUsedMemories(std::vector<BRAM> & memories, std::string memInfoFile)
+{
+	// "D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addressInReadIncapableBRAM/memInfo.txt"
+	std::ifstream metaData(memInfoFile);
+	if (!metaData)
+	{
+		std::cout << "Can not find file  Terminating.... " << std::endl;
+		return false;
+	}
+	std::string line;
+
+	bool first = true;
+
+	std::string memName = "";
+	int x = -1; // x location 
+	int y = -1; // y location
+	int operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
+							//int logicalDepth = -1;
+							//int lgoicalWidth = -1;
+	int portADataWidth = -1;
+	int portAUsedDataWidth = 0;
+	int portBDataWidth = -1;
+	int portBUsedDataWidth = 0;
+	int portAAddressWidth = -1;
+	int portBAddressWidth = -1;
+	bool portAWE = false;
+	bool portARE = false;
+	bool portBWE = false;
+	bool portBRE = false;
+	bool clk0 = false;
+	bool ena0 = false;
+	bool clr0 = false;
+
+	std::string header;
+
+	while (std::getline(metaData, line))
+	{
+		if (line == "*****New Memory*******")
+		{
+			// we are reading a new memory so create a mem for the previously read memory
+			// we should check if this is the first mem or not
+			if (!first)
+			{
+				BRAM mem;
+				mem.name = memName;
+				mem.x = x; // x location 
+				mem.y = y; // y location
+				mem.operationMode = operationMode; // mode of the BRAM {dual_port, single port, true dual}
+				mem.portADataWidth = portADataWidth;
+				mem.portBDataWidth = portBDataWidth;
+				mem.portAAddressWidth = portAAddressWidth;
+				mem.portBAddressWidth = portBAddressWidth;
+				mem.portAUsedDataWidth = portAUsedDataWidth;
+				mem.portBUsedDataWidth = portBUsedDataWidth;
+				mem.portAWE = portAWE;
+				mem.portARE = portARE;
+				mem.portBWE = portBWE;
+				mem.portBRE = portBRE;
+				mem.clk0 = clk0;
+				mem.ena0 = ena0;
+				mem.clr0 = clr0;
+
+				printMemory(mem);
+
+				memories.push_back(mem);
+
+				memName = "";
+				x = -1; // x location 
+				y = -1; // y location
+				operationMode = -1; // mode of the BRAM {dual_port, single port, true dual}
+									//int logicalDepth = -1;
+									//int lgoicalWidth = -1;
+				portADataWidth = -1;
+				portAUsedDataWidth = 0;
+				portBDataWidth = -1;
+				portBUsedDataWidth = 0;
+				portAAddressWidth = -1;
+				portBAddressWidth = -1;
+				portAWE = false;
+				portARE = false;
+				portBWE = false;
+				portBRE = false;
+				clk0 = false;
+				ena0 = false;
+				clr0 = false;
+
+			}
+
+			// read memory name
+			assert(std::getline(metaData, line));
+			std::stringstream nameStream(line);
+			nameStream >> memName;
+
+			// read memory loc
+			assert(std::getline(metaData, line));
+			std::stringstream loc(line);
+			loc >> x >> y;
+
+			//	std::cout << "Xloc " << x << std::endl;
+			//	std::cout << "yloc " << y << std::endl;
+
+			// read memory mode
+			assert(std::getline(metaData, line));
+			std::stringstream mode(line);
+			std::string modeLine;
+			mode >> modeLine >> modeLine;
+
+			if (modeLine == "Single")
+			{
+				operationMode = singlePort;
+			}
+			else if (modeLine == "Simple")
+			{
+				operationMode = simpleDualPort;
+			}
+			else if (modeLine == "True")
+			{
+				operationMode = trueDualPort;
+			}
+			else if (modeLine == "ROM")
+			{
+				operationMode = singlePort;
+			}
+			else
+			{
+				std::cout << modeLine << " is not a known mode!! Terminating" << std::endl;
+				assert(false);
+			}
+
+			//	std::cout << "mode " << operationMode;
+
+			// read logical depth
+			assert(std::getline(metaData, line));
+			std::stringstream logicalDepthStream(line);
+			logicalDepthStream >> header;
+			//	logicalDepthStream >> logicalDepth;
+			// for now ignore the logical depth reported in this file as I have seome incorrect values, should get it from the VQM file.
+
+			/*		if (!logicalDepthStream.eof())
+			{
+			if (logicalDepthStream.peek() == (int)'K')
+			{
+			logicalDepth = logicalDepth * 1024;
+			}
+			else
+			{
+
+			}
+
+
+			}*/
+
+			// read logical width
+			assert(std::getline(metaData, line));
+			std::stringstream logicalWidthStream(line);
+			logicalWidthStream >> header;
+			// for now ignore the logical depth reported in this file as I have seome incorrect values, should get it from the VQM file.
+
+			// read port a address width
+			assert(std::getline(metaData, line));
+			std::stringstream portAaddressWidthStream(line);
+			portAaddressWidthStream >> header;
+			portAaddressWidthStream >> portAAddressWidth;
+
+
+			// read port a data width
+			assert(std::getline(metaData, line));
+			std::stringstream portADataWidthStream(line);
+			portADataWidthStream >> header;
+			portADataWidthStream >> portADataWidth;
+
+			// read port b address width
+			assert(std::getline(metaData, line));
+			std::stringstream portBaddressWidthStream(line);
+			portBaddressWidthStream >> header;
+			portBaddressWidthStream >> portBAddressWidth;
+
+
+			// read port b data width
+			assert(std::getline(metaData, line));
+			std::stringstream portBDataWidthStream(line);
+			portBDataWidthStream >> header;
+			portBDataWidthStream >> portBDataWidth;
+
+			first = false;
+		}
+		else if (line == "*****Output Ports*******") // read output ports, to find how many bits are used
+		{
+			while (std::getline(metaData, line))
+			{
+				if (line == "*****Finish Output Ports*******")
+					break;
+				//	assert(std::getline(metaData, line));
+				std::stringstream outputPortStream(line);
+				outputPortStream >> header;
+				std::string port;
+				outputPortStream >> port;
+
+				if (port == "PORTADATAOUT")
+					portAUsedDataWidth++;
+				else if (port == "PORTBDATAOUT")
+					portBUsedDataWidth++;
+				else
+				{
+					std::cout << "Wrong memory output port format from tcl script " << std::endl;
+					assert(false);
+				}
+
+				// read port index
+				assert(std::getline(metaData, line));
+				// for now ignoer port index and will assume that the used ports start from index zero and incrtement by1.
+
+			}
+
+		}
+		else if (line == "****Input Ports*******")
+		{
+			while (std::getline(metaData, line))
+			{
+				if (line == "****Finish Input Ports*******")
+					break;
+				//	assert(std::getline(metaData, line));
+				std::stringstream inputPortStream(line);
+				inputPortStream >> header;
+				std::string port;
+				inputPortStream >> port;
+				if (port == "PORTAWE")
+					portAWE = true;
+				else if (port == "PORTARE")
+					portARE = true;
+				else if (port == "PORTBWE")
+					portBWE = true;
+				else if (port == "PORTBRE")
+					portBRE = true;
+				else if (port == "ENA0")
+					ena0 = true;
+				else if (port == "CLR0")
+					clr0 = true;
+				else if (port == "CLK0")
+					clk0 = true;
+				else
+				{
+					if (!(port == "PORTADATAIN" || port == "PORTAADDR" || port == "PORTBADDR" || port == "PORTBDATAIN"))
+					{
+						std::cout << "One of the input port to this memory is not what I am used to!!" << std::endl;
+						std::cout << port << std::endl;
+					}
+				}
+
+				assert(std::getline(metaData, line));
+				// for now ignoer port index and will assume that the used ports start from index zero and incrtement by1.
+
+
+			}
+		}
+	}
+
+	// add the last memory man
+	BRAM mem;
+	mem.name = memName;
+	mem.x = x; // x location 
+	mem.y = y; // y location
+	mem.operationMode = operationMode; // mode of the BRAM {dual_port, single port, true dual}
+	mem.portADataWidth = portADataWidth;
+	mem.portBDataWidth = portBDataWidth;
+	mem.portAAddressWidth = portAAddressWidth;
+	mem.portBAddressWidth = portBAddressWidth;
+	mem.portAUsedDataWidth = portAUsedDataWidth;
+	mem.portBUsedDataWidth = portBUsedDataWidth;
+	mem.portAWE = portAWE;
+	mem.portARE = portARE;
+	mem.portBWE = portBWE;
+	mem.portBRE = portBRE;
+	mem.clk0 = clk0;
+	mem.ena0 = ena0;
+	mem.clr0 = clr0;
+
+	printMemory(mem);
+
+	memories.push_back(mem);
+
+	return true;
+
+}
+
+
+// parses the text file genreated from the quartus_sta executable
+// it tells us the regis inside the memory
+bool parseRegFileSTA(std::vector<BRAM> & memories, std::string memRegInfoFile)
+{
+	//"D:/PhDResearch/DVS/Projects/15.1/memoryStuff/BRAMVQM/addressInReadIncapableBRAM/memRegInfo.txt"
+	std::ifstream metaData(memRegInfoFile);
+	if (!metaData)
+	{
+		std::cout << "Can not find file " << memRegInfoFile << " , terminating " << std::endl;
+		return false;
+	}
+	std::string line;
+	std::string header;
+
+	// read the file line by line
+	while (std::getline(metaData, line))
+	{
+		int x, y;
+		std::stringstream lineStream(line);
+		lineStream >> x >> y;
+		// loop over all used memories
+		for (unsigned int i = 0; i < memories.size(); i++)
+		{
+			if (memories[i].x == x && memories[i].y == y)
+			{
+				memories[i].portARegistered = true;
+				memories[i].portBRegistered = true;
+			}
+		}
+
+	}
+	return true;
+}
+
+
+// sets the the isBRAM member of the FPGA fabric for all BRAMS
+// also sets the sizes of the input and output ports of the BRAMs in the FPGA fabric
+// the port info comes from the parsed memory info
+// should be called after parseUsedmemories or after memories is set
+// xLocsBRAMs is a vector with the x locations of BRAMS --> assuming coloumn like architecture
+void update_FPGA_fabric_with_memory_info(std::vector<BRAM> memories)
+{
+	// xLocsBram should be {15, 37, 51, 64, 78, 104}
+
+	// todo: put this in the CycloneIV model file
+	std::vector<int> xLocsBRAMs = { 15, 37, 51, 64, 78, 104 };
+	int i, j;
+	// set the isBRAM variable to true
+	for (i = 0; i < xLocsBRAMs.size(); i++)
+	{
+		for (j = 0; j < FPGAsizeY; j++)
+		{
+			fpgaLogic[xLocsBRAMs[i]][j][0].isBRAM = true;
+		}
+	}
+
+	// set the memory index and the sizes of the in/out ports of the memories
+	for (i = 0; i < (int)memories.size(); i++)
+	{
+		int memX = memories[i].x;
+		int memY = memories[i].y;
+
+
+		// this cell must be of type BRAM
+		assert(fpgaLogic[memX][memY][0].isBRAM);
+
+		// set the index in the corresponding cell in fpgaLogic
+		fpgaLogic[memX][memY][0].indexMemories.push_back(i);
+		fpgaLogic[memX][memY][0].countNumofMem++;
+		// at most only 2 BRAMs can b mapped to the same physical ram
+		assert(fpgaLogic[memX][memY][0].countNumofMem < 3);
+
+		bool secondMem = false;
+
+		// set the sizes of the input and output ports
+		// 1st mem mapped to this
+		if (fpgaLogic[memX][memY][0].countNumofMem == 1)
+		{
+			fpgaLogic[memX][memY][0].BRAMinputPorts.resize(BRAMinputPortsSize);
+			fpgaLogic[memX][memY][0].BRAMoutputPorts.resize(BRAMoutputPortsSize);
+		}
+		else // another mem is mapped here
+		{
+			assert(fpgaLogic[memX][memY][0].countNumofMem == 2);
+			secondMem = true;
+
+		}
+		// resize port a data and output
+		// and set them to false 
+		// todo: maybe it's better to use useddatawidth instead of datawidth
+		if (memories[i].portADataWidth > 0)
+		{
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].resize(memories[i].portADataWidth);
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].end(), false);
+
+				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].resize(memories[i].portADataWidth);
+				std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].begin(),
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].end(), false);
+
+			}
+			else // if it's the second BRAM then add to the vec
+			{
+				for (int tempCount = 0; tempCount < memories[i].portADataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAData].push_back(false);
+
+				for (int tempCount = 0; tempCount < memories[i].portADataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportAout].push_back(false);
+
+
+			}
+
+		}
+
+		// resize port b data and output
+		// and set them to false 
+		// todo: maybe it's better to use useddatawidth instead of datawidth
+		if (memories[i].portBDataWidth > 0)
+		{
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].resize(memories[i].portBDataWidth);
+
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].end(), false);
+
+				fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].resize(memories[i].portBDataWidth);
+
+				std::fill(fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].begin(),
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].end(), false);
+			}
+			else
+			{
+				for (int tempCount = 0; tempCount < memories[i].portBDataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBData].push_back(false);
+
+				for (int tempCount = 0; tempCount < memories[i].portBDataWidth; tempCount++)
+					fpgaLogic[memX][memY][0].BRAMoutputPorts[BRAMportBout].push_back(false);
+			}
+
+		}
+
+
+		// resize port a address
+		// and set them to false
+		if (memories[i].portAAddressWidth > 0)
+		{
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].resize(memories[i].portAAddressWidth);
+
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].end(), false);
+			}
+			else
+			{
+				assert(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAAddress].size() == memories[i].portAAddressWidth);
+			}
+		}
+
+
+		// resize port b address
+		// and set them to false
+		if (memories[i].portBAddressWidth > 0)
+		{
+			if (!secondMem) // if it's the first mem resize vec
+			{
+				fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].resize(memories[i].portBAddressWidth);
+
+				std::fill(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].begin(),
+					fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].end(), false);
+			}
+			else
+			{
+				assert(fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBAddress].size() == memories[i].portBAddressWidth);
+			}
+		}
+
+
+		// resize port a we
+		if (memories[i].portAWE)
+		{
+
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAWE].resize(1);
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportAWE][0] = false;
+		}
+
+		// resize port b we
+		if (memories[i].portBWE)
+		{
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBWE].resize(1);
+			fpgaLogic[memX][memY][0].BRAMinputPorts[BRAMportBWE][0] = false;
+		}
+
+
+
+	}
+}
 #ifdef CycloneIV
 
 // returns 0 if it fails
@@ -17,7 +559,8 @@ int parseOptions(int argc, char* argv[],
 	double &  var,
 	double &  yld,
 	int &  MCsamplesCount,
-	std::string & MCsimFileName){
+	std::string & MCsimFileName,
+	std::vector<BRAM> & memories){
 	////////////////////////////////////////////////
 	// Possible inputs file that iFRoC could take///
 	////////////////////////////////////////////////
@@ -27,13 +570,15 @@ int parseOptions(int argc, char* argv[],
 	std::string metaRoutingFileName = "";
 
 	// not required
+	std::string memInfoFileName = "";
+	std::string memRegInfoFileName = "";
 	std::string metaEdgeFileName = "";
 	MCsimFileName = "";
 	std::string checkRoutingFileName = ""; // file name of the rcf generated from the calibration bitstream, we use it to double check that our constraint were honored
 	outputName = "unkown";
-        std::string qsfFileName = "";
-        std::string rcfFileName = "";
-        bool modelFanouts = false;
+    std::string qsfFileName = "";
+    std::string rcfFileName = "";
+    bool modelFanouts = false;
 	// default option values
 	MCsimulation = false; // default no MCsim
 	readMCsamplesFile = false; // default no MCsim
@@ -116,6 +661,16 @@ int parseOptions(int argc, char* argv[],
 		{
 			std::cout << "Output file preceeded by  " << allCommandArguments[i] << std::endl;
 			outputName = allCommandArguments[i];
+		}
+		else if (option == "-fM" || option == "--memoryInfo")
+		{
+			std::cout << "Memory file used is " << allCommandArguments[i];
+			memInfoFileName = allCommandArguments[i];
+		}
+		else if (option == "-fMr" || option == "--memoryRInfo")
+		{
+			std::cout << "Memory Register info file used is " << allCommandArguments[i];
+			memRegInfoFileName = allCommandArguments[i];
 		}
 		else if (option == "-n" || option == "--bitstreams") // number of bit streams
 		{
@@ -274,6 +829,19 @@ int parseOptions(int argc, char* argv[],
 
 	}
 
+
+	if (memInfoFileName != "")
+	{
+		if (!parseUsedMemories(memories, memInfoFileName))
+			return 0;
+		if (memRegInfoFileName != "")
+		{
+			if (!parseRegFileSTA(memories, memRegInfoFileName))
+				return 0;
+		}
+		update_FPGA_fabric_with_memory_info(memories);
+	}
+
 	// parse the meta file
 
 	if (parseIn(metaFileName) == 0)
@@ -281,6 +849,8 @@ int parseOptions(int argc, char* argv[],
 		std::cout << "Terminating program...." << std::endl;
 		return 0;
 	}
+
+
 
 	// parse the routing file
 	if (read_routing(metaRoutingFileName) == 1)
@@ -335,6 +905,8 @@ void helpMessage() // prints help message
 	std::cout << "\t -fp  --meta       \tMeta file name need to run out parser on the delay report." << std::endl;
 	std::cout << "\t -fr  --metaRouting\tMeta routing file name need to run out parser on the delay report." << std::endl;
 	std::cout << "\t -fe  --metaEdge   \tMeta edge file used for MC simulation, need to run our edgeParser." << std::endl;
+	std::cout << "\t -fM  --memoryInfo \tMemory file generated from the getMemInfo.tcl script." << std::endl;
+	std::cout << "\t -fMr --memoryRInfo\tMemory register file generated from the getRegMemInfo.tcl script." << std::endl;
 	std::cout << "\t -fmc --MCfile     \tFile with a previous run of MC simulation, used to save time." << std::endl;
 	std::cout << "\t -o   --outputName \tApplication name, string will be appended to all output file name" << std::endl;
 	std::cout << "\t -n   --bitstreams \tNumber of desired calibration bitstreams" << std::endl;
@@ -342,9 +914,9 @@ void helpMessage() // prints help message
 	std::cout << "\t -y   --yld        \tHow does Quartus build their timing models.[default mu + 2 sigma]." << std::endl;
 	std::cout << "\t -mc  --MCsamples \tNUmber of MC samples" << std::endl;
 	std::cout << "\t -i   --ILP        \tILP mode, 0 is optimize per 1 but stream other wise optimize over all calibration bitstream." << std::endl;
-        std::cout << "\t -q   --QSF        \tQSF file name need to model fanouts" << std::endl;
-        std::cout << "\t -r   --RCF        \tRCF file name need to model fanouts" << std::endl;
-        std::cout << "\t -f   --fanout     \tModel fanouts (requires -q and -r options) if on option set, defaults to off" << std::endl << std::endl << std::endl;
+    std::cout << "\t -q   --QSF        \tQSF file name need to model fanouts" << std::endl;
+    std::cout << "\t -r   --RCF        \tRCF file name need to model fanouts" << std::endl;
+    std::cout << "\t -f   --fanout     \tModel fanouts (requires -q and -r options) if on option set, defaults to off" << std::endl << std::endl << std::endl;
 
 	std::cout << "Good luck with running iFRoC." << std::endl;
 
