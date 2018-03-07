@@ -85,7 +85,7 @@
 // data in from read capable (option 1: data in of port a) --> we must control addr_a, we_a
 #define DATAIN_READ_CAPABLE_CONTROLLER_PORTA 6
 // data in from read capable (option 2: data in of port b) --> we must control addr_b, we_b
-#define DATAIN_READ_CAPABLE_CONTROLLER_PORTB 52
+#define DATAIN_READ_CAPABLE_CONTROLLER_PORTB 48
 
 // WE read incapable (WEof port a) --> we must control addr_a, data_in_a, addr_b 
 #define WE_READ_INCAPABLE_CONTROLLER 19

@@ -123,11 +123,12 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 	std::ofstream LoFile;
 	std::string verilogFileName = "top_" + std::to_string(bitStreamNumber) + ".v";
 	verilogFile.open(verilogFileName);
-	verilogFile << "module top (input CLK, input reset, input start_test, output error, output fuck";
+	verilogFile << "module top (input CLK, input reset, input start_test, output error, ";
 #ifdef DUMMYREG
-	verilogFile << ", dummyOut";
+	verilogFile << " dummyOut,";
 #endif
-	verilogFile << " );" << std::endl;
+
+	verilogFile << " output fuck);" << std::endl;
 	int i = 0;
 	verilogFile << "//Control Signals" << std::endl;
 	verilogFile << "wire ";
@@ -258,10 +259,10 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
 						|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
 					{
-						if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
-						{
-							verilogFile << "wire isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
-						}
+					//	if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
+					//	{
+						verilogFile << "wire isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n"; //new
+					//	}
 						verilogFile << "wire [" << testedPortSize - 1 << ":0] info_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM;\n";
 					//	if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
 					//	{
@@ -329,8 +330,11 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 				if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER)
 				{
 					verilogFile << "controller_address_writeOnly #(.data_width(" << memories[memIndex].portAUsedDataWidth << "),\n"
-						<< "\t.address_width(" << fpgaLogic[i][j][0].BRAMinputPorts[BRAMportBAddress].size() << "),\n"
-						<< "\t.Latency(" << TESTING_LATENCY << ")) controller_BRAM_" << BRAMPathOwner << "_" << BRAMNodeOwner
+						<< "\t.address_width(" << fpgaLogic[i][j][0].BRAMinputPorts[BRAMportBAddress].size() << "),\n";
+					if (!memories[memIndex].portARegistered)
+						verilogFile << "\t.isBRAMReg(0),\n";
+
+						verilogFile << "\t.Latency(" << TESTING_LATENCY << ")) controller_BRAM_" << BRAMPathOwner << "_" << BRAMNodeOwner
 						<< " (.clk(CLK),\n"
 						<< "\t.startTest(start_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
 						<< "\t.reset(reset),\n"
@@ -340,7 +344,8 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						<< "\t.error(error_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
 						<< "\t.done(done_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
 						<< "\t.sourceToggling(sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
-						<< "\t.isSourceBRAMReg(isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+						<< "\t.isSourceBRAMReg(isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"
+						<< "\t.isInverting(isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n"; //new;
 
 					for (int k = 0; k < memoryControllers[i][j].size(); k++)
 					{
@@ -739,11 +744,11 @@ void create_auxil_file(std::vector <Path_logic_component> sinks,
 						<< "isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
 
 
-					if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
-					{
-						verilogFile << "\t.isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
-							<< "isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
-					}
+				//	if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
+				//	{
+					verilogFile << "\t.isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM("
+						<< "isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM),\n";
+				//	}
 						
 				}
 
@@ -1280,6 +1285,7 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 
 						controllerFile << "output reg sourceTogglingOut_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
 						controllerFile << "output reg isSourceBRAMReg_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
+						controllerFile << "output reg isInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM,\n\t"; //new
 
 
 					}
@@ -1643,10 +1649,10 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 					|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB)
 				{
 					// for data in set the inverting path to a default value of 0
-					if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
-					{
-						controllerFile << "\tisInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n"; //new
-					}
+				//	if (controllerType != ADDRESS_READ_INCAPABLE_CONTROLLER)
+				//	{
+					controllerFile << "\tisInverting_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM <= 1'b0;\n"; //new
+				//	}
 					controllerFile << "\tinfo_to_test_PATH" << BRAMPathOwner << "NODE" << BRAMNodeOwner << "_BRAM_toggling <= {"
 						<< testedPortSize << "{1'b0}};\n";
 
@@ -2606,7 +2612,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 										<< "] <= 1'b1;\n";
 								}
 
-								if (controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+								if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
 									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
 									|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
@@ -2781,7 +2788,8 @@ void create_controller_module(std::vector <Path_logic_component> sinks,
 										<< "] <= 1'b1;\n";
 								}
 
-								if (controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
+								if (controllerType == ADDRESS_READ_INCAPABLE_CONTROLLER
+									|| controllerType == DATAIN_READ_INCAPABLE_CONTROLLER
 									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTA
 									|| controllerType == DATAIN_READ_CAPABLE_CONTROLLER_PORTB
 									|| controllerType == WE_READ_CAPABLE_CONTROLLER_PORTA
@@ -3110,7 +3118,7 @@ void create_WYSIWYGs_file(int bitStreamNumber, std::vector<BRAM> memories) // al
 						int memIndex = fpgaLogic[i][j][k].indexMemories[0];
 
 						//todo: handle source, sink and control signals to BRAMs
-						BRAM_intermediateSignals += BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false, memories, sinks);
+						BRAM_intermediateSignals += BRAM_WYSIWYG_cycloneIV(memories[memIndex], verilogFile, false, memories, sinks, bitStreamNumber);
 					}
 				
 #endif
@@ -4599,7 +4607,9 @@ std::string assign_BRAM_intemediateSignals(BRAM memory, int BRAMportInfo, int me
 // prints a WYSIWYG for a single BRAM (memoryCell) into the verilogFile
 // adds the curent BRAM to the sinks if the address port from 
 // a read capable port is to be tested
-std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile, bool testingBRAMsOnly, std::vector<BRAM>  memories, std::vector <Path_logic_component> & sinks)
+std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
+	bool testingBRAMsOnly, std::vector<BRAM>  memories, 
+	std::vector <Path_logic_component> & sinks, int bitStreamNumber)
 {
 
 	// double check that this is stored as memory
@@ -4944,10 +4954,15 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".data_interleave_width_in_bits = 1;" << std::endl;
 		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".data_interleave_offset_in_bits = 1;" << std::endl;
 
+		// depth and width used for the mif
+		int BRAM_depth = -1;
+		int BRAM_width = -1;
+
 		if (memoryCell.portAAddressWidth > 0
 			|| memoryCell.portAUsedDataWidth > 0)
 		{
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_logical_ram_depth = " << pow(2, memoryCell.portAAddressWidth) << " ;" << std::endl;
+			BRAM_depth = pow(2, memoryCell.portAAddressWidth);
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_first_address = 0;" << std::endl;
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_last_address = " << pow(2, memoryCell.portAAddressWidth) - 1 << " ;" << std::endl;
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_address_width = " << memoryCell.portAAddressWidth << " ;" << std::endl;
@@ -4955,6 +4970,7 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 		if (memoryCell.portAUsedDataWidth > 0)
 		{
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_logical_ram_width = " << memoryCell.portAUsedDataWidth << " ;" << std::endl;
+			BRAM_width = memoryCell.portAUsedDataWidth;
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_first_bit_number = 0;" << std::endl;
 			verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_a_data_width = " << memoryCell.portAUsedDataWidth << " ;" << std::endl;
 		}
@@ -4994,6 +5010,16 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 				|| memoryCell.portBUsedDataWidth > 0)
 			{
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_logical_ram_depth = " << pow(2, memoryCell.portBAddressWidth) << " ;" << std::endl;
+				if (BRAM_depth != -1)
+				{
+					// BRAM depth was assigned from port A
+					// check that the widths are the same
+					assert(BRAM_depth == pow(2, memoryCell.portBAddressWidth));
+				}
+				else
+				{
+					BRAM_depth = pow(2, memoryCell.portBAddressWidth);
+				}
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_first_address = 0;" << std::endl;
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_last_address = " << pow(2, memoryCell.portBAddressWidth) - 1 << " ;" << std::endl;
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_address_width = " << memoryCell.portBAddressWidth << " ;" << std::endl;
@@ -5001,6 +5027,18 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 			if (memoryCell.portBUsedDataWidth > 0)
 			{
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_logical_ram_width = " << memoryCell.portBUsedDataWidth << " ;" << std::endl;
+
+				if (BRAM_width != -1)
+				{
+					// BRAM width was assigned from port A
+					// check that the widths are the same
+					assert(BRAM_width == memoryCell.portBUsedDataWidth);
+				}
+				else
+				{
+					BRAM_width = memoryCell.portBUsedDataWidth;
+				}
+
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_first_bit_number = 0;" << std::endl;
 				verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner << "_t_" << i << ".port_b_data_width = " << memoryCell.portBUsedDataWidth << " ;" << std::endl;
 			}
@@ -5038,6 +5076,43 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 
 		}
 
+		assert(BRAM_depth > 1 && BRAM_width > 0);
+		// create a mif file for this BRAM
+		std::ofstream MIF_File;
+		std::string MIF_Name = "MIF_File_" + std::to_string(bitStreamNumber) + "_PATH"
+			+ std::to_string(pathOwner) + "_NODE" + std::to_string(nodeOwner) + "_" + std::to_string(nodeOwner) + ".mif";
+		MIF_File.open(MIF_Name);
+
+		MIF_File << "WIDTH=" << BRAM_width << ";" << std::endl; 
+		MIF_File << "DEPTH=" << BRAM_depth << ";" << std::endl;
+		MIF_File << "ADDRESS_RADIX=UNS;" << std::endl;
+		MIF_File << "DATA_RADIX=BIN;" << std::endl << std::endl << std::endl;
+
+		MIF_File << "CONTENT BEGIN" << std::endl;
+
+		MIF_File << "\t[0.." << BRAM_depth - 2 << "] : ";
+		
+		for (int wordCounter = 0; wordCounter < BRAM_width; wordCounter++)
+			MIF_File << "0";
+
+		MIF_File << ";" << std::endl;
+
+
+		MIF_File << "\t" << BRAM_depth - 1 << " : ";
+
+		for (int wordCounter = 0; wordCounter < BRAM_width; wordCounter++)
+			MIF_File << "1";
+
+		MIF_File << ";" << std::endl;
+
+
+
+		MIF_File << "END;" << std::endl;
+
+		
+		verilogFile << "defparam " << "PATH" << pathOwner << "NODE" << nodeOwner
+			<< "_t_" << i << ".init_file = \"" << MIF_Name << "\";" << std::endl;
+
 	}
 	if (!testingBRAMsOnly)
 	{
@@ -5051,6 +5126,9 @@ std::string BRAM_WYSIWYG_cycloneIV(BRAM memoryCell, std::ofstream & verilogFile,
 		memorySinks.push_back(Path_logic_component(pathOwner, nodeOwner));
 	}
 	*/
+	
+
+
 
 	return intermediateSignals;
 }
@@ -5117,7 +5195,7 @@ void generate_BRAMsWYSYWIGs(std::vector<BRAM>  memories, int bitStreamNumber)
 	for (unsigned int i = 0; i < memories.size(); i++)
 	{
 
-		BRAM_WYSIWYG_cycloneIV(memories[i], verilogFile, false, memories, dummySinks);
+		BRAM_WYSIWYG_cycloneIV(memories[i], verilogFile, false, memories, dummySinks, bitStreamNumber);
 	}
 
 
@@ -5238,7 +5316,9 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 
 	bool foundSource = false;
     bool addBrace = false;
-        
+
+	std::vector<std::pair<std::string, int>> ram_sublocations;
+	ram_sublocations.resize(0);
        //reset all reserved fanout placements for the next bitstream
     for(unsigned i = 0; i < FPGAsizeX; i++){
 		for(unsigned j = 0; j < FPGAsizeY; j++){
@@ -5372,8 +5452,6 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 
 								if (!first_route_found)//if (l == 0)
 								{
-									if (path == 1253 && node == 10)
-										std::cout << "DEBUG" << std::endl;
 									// if the source is not a BRAM
 									if (!fpgaLogic[i][j][k].isBRAM)
 									{
@@ -5392,6 +5470,13 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 											(iterOutputPorts->second) += "_a_dataout["
 												+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
 												+ "] {\n";
+											
+											std::string tempRAM_sublocation = "PATH" + std::to_string(path) + "NODE" + std::to_string(node)
+												+ "_a_dataout["
+												+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
+												+ "]";
+
+											ram_sublocations.push_back(std::make_pair(tempRAM_sublocation, fpgaLogic[i][j][k].connections[l].memorySourcePort.second));
 										}
 										else // uses BRAM port B
 										{
@@ -5405,6 +5490,13 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 											(iterOutputPorts->second) += "_b_dataout["
 												+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
 												+ "] {\n";
+
+											std::string tempRAM_sublocation = "PATH" + std::to_string(path) + "NODE" + std::to_string(node)
+												+ "_b_dataout["
+												+ std::to_string(fpgaLogic[i][j][k].connections[l].memorySourcePort.second)
+												+ "]";
+
+											ram_sublocations.push_back(std::make_pair(tempRAM_sublocation, fpgaLogic[i][j][k].connections[l].memorySourcePort.second));
 
 										}
 
@@ -5776,6 +5868,25 @@ void create_RCF_file(int bitStreamNumber, std::vector<BRAM>  memories)
 	fileBraceRemoved += "\n } \n";
 	RoFileTest.open(RoFileNameTest);
 	RoFileTest << fileBraceRemoved;
+	
+	// print memory sub locations 
+	if (ram_sublocations.size() > 0)
+	{
+		RoFile << "\tsection ram_sublocations {" << std::endl;
+		RoFileTest << "\tsection ram_sublocations {" << std::endl;
+		for (int count = 0; count < ram_sublocations.size(); count++)
+		{
+			RoFile << "\t\t( " << ram_sublocations[count].first << ", 0, " << ram_sublocations[count].second << ");" << std::endl;
+			RoFileTest << "\t\t( " << ram_sublocations[count].first << ", 0, " << ram_sublocations[count].second << ");" << std::endl;
+		}
+
+
+		RoFile << "\t}" << std::endl;
+		RoFileTest << "\t}" << std::endl;
+
+
+
+	}
 }
 
 #endif

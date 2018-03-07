@@ -47,6 +47,14 @@ void update_paths_complete() // this is called after deleting paths and the whol
 	}
 }
 
+// resets memoryController between calib bitstreams
+void reset_memoryControllers()
+{
+	for (int i = 1; i < FPGAsizeX; i++)
+		for (int j = 1; j < FPGAsizeY; j++)
+			memoryControllers[i][j].resize(0);
+}
+
 void update_testedPaths(std::vector <std::vector<int> > test_structure) // test structure has the index of test phase and test_structure[i] contains all paths tested at phase i;
 {
 	std::vector<int> tested_path_in_current_bitstream; // all paths tested in the current bitstream

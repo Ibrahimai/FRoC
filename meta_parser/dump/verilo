@@ -1,0 +1,849 @@
+//////////////////////////////////////////////////****************************************PATH1*****************************************//////////////
+cycloneive_lcell_comb PATH1NODE1_t (
+	.datac(testVector1[0]),
+	.datad(PATH1NODE0),
+	.combout(PATH1NODE1));
+defparam PATH1NODE1_t .sumlutc_input = "datac";
+defparam PATH1NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH1NODE2_t (
+	.clk(CLK),
+	.d(PATH1NODE1),
+	.q(PATH1NODE2));
+defparam PATH1NODE2_t .power_up = "low";
+defparam PATH1NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH2*****************************************//////////////
+cycloneive_lcell_comb PATH2NODE1_t (
+	.datac(testVector2[0]),
+	.datad(PATH2NODE0),
+	.combout(PATH2NODE1));
+defparam PATH2NODE1_t .sumlutc_input = "datac";
+defparam PATH2NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH2NODE2_t (
+	.clk(CLK),
+	.d(PATH2NODE1),
+	.q(PATH2NODE2));
+defparam PATH2NODE2_t .power_up = "low";
+defparam PATH2NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH3*****************************************//////////////
+cycloneive_lcell_comb PATH3NODE1_t (
+	.datac(testVector3[0]),
+	.datad(PATH3NODE0),
+	.combout(PATH3NODE1));
+defparam PATH3NODE1_t .sumlutc_input = "datac";
+defparam PATH3NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH3NODE2_t (
+	.clk(CLK),
+	.d(PATH3NODE1),
+	.q(PATH3NODE2));
+defparam PATH3NODE2_t .power_up = "low";
+defparam PATH3NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH4*****************************************//////////////
+cycloneive_lcell_comb PATH4NODE1_t (
+	.datac(PATH4NODE0),
+	.datad(testVector4[0]),
+	.combout(PATH4NODE1));
+defparam PATH4NODE1_t .sumlutc_input = "datac";
+defparam PATH4NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH4NODE2_t (
+	.clk(CLK),
+	.d(PATH4NODE1),
+	.q(PATH4NODE2));
+defparam PATH4NODE2_t .power_up = "low";
+defparam PATH4NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH5*****************************************//////////////
+cycloneive_lcell_comb PATH5NODE1_t (
+	.datac(PATH5NODE0),
+	.datad(testVector5[0]),
+	.combout(PATH5NODE1));
+defparam PATH5NODE1_t .sumlutc_input = "datac";
+defparam PATH5NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH5NODE2_t (
+	.clk(CLK),
+	.d(PATH5NODE1),
+	.q(PATH5NODE2));
+defparam PATH5NODE2_t .power_up = "low";
+defparam PATH5NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH6*****************************************//////////////
+cycloneive_lcell_comb PATH6NODE1_t (
+	.datac(PATH6NODE0),
+	.datad(testVector6[0]),
+	.combout(PATH6NODE1));
+defparam PATH6NODE1_t .sumlutc_input = "datac";
+defparam PATH6NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH6NODE2_t (
+	.clk(CLK),
+	.d(PATH6NODE1),
+	.q(PATH6NODE2));
+defparam PATH6NODE2_t .power_up = "low";
+defparam PATH6NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH7*****************************************//////////////
+cycloneive_lcell_comb PATH7NODE1_t (
+	.datac(PATH7NODE0),
+	.datad(testVector7[0]),
+	.combout(PATH7NODE1));
+defparam PATH7NODE1_t .sumlutc_input = "datac";
+defparam PATH7NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH7NODE2_t (
+	.clk(CLK),
+	.d(PATH7NODE1),
+	.q(PATH7NODE2));
+defparam PATH7NODE2_t .power_up = "low";
+defparam PATH7NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH8*****************************************//////////////
+cycloneive_lcell_comb PATH8NODE1_t (
+	.datac(PATH8NODE0),
+	.datad(testVector8[0]),
+	.combout(PATH8NODE1));
+defparam PATH8NODE1_t .sumlutc_input = "datac";
+defparam PATH8NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH8NODE2_t (
+	.clk(CLK),
+	.d(PATH8NODE1),
+	.q(PATH8NODE2));
+defparam PATH8NODE2_t .power_up = "low";
+defparam PATH8NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH9*****************************************//////////////
+cycloneive_lcell_comb PATH9NODE1_t (
+	.datac(testVector9[0]),
+	.datad(PATH9NODE0),
+	.combout(PATH9NODE1));
+defparam PATH9NODE1_t .sumlutc_input = "datac";
+defparam PATH9NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH9NODE2_t (
+	.clk(CLK),
+	.d(PATH9NODE1),
+	.q(PATH9NODE2));
+defparam PATH9NODE2_t .power_up = "low";
+defparam PATH9NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH10*****************************************//////////////
+cycloneive_lcell_comb PATH10NODE1_t (
+	.datac(testVector10[0]),
+	.datad(PATH10NODE0),
+	.combout(PATH10NODE1));
+defparam PATH10NODE1_t .sumlutc_input = "datac";
+defparam PATH10NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH10NODE2_t (
+	.clk(CLK),
+	.d(PATH10NODE1),
+	.q(PATH10NODE2));
+defparam PATH10NODE2_t .power_up = "low";
+defparam PATH10NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH11*****************************************//////////////
+cycloneive_lcell_comb PATH11NODE1_t (
+	.datac(testVector11[0]),
+	.datad(PATH11NODE0),
+	.combout(PATH11NODE1));
+defparam PATH11NODE1_t .sumlutc_input = "datac";
+defparam PATH11NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH11NODE2_t (
+	.clk(CLK),
+	.d(PATH11NODE1),
+	.q(PATH11NODE2));
+defparam PATH11NODE2_t .power_up = "low";
+defparam PATH11NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH12*****************************************//////////////
+cycloneive_lcell_comb PATH12NODE1_t (
+	.datac(testVector12[0]),
+	.datad(PATH12NODE0),
+	.combout(PATH12NODE1));
+defparam PATH12NODE1_t .sumlutc_input = "datac";
+defparam PATH12NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH12NODE2_t (
+	.clk(CLK),
+	.d(PATH12NODE1),
+	.q(PATH12NODE2));
+defparam PATH12NODE2_t .power_up = "low";
+defparam PATH12NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH13*****************************************//////////////
+cycloneive_lcell_comb PATH13NODE1_t (
+	.datac(testVector13[0]),
+	.datad(PATH13NODE0),
+	.combout(PATH13NODE1));
+defparam PATH13NODE1_t .sumlutc_input = "datac";
+defparam PATH13NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH13NODE2_t (
+	.clk(CLK),
+	.d(PATH13NODE1),
+	.q(PATH13NODE2));
+defparam PATH13NODE2_t .power_up = "low";
+defparam PATH13NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH14*****************************************//////////////
+cycloneive_lcell_comb PATH14NODE1_t (
+	.datac(testVector14[0]),
+	.datad(PATH14NODE0),
+	.combout(PATH14NODE1));
+defparam PATH14NODE1_t .sumlutc_input = "datac";
+defparam PATH14NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH14NODE2_t (
+	.clk(CLK),
+	.d(PATH14NODE1),
+	.q(PATH14NODE2));
+defparam PATH14NODE2_t .power_up = "low";
+defparam PATH14NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH15*****************************************//////////////
+dffeas PATH15NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH15NODE0));
+defparam PATH15NODE0_t .power_up = "low";
+defparam PATH15NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH15NODE1_t (
+	.datab(PATH15NODE0),
+	.datad(testVector15[0]),
+	.combout(PATH15NODE1));
+defparam PATH15NODE1_t .sumlutc_input = "datac";
+defparam PATH15NODE1_t .lut_mask = "33CC";
+
+cycloneive_lcell_comb PATH15NODE2_t (
+	.datac(PATH15NODE1),
+	.datad(testVector15[1]),
+	.combout(PATH15NODE2));
+defparam PATH15NODE2_t .sumlutc_input = "datac";
+defparam PATH15NODE2_t .lut_mask = "0FF0";
+
+cycloneive_lcell_comb PATH15NODE3_t (
+	.datac(testVector15[2]),
+	.datad(PATH15NODE2),
+	.combout(PATH15NODE3));
+defparam PATH15NODE3_t .sumlutc_input = "datac";
+defparam PATH15NODE3_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH16*****************************************//////////////
+cycloneive_lcell_comb PATH16NODE1_t (
+	.datac(PATH16NODE0),
+	.datad(testVector16[0]),
+	.combout(PATH16NODE1));
+defparam PATH16NODE1_t .sumlutc_input = "datac";
+defparam PATH16NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH17*****************************************//////////////
+cycloneive_lcell_comb PATH17NODE1_t (
+	.datac(testVector17[0]),
+	.datad(PATH17NODE0),
+	.combout(PATH17NODE1));
+defparam PATH17NODE1_t .sumlutc_input = "datac";
+defparam PATH17NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH17NODE2_t (
+	.clk(CLK),
+	.d(PATH17NODE1),
+	.q(PATH17NODE2));
+defparam PATH17NODE2_t .power_up = "low";
+defparam PATH17NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH18*****************************************//////////////
+cycloneive_lcell_comb PATH18NODE1_t (
+	.datac(testVector18[0]),
+	.datad(PATH18NODE0),
+	.combout(PATH18NODE1));
+defparam PATH18NODE1_t .sumlutc_input = "datac";
+defparam PATH18NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH18NODE2_t (
+	.clk(CLK),
+	.d(PATH18NODE1),
+	.q(PATH18NODE2));
+defparam PATH18NODE2_t .power_up = "low";
+defparam PATH18NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH19*****************************************//////////////
+cycloneive_lcell_comb PATH19NODE1_t (
+	.datac(testVector19[0]),
+	.datad(PATH19NODE0),
+	.combout(PATH19NODE1));
+defparam PATH19NODE1_t .sumlutc_input = "datac";
+defparam PATH19NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH19NODE2_t (
+	.clk(CLK),
+	.d(PATH19NODE1),
+	.q(PATH19NODE2));
+defparam PATH19NODE2_t .power_up = "low";
+defparam PATH19NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH20*****************************************//////////////
+cycloneive_lcell_comb PATH20NODE1_t (
+	.datac(testVector20[0]),
+	.datad(PATH20NODE0),
+	.combout(PATH20NODE1));
+defparam PATH20NODE1_t .sumlutc_input = "datac";
+defparam PATH20NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH20NODE2_t (
+	.clk(CLK),
+	.d(PATH20NODE1),
+	.q(PATH20NODE2));
+defparam PATH20NODE2_t .power_up = "low";
+defparam PATH20NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH21*****************************************//////////////
+cycloneive_lcell_comb PATH21NODE1_t (
+	.datac(testVector21[0]),
+	.datad(PATH21NODE0),
+	.combout(PATH21NODE1));
+defparam PATH21NODE1_t .sumlutc_input = "datac";
+defparam PATH21NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH21NODE2_t (
+	.clk(CLK),
+	.d(PATH21NODE1),
+	.q(PATH21NODE2));
+defparam PATH21NODE2_t .power_up = "low";
+defparam PATH21NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH22*****************************************//////////////
+cycloneive_lcell_comb PATH22NODE1_t (
+	.datac(testVector22[0]),
+	.datad(PATH22NODE0),
+	.combout(PATH22NODE1));
+defparam PATH22NODE1_t .sumlutc_input = "datac";
+defparam PATH22NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH22NODE2_t (
+	.clk(CLK),
+	.d(PATH22NODE1),
+	.q(PATH22NODE2));
+defparam PATH22NODE2_t .power_up = "low";
+defparam PATH22NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH23*****************************************//////////////
+cycloneive_lcell_comb PATH23NODE1_t (
+	.datac(testVector23[0]),
+	.datad(PATH23NODE0),
+	.combout(PATH23NODE1));
+defparam PATH23NODE1_t .sumlutc_input = "datac";
+defparam PATH23NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH23NODE2_t (
+	.clk(CLK),
+	.d(PATH23NODE1),
+	.q(PATH23NODE2));
+defparam PATH23NODE2_t .power_up = "low";
+defparam PATH23NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH24*****************************************//////////////
+cycloneive_lcell_comb PATH24NODE1_t (
+	.datac(testVector24[0]),
+	.datad(PATH24NODE0),
+	.combout(PATH24NODE1));
+defparam PATH24NODE1_t .sumlutc_input = "datac";
+defparam PATH24NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH24NODE2_t (
+	.clk(CLK),
+	.d(PATH24NODE1),
+	.q(PATH24NODE2));
+defparam PATH24NODE2_t .power_up = "low";
+defparam PATH24NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH25*****************************************//////////////
+cycloneive_lcell_comb PATH25NODE1_t (
+	.datac(testVector25[0]),
+	.datad(PATH25NODE0),
+	.combout(PATH25NODE1));
+defparam PATH25NODE1_t .sumlutc_input = "datac";
+defparam PATH25NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH25NODE2_t (
+	.clk(CLK),
+	.d(PATH25NODE1),
+	.q(PATH25NODE2));
+defparam PATH25NODE2_t .power_up = "low";
+defparam PATH25NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH26*****************************************//////////////
+cycloneive_lcell_comb PATH26NODE1_t (
+	.datac(testVector26[0]),
+	.datad(PATH26NODE0),
+	.combout(PATH26NODE1));
+defparam PATH26NODE1_t .sumlutc_input = "datac";
+defparam PATH26NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH26NODE2_t (
+	.clk(CLK),
+	.d(PATH26NODE1),
+	.q(PATH26NODE2));
+defparam PATH26NODE2_t .power_up = "low";
+defparam PATH26NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH27*****************************************//////////////
+cycloneive_lcell_comb PATH27NODE1_t (
+	.datac(testVector27[0]),
+	.datad(PATH27NODE0),
+	.combout(PATH27NODE1));
+defparam PATH27NODE1_t .sumlutc_input = "datac";
+defparam PATH27NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH27NODE2_t (
+	.clk(CLK),
+	.d(PATH27NODE1),
+	.q(PATH27NODE2));
+defparam PATH27NODE2_t .power_up = "low";
+defparam PATH27NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH28*****************************************//////////////
+dffeas PATH28NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH28NODE0));
+defparam PATH28NODE0_t .power_up = "low";
+defparam PATH28NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH28NODE1_t (
+	.dataa(PATH28NODE0),
+	.datad(testVector28[0]),
+	.combout(PATH28NODE1));
+defparam PATH28NODE1_t .sumlutc_input = "datac";
+defparam PATH28NODE1_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH28NODE2_t (
+	.datac(PATH28NODE1),
+	.datad(testVector28[1]),
+	.combout(PATH28NODE2));
+defparam PATH28NODE2_t .sumlutc_input = "datac";
+defparam PATH28NODE2_t .lut_mask = "0FF0";
+
+cycloneive_lcell_comb PATH28NODE3_t (
+	.datac(PATH28NODE2),
+	.datad(testVector28[2]),
+	.combout(PATH28NODE3));
+defparam PATH28NODE3_t .sumlutc_input = "datac";
+defparam PATH28NODE3_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH29*****************************************//////////////
+dffeas PATH29NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH29NODE0));
+defparam PATH29NODE0_t .power_up = "low";
+defparam PATH29NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH29NODE1_t (
+	.dataa(PATH29NODE0),
+	.datad(testVector29[0]),
+	.combout(PATH29NODE1));
+defparam PATH29NODE1_t .sumlutc_input = "datac";
+defparam PATH29NODE1_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH29NODE2_t (
+	.datab(PATH29NODE1),
+	.datad(testVector29[1]),
+	.combout(PATH29NODE2));
+defparam PATH29NODE2_t .sumlutc_input = "datac";
+defparam PATH29NODE2_t .lut_mask = "33CC";
+
+cycloneive_lcell_comb PATH29NODE3_t (
+	.dataa(PATH29NODE2),
+	.datad(testVector29[2]),
+	.combout(PATH29NODE3));
+defparam PATH29NODE3_t .sumlutc_input = "datac";
+defparam PATH29NODE3_t .lut_mask = "55AA";
+
+//////////////////////////////////////////////////****************************************PATH30*****************************************//////////////
+cycloneive_lcell_comb PATH30NODE1_t (
+	.datac(PATH30NODE0),
+	.datad(testVector30[0]),
+	.combout(PATH30NODE1));
+defparam PATH30NODE1_t .sumlutc_input = "datac";
+defparam PATH30NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH31*****************************************//////////////
+dffeas PATH31NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH31NODE0));
+defparam PATH31NODE0_t .power_up = "low";
+defparam PATH31NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH31NODE1_t (
+	.datab(PATH31NODE0),
+	.datad(testVector31[0]),
+	.combout(PATH31NODE1));
+defparam PATH31NODE1_t .sumlutc_input = "datac";
+defparam PATH31NODE1_t .lut_mask = "33CC";
+
+cycloneive_lcell_comb PATH31NODE2_t (
+	.datab(PATH31NODE1),
+	.datad(testVector31[1]),
+	.combout(PATH31NODE2));
+defparam PATH31NODE2_t .sumlutc_input = "datac";
+defparam PATH31NODE2_t .lut_mask = "33CC";
+
+cycloneive_lcell_comb PATH31NODE3_t (
+	.dataa(PATH31NODE2),
+	.datad(testVector31[2]),
+	.combout(PATH31NODE3));
+defparam PATH31NODE3_t .sumlutc_input = "datac";
+defparam PATH31NODE3_t .lut_mask = "55AA";
+
+//////////////////////////////////////////////////****************************************PATH32*****************************************//////////////
+cycloneive_lcell_comb PATH32NODE1_t (
+	.datac(PATH32NODE0),
+	.datad(testVector32[0]),
+	.combout(PATH32NODE1));
+defparam PATH32NODE1_t .sumlutc_input = "datac";
+defparam PATH32NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH33*****************************************//////////////
+dffeas PATH33NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH33NODE0));
+defparam PATH33NODE0_t .power_up = "low";
+defparam PATH33NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH33NODE1_t (
+	.datab(PATH33NODE0),
+	.datad(testVector33[0]),
+	.combout(PATH33NODE1));
+defparam PATH33NODE1_t .sumlutc_input = "datac";
+defparam PATH33NODE1_t .lut_mask = "33CC";
+
+cycloneive_lcell_comb PATH33NODE2_t (
+	.dataa(PATH33NODE1),
+	.datad(testVector33[1]),
+	.combout(PATH33NODE2));
+defparam PATH33NODE2_t .sumlutc_input = "datac";
+defparam PATH33NODE2_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH33NODE3_t (
+	.datab(PATH33NODE2),
+	.datad(testVector33[2]),
+	.combout(PATH33NODE3));
+defparam PATH33NODE3_t .sumlutc_input = "datac";
+defparam PATH33NODE3_t .lut_mask = "33CC";
+
+//////////////////////////////////////////////////****************************************PATH34*****************************************//////////////
+cycloneive_lcell_comb PATH34NODE1_t (
+	.datac(PATH34NODE0),
+	.datad(testVector34[0]),
+	.combout(PATH34NODE1));
+defparam PATH34NODE1_t .sumlutc_input = "datac";
+defparam PATH34NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH35*****************************************//////////////
+cycloneive_lcell_comb PATH35NODE1_t (
+	.datac(PATH35NODE0),
+	.datad(testVector35[0]),
+	.combout(PATH35NODE1));
+defparam PATH35NODE1_t .sumlutc_input = "datac";
+defparam PATH35NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH36*****************************************//////////////
+cycloneive_lcell_comb PATH36NODE1_t (
+	.datac(testVector36[0]),
+	.datad(PATH36NODE0),
+	.combout(PATH36NODE1));
+defparam PATH36NODE1_t .sumlutc_input = "datac";
+defparam PATH36NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH36NODE2_t (
+	.clk(CLK),
+	.d(PATH36NODE1),
+	.q(PATH36NODE2));
+defparam PATH36NODE2_t .power_up = "low";
+defparam PATH36NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH37*****************************************//////////////
+dffeas PATH37NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH37NODE0));
+defparam PATH37NODE0_t .power_up = "low";
+defparam PATH37NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH37NODE1_t (
+	.datac(testVector37[0]),
+	.datad(PATH37NODE0),
+	.combout(PATH37NODE1));
+defparam PATH37NODE1_t .sumlutc_input = "datac";
+defparam PATH37NODE1_t .lut_mask = "0FF0";
+
+cycloneive_lcell_comb PATH37NODE2_t (
+	.datac(PATH37NODE1),
+	.datad(testVector37[1]),
+	.combout(PATH37NODE2));
+defparam PATH37NODE2_t .sumlutc_input = "datac";
+defparam PATH37NODE2_t .lut_mask = "0FF0";
+
+cycloneive_lcell_comb PATH37NODE3_t (
+	.datac(testVector37[2]),
+	.datad(PATH37NODE2),
+	.combout(PATH37NODE3));
+defparam PATH37NODE3_t .sumlutc_input = "datac";
+defparam PATH37NODE3_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH38*****************************************//////////////
+cycloneive_lcell_comb PATH38NODE1_t (
+	.datac(testVector38[0]),
+	.datad(PATH38NODE0),
+	.combout(PATH38NODE1));
+defparam PATH38NODE1_t .sumlutc_input = "datac";
+defparam PATH38NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH38NODE2_t (
+	.clk(CLK),
+	.d(PATH38NODE1),
+	.q(PATH38NODE2));
+defparam PATH38NODE2_t .power_up = "low";
+defparam PATH38NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH39*****************************************//////////////
+cycloneive_lcell_comb PATH39NODE1_t (
+	.datac(PATH39NODE0),
+	.datad(testVector39[0]),
+	.combout(PATH39NODE1));
+defparam PATH39NODE1_t .sumlutc_input = "datac";
+defparam PATH39NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH40*****************************************//////////////
+cycloneive_lcell_comb PATH40NODE1_t (
+	.datac(PATH40NODE0),
+	.datad(testVector40[0]),
+	.combout(PATH40NODE1));
+defparam PATH40NODE1_t .sumlutc_input = "datac";
+defparam PATH40NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH40NODE2_t (
+	.clk(CLK),
+	.d(PATH40NODE1),
+	.q(PATH40NODE2));
+defparam PATH40NODE2_t .power_up = "low";
+defparam PATH40NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH41*****************************************//////////////
+dffeas PATH41NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH41NODE0));
+defparam PATH41NODE0_t .power_up = "low";
+defparam PATH41NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH41NODE1_t (
+	.dataa(PATH41NODE0),
+	.datad(testVector41[0]),
+	.combout(PATH41NODE1));
+defparam PATH41NODE1_t .sumlutc_input = "datac";
+defparam PATH41NODE1_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH41NODE2_t (
+	.dataa(PATH41NODE1),
+	.datad(testVector41[1]),
+	.combout(PATH41NODE2));
+defparam PATH41NODE2_t .sumlutc_input = "datac";
+defparam PATH41NODE2_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH41NODE3_t (
+	.dataa(PATH41NODE2),
+	.datad(testVector41[2]),
+	.combout(PATH41NODE3));
+defparam PATH41NODE3_t .sumlutc_input = "datac";
+defparam PATH41NODE3_t .lut_mask = "55AA";
+
+//////////////////////////////////////////////////****************************************PATH42*****************************************//////////////
+cycloneive_lcell_comb PATH42NODE1_t (
+	.datac(testVector42[0]),
+	.datad(PATH42NODE0),
+	.combout(PATH42NODE1));
+defparam PATH42NODE1_t .sumlutc_input = "datac";
+defparam PATH42NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH42NODE2_t (
+	.clk(CLK),
+	.d(PATH42NODE1),
+	.q(PATH42NODE2));
+defparam PATH42NODE2_t .power_up = "low";
+defparam PATH42NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH43*****************************************//////////////
+dffeas PATH43NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH43NODE0));
+defparam PATH43NODE0_t .power_up = "low";
+defparam PATH43NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH43NODE1_t (
+	.dataa(PATH43NODE0),
+	.datad(testVector43[0]),
+	.combout(PATH43NODE1));
+defparam PATH43NODE1_t .sumlutc_input = "datac";
+defparam PATH43NODE1_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH43NODE2_t (
+	.dataa(PATH43NODE1),
+	.datad(testVector43[1]),
+	.combout(PATH43NODE2));
+defparam PATH43NODE2_t .sumlutc_input = "datac";
+defparam PATH43NODE2_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH43NODE3_t (
+	.dataa(PATH43NODE2),
+	.datad(testVector43[2]),
+	.combout(PATH43NODE3));
+defparam PATH43NODE3_t .sumlutc_input = "datac";
+defparam PATH43NODE3_t .lut_mask = "55AA";
+
+//////////////////////////////////////////////////****************************************PATH44*****************************************//////////////
+cycloneive_lcell_comb PATH44NODE1_t (
+	.datac(PATH44NODE0),
+	.datad(testVector44[0]),
+	.combout(PATH44NODE1));
+defparam PATH44NODE1_t .sumlutc_input = "datac";
+defparam PATH44NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH45*****************************************//////////////
+cycloneive_lcell_comb PATH45NODE1_t (
+	.datac(testVector45[0]),
+	.datad(PATH45NODE0),
+	.combout(PATH45NODE1));
+defparam PATH45NODE1_t .sumlutc_input = "datac";
+defparam PATH45NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH45NODE2_t (
+	.clk(CLK),
+	.d(PATH45NODE1),
+	.q(PATH45NODE2));
+defparam PATH45NODE2_t .power_up = "low";
+defparam PATH45NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH46*****************************************//////////////
+dffeas PATH46NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH46NODE0));
+defparam PATH46NODE0_t .power_up = "low";
+defparam PATH46NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH46NODE1_t (
+	.datab(PATH46NODE0),
+	.datad(testVector46[0]),
+	.combout(PATH46NODE1));
+defparam PATH46NODE1_t .sumlutc_input = "datac";
+defparam PATH46NODE1_t .lut_mask = "33CC";
+
+cycloneive_lcell_comb PATH46NODE2_t (
+	.datac(PATH46NODE1),
+	.datad(testVector46[1]),
+	.combout(PATH46NODE2));
+defparam PATH46NODE2_t .sumlutc_input = "datac";
+defparam PATH46NODE2_t .lut_mask = "0FF0";
+
+cycloneive_lcell_comb PATH46NODE3_t (
+	.datac(testVector46[2]),
+	.datad(PATH46NODE2),
+	.combout(PATH46NODE3));
+defparam PATH46NODE3_t .sumlutc_input = "datac";
+defparam PATH46NODE3_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH47*****************************************//////////////
+cycloneive_lcell_comb PATH47NODE1_t (
+	.datac(testVector47[0]),
+	.datad(PATH47NODE0),
+	.combout(PATH47NODE1));
+defparam PATH47NODE1_t .sumlutc_input = "datac";
+defparam PATH47NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH47NODE2_t (
+	.clk(CLK),
+	.d(PATH47NODE1),
+	.q(PATH47NODE2));
+defparam PATH47NODE2_t .power_up = "low";
+defparam PATH47NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH48*****************************************//////////////
+dffeas PATH48NODE0_t (
+	.clk(CLK),
+	.d(xin),
+	.q(PATH48NODE0));
+defparam PATH48NODE0_t .power_up = "low";
+defparam PATH48NODE0_t .is_wysiwyg = "true";
+
+cycloneive_lcell_comb PATH48NODE1_t (
+	.datab(PATH48NODE0),
+	.datad(testVector48[0]),
+	.combout(PATH48NODE1));
+defparam PATH48NODE1_t .sumlutc_input = "datac";
+defparam PATH48NODE1_t .lut_mask = "33CC";
+
+cycloneive_lcell_comb PATH48NODE2_t (
+	.dataa(PATH48NODE1),
+	.datad(testVector48[1]),
+	.combout(PATH48NODE2));
+defparam PATH48NODE2_t .sumlutc_input = "datac";
+defparam PATH48NODE2_t .lut_mask = "55AA";
+
+cycloneive_lcell_comb PATH48NODE3_t (
+	.dataa(PATH48NODE2),
+	.datad(testVector48[2]),
+	.combout(PATH48NODE3));
+defparam PATH48NODE3_t .sumlutc_input = "datac";
+defparam PATH48NODE3_t .lut_mask = "55AA";
+
+//////////////////////////////////////////////////****************************************PATH49*****************************************//////////////
+cycloneive_lcell_comb PATH49NODE1_t (
+	.datac(PATH49NODE0),
+	.datad(testVector49[0]),
+	.combout(PATH49NODE1));
+defparam PATH49NODE1_t .sumlutc_input = "datac";
+defparam PATH49NODE1_t .lut_mask = "0FF0";
+
+//////////////////////////////////////////////////****************************************PATH50*****************************************//////////////
+cycloneive_lcell_comb PATH50NODE1_t (
+	.datac(testVector50[0]),
+	.datad(PATH50NODE0),
+	.combout(PATH50NODE1));
+defparam PATH50NODE1_t .sumlutc_input = "datac";
+defparam PATH50NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH50NODE2_t (
+	.clk(CLK),
+	.d(PATH50NODE1),
+	.q(PATH50NODE2));
+defparam PATH50NODE2_t .power_up = "low";
+defparam PATH50NODE2_t .is_wysiwyg = "true";
+
+//////////////////////////////////////////////////****************************************PATH51*****************************************//////////////
+cycloneive_lcell_comb PATH51NODE1_t (
+	.datac(testVector51[0]),
+	.datad(PATH51NODE0),
+	.combout(PATH51NODE1));
+defparam PATH51NODE1_t .sumlutc_input = "datac";
+defparam PATH51NODE1_t .lut_mask = "0FF0";
+
+dffeas PATH51NODE2_t (
+	.clk(CLK),
+	.d(PATH51NODE1),
+	.q(PATH51NODE2));
+defparam PATH51NODE2_t .power_up = "low";
+defparam PATH51NODE2_t .is_wysiwyg = "true";
+

@@ -350,6 +350,11 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 
 		for (int i = 1; i < (int)paths.size(); i++)
 		{
+			// if this is a path in the BRAM
+			// then its size would be 0
+			// ignore this path
+			if (paths[i].size() == 0)
+				continue;
 			if (paths[i][0].deleted) // path is deleted
 			{
 				model.addConstr(vars[i - 1], GRB_EQUAL, 0.0);
@@ -1246,6 +1251,11 @@ void ILP_solve(std::vector<double> pathsImport, bool use_MC, int bitstreams) // 
 
 			for (int i = 0; i < num_of_paths; i++)
 			{
+				// if this is a path in the BRAM
+				// then its size would be 0
+				// ignore this path
+				if (paths[i + 1].size() == 0)
+					continue;
 				if (paths[i + 1][0].deleted)
 					continue;
 				obj += vars[i];

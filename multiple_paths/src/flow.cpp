@@ -243,7 +243,7 @@ void cycloneIV_stuff(bool & scheduleChanged,
 		std::cout << "starting risky region" << std::endl;
 		casacadedRegion = true;
 	}
-	if (ILPform)//ILPform
+	if (true)//ILPform
 	{
 		//delete_especial_reconvergent_fanout();
 		//ILP_solve();
@@ -346,6 +346,33 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	totalTimingEdges = check_number_of_timing_edges_more();
 	std::cout << "total number of edges " << totalTimingEdges << std::endl;
 
+	// stats on paths tested
+
+	for (i = 1; i < (int)paths.size(); i++)
+	{
+		// if this is a path in the BRAM
+		// then its size would be 0
+		// ignore this path
+		if (paths[i].size() == 0)
+			continue;
+		if (!paths[i][0].deleted)
+			test_structure[paths[i][0].testPhase].push_back(i);
+		else
+		{
+			assert(paths[i][0].testPhase == -1);
+		}
+	}
+	unsigned int j;
+	std::cout << " test phases look like : " << std::endl;
+	for (i = 0; i < (int)test_structure.size(); i++)
+	{
+		std::cout << "Phase " << i << " has " << test_structure[i].size() << " paths and they are : ";
+		for (j = 0; j < test_structure[i].size(); j++)
+		{
+			std::cout << test_structure[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
 
 
 	// create Output Files
@@ -368,33 +395,12 @@ void cycloneIV_stuff(bool & scheduleChanged,
 	numberOfImpossibleFanouts = 0;
 	std::cout << "rcf created " << std::endl;
 
-	for (i = 1; i < (int)paths.size(); i++)
-	{
-		if (!paths[i][0].deleted)
-			test_structure[paths[i][0].testPhase].push_back(i);
-		else
-		{
-			assert(paths[i][0].testPhase == -1);
-		}
-	}
-	unsigned int j;
-	std::cout << " test phases look like : " << std::endl;
-	for (i = 0; i < (int)test_structure.size(); i++)
-	{
-		std::cout << "Phase " << i << " has " << test_structure[i].size() << " paths and they are : ";
-		for (j = 0; j < test_structure[i].size(); j++)
-		{
-			std::cout << test_structure[i][j] << " ";
-		}
-		std::cout << std::endl;
-	}
-
 
 	// update information of what paths are tested
 	update_testedPaths(test_structure);
 	update_paths_complete();
 	update_currentFabric();
-
+	reset_memoryControllers();
 
 
 }
@@ -827,6 +833,8 @@ int runiFRoC(int argc, char* argv[])
 	bool useFileForMC ;
 	// structure to store tested timing edges
 	std::map<std::string, double>  testedTimingEdgesMap;
+	getPathsStats();
+
 #ifdef MCsim
 	if (MCsimulation) // we want MC simulation
 	{

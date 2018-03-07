@@ -19,6 +19,11 @@ int count_cascaded_paths() // returns number of feedback paths
 	int totalFeedback = 0;
 	for (i = 1; i < (int)paths.size(); i++) // check for feed-back paths, by looping across all paths and checking if the first and last node have the same locations
 	{
+		// if this is a path in the BRAM
+		// then its size would be 0
+		// ignore this path
+		if (paths[i].size() == 0)
+			continue;
 		if (paths[i][0].x == paths[i].back().x && paths[i][0].y == paths[i].back().y && paths[i][0].z == paths[i].back().z)
 		{
 			totalFeedback++;
@@ -32,6 +37,11 @@ int count_cascaded_paths() // returns number of feedback paths
 	for (i = 1; i < (int)paths.size(); i++) // loop over all paths
 	{
 		bool isCascaded = false;
+		// if this is a path in the BRAM
+		// then its size would be 0
+		// ignore this path
+		if (paths[i].size() == 0)
+			continue;
 		for (j = 0; j < (int)fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes.size(); j++)
 		{
 			if (fpgaLogic[paths[i][0].x][paths[i][0].y][paths[i][0].z].nodes[j].node != 0)
@@ -356,6 +366,12 @@ void print_path_coverage_to_file()
 	int i;
 	for (i = 1; i < (int)paths.size(); i++)
 	{
+		// if this is a path in the BRAM
+		// then its size would be 0
+		// ignore this path
+		if (paths[i].size() == 0)
+			continue;
+
 		if (paths[i][0].deleted)
 			continue;
 		pathCoverageFile << pathSlack[i] << std::endl;
